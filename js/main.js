@@ -50,6 +50,7 @@ class GameApp {
             comboBadge: document.getElementById('comboBadge'),
             comboCount: document.getElementById('comboCount'),
             btnSelectLevel: document.getElementById('btnSelectLevel'),
+            btnFullscreen: document.getElementById('btnFullscreen'),
             btnPause: document.getElementById('btnPause'),
             btnMute: document.getElementById('btnMute'),
             btnUserProfile: document.getElementById('btnUserProfile'),
@@ -425,7 +426,12 @@ class GameApp {
             }
         });
 
-        // 顶部 HUD 按钮
+        if (this.dom.btnFullscreen) {
+            this.dom.btnFullscreen.addEventListener('click', () => this.toggleFullscreen());
+            document.addEventListener('fullscreenchange', () => this.syncFullscreenBtn());
+            document.addEventListener('webkitfullscreenchange', () => this.syncFullscreenBtn());
+        }
+
         this.dom.btnPause.addEventListener('click', () => {
             this.pvzEngine.isPaused = !this.pvzEngine.isPaused;
             this.dom.btnPause.innerText = this.pvzEngine.isPaused ? '▶️' : '⏸️';
@@ -435,6 +441,23 @@ class GameApp {
             const muted = soundEngine.toggleMute();
             this.dom.btnMute.innerText = muted ? '🔇' : '🔊';
         });
+
+        // 防止 iOS Safari 独立 WebApp (添加到主屏幕) 内部发生跳转时被系统强制弹出浏览器地址栏
+        if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
+            document.addEventListener('click', (e) => {
+                let target = e.target;
+                while (target && target.nodeName !== 'A') {
+                    target = target.parentNode;
+                }
+                if (target && target.nodeName === 'A' && target.getAttribute('href')) {
+                    const href = target.getAttribute('href');
+                    if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+                        e.preventDefault();
+                        window.location.href = href;
+                    }
+                }
+            }, false);
+        }
 
         // 关卡选择弹窗
         this.dom.btnSelectLevel.addEventListener('click', () => {
@@ -538,6 +561,30 @@ class GameApp {
         if (!q) return;
         this.dom.questionFormula.innerText = q.formula;
         this.dom.questionHint.innerText = q.hint || '🎯 口算速算挑战';
+    }
+
+    toggleFullscreen() {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            const root = document.documentElement;
+            if (root.requestFullscreen) {
+                root.requestFullscreen().catch(() => {});
+            } else if (root.webkitRequestFullscreen) {
+                root.webkitRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
+        }
+    }
+
+    syncFullscreenBtn() {
+        if (!this.dom.btnFullscreen) return;
+        const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        this.dom.btnFullscreen.innerText = isFull ? '🗗' : '⛶';
+        this.dom.btnFullscreen.title = isFull ? '退出全屏' : '进入全屏沉浸模式 (隐藏浏览器边框)';
     }
 
     updateProfileUI() {

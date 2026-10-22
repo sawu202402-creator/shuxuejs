@@ -2,19 +2,22 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no">
     <title>植物大战僵尸：数学大作战 (Math vs Zombies)</title>
     <meta name="description" content="专为小朋友打造的数学版植物大战僵尸！心算口算加减乘除，释放阳光与全屏觉醒大招，雷击破除僵尸数理护盾！">
     <!-- 网站 Logo 与书签 / 桌面图标配置 -->
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-    <!-- iPad / iPhone Safari 收藏夹书签 & "添加到主屏幕" App 级高清大图标 -->
+    <!-- iPad / iPhone Safari 收藏夹书签 & "添加到主屏幕" App 级高清大图标与纯净全屏配置 -->
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
     <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon-precomposed.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-touch-fullscreen" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="数学僵尸">
+    <meta name="apple-mobile-web-app-title" content="数学大作战">
+    <meta name="format-detection" content="telephone=no">
     <!-- PWA Web App 清单 -->
     <link rel="manifest" href="site.webmanifest">
     <meta name="theme-color" content="#488b2c">
@@ -59,9 +62,10 @@
                 </div>
             </div>
 
-            <!-- 右侧：关卡选择、暂停、音效 -->
+            <!-- 右侧：关卡选择、全屏、暂停、音效 -->
             <div class="hud-right-group">
                 <button class="btn-jelly-pill btn-jelly-pill-level" id="btnSelectLevel" title="更换关卡 (1-1 ~ 1-10)">🗺️ 第 1-1 关 ▾</button>
+                <button class="btn-jelly-circle" id="btnFullscreen" title="点击切换全屏沉浸模式 (隐藏浏览器边框)">⛶</button>
                 <button class="btn-jelly-circle" id="btnPause" title="暂停/继续游戏">⏸️</button>
                 <button class="btn-jelly-circle" id="btnMute" title="开启/关闭声音">🔊</button>
             </div>
