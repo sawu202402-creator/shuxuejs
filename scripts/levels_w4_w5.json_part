@@ -1,0 +1,1800 @@
+        ,
+        "4-1": {
+            "id": "4-1",
+            "world": 4,
+            "title": "第 4-1 关：浓雾笼罩 (初探迷雾)",
+            "bg": "assets/backgrounds/fog_viewport.jpg",
+            "isPool": true,
+            "isFog": true,
+            "rowCount": 6,
+            "waterRows": [
+                        2,
+                        3
+            ],
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+            ],
+            "allowedPlants": [
+                        "puffshroom",
+                        "sunshroom",
+                        "fumeshroom",
+                        "lilypad",
+                        "wallnut",
+                        "repeater"
+            ],
+            "rewardPlant": "seashroom",
+            "rewardText": "恭喜解锁：海蘑菇！免费水生喷射蘑菇！",
+            "waves": [
+                        {
+                                    "delay": 20,
+                                    "zombies": [
+                                                {
+                                                            "type": "normal",
+                                                            "row": 1
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "zombies": [
+                                                {
+                                                            "type": "normal",
+                                                            "row": 2
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 25,
+                                    "zombies": [
+                                                {
+                                                            "type": "conehead",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 28,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "conehead",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "normal",
+                                                            "row": 3
+                                                },
+                                                {
+                                                            "type": "conehead",
+                                                            "row": 5
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "4-2": {
+            "id": "4-2",
+            "world": 4,
+            "title": "第 4-2 关：隐秘杀机 (水生奇兵)",
+            "bg": "assets/backgrounds/fog_viewport.jpg",
+            "isPool": true,
+            "isFog": true,
+            "rowCount": 6,
+            "waterRows": [
+                        2,
+                        3
+            ],
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+            ],
+            "allowedPlants": [
+                        "puffshroom",
+                        "sunshroom",
+                        "seashroom",
+                        "lilypad",
+                        "wallnut",
+                        "repeater"
+            ],
+            "rewardPlant": "starfruit",
+            "rewardText": "恭喜解锁：星星果！向 5 个方向发射飞星！",
+            "waves": [
+                        {
+                                    "delay": 20,
+                                    "zombies": [
+                                                {
+                                                            "type": "normal",
+                                                            "row": 2
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "zombies": [
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 1
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 25,
+                                    "zombies": [
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "normal",
+                                                            "row": 3
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 28,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "conehead",
+                                                            "row": 4
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "4-3": {
+            "id": "4-3",
+            "world": 4,
+            "title": "第 4-3 关：五向齐发",
+            "bg": "assets/backgrounds/fog_viewport.jpg",
+            "isPool": true,
+            "isFog": true,
+            "rowCount": 6,
+            "waterRows": [
+                        2,
+                        3
+            ],
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+            ],
+            "allowedPlants": [
+                        "puffshroom",
+                        "sunshroom",
+                        "seashroom",
+                        "starfruit",
+                        "lilypad",
+                        "wallnut"
+            ],
+            "rewardPlant": "pumpkin",
+            "rewardText": "恭喜解锁：南瓜头！可套在任何植物外层提供4000点护甲！",
+            "waves": [
+                        {
+                                    "delay": 20,
+                                    "zombies": [
+                                                {
+                                                            "type": "conehead",
+                                                            "row": 0
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "zombies": [
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 25,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "normal",
+                                                            "row": 2
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 28,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 5
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 3
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "4-4": {
+            "id": "4-4",
+            "world": 4,
+            "title": "第 4-4 关：南瓜甲胄",
+            "bg": "assets/backgrounds/fog_viewport.jpg",
+            "isPool": true,
+            "isFog": true,
+            "rowCount": 6,
+            "waterRows": [
+                        2,
+                        3
+            ],
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+            ],
+            "allowedPlants": [
+                        "puffshroom",
+                        "sunshroom",
+                        "seashroom",
+                        "starfruit",
+                        "pumpkin",
+                        "lilypad"
+            ],
+            "rewardPlant": "magnetshroom",
+            "rewardText": "恭喜解锁：磁力菇！吸走僵尸的铁桶、铁门与头盔！",
+            "waves": [
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 1
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "zombies": [
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 25,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 5
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 28,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 3
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "4-5": {
+            "id": "4-5",
+            "world": 4,
+            "title": "第 4-5 关：磁力神威",
+            "bg": "assets/backgrounds/fog_viewport.jpg",
+            "isPool": true,
+            "isFog": true,
+            "rowCount": 6,
+            "waterRows": [
+                        2,
+                        3
+            ],
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+            ],
+            "allowedPlants": [
+                        "puffshroom",
+                        "sunshroom",
+                        "seashroom",
+                        "starfruit",
+                        "pumpkin",
+                        "magnetshroom",
+                        "lilypad"
+            ],
+            "rewardPlant": "blover",
+            "rewardText": "恭喜解锁：三叶草！瞬间刮起狂风吹散浓雾！",
+            "waves": [
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 1
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 20,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "zombies": [
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 0
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 28,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 5
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "4-6": {
+            "id": "4-6",
+            "world": 4,
+            "title": "第 4-6 关：狂风骤起",
+            "bg": "assets/backgrounds/fog_viewport.jpg",
+            "isPool": true,
+            "isFog": true,
+            "rowCount": 6,
+            "waterRows": [
+                        2,
+                        3
+            ],
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+            ],
+            "allowedPlants": [
+                        "puffshroom",
+                        "sunshroom",
+                        "seashroom",
+                        "starfruit",
+                        "pumpkin",
+                        "magnetshroom",
+                        "blover",
+                        "lilypad"
+            ],
+            "rewardPlant": "coffeebean",
+            "rewardText": "迷雾中风雷涌动！",
+            "waves": [
+                        {
+                                    "delay": 16,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 5
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 2
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 3
+                                                },
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 4
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "4-7": {
+            "id": "4-7",
+            "world": 4,
+            "title": "第 4-7 关：雾里看花",
+            "bg": "assets/backgrounds/fog_viewport.jpg",
+            "isPool": true,
+            "isFog": true,
+            "rowCount": 6,
+            "waterRows": [
+                        2,
+                        3
+            ],
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+            ],
+            "allowedPlants": [
+                        "puffshroom",
+                        "sunshroom",
+                        "seashroom",
+                        "starfruit",
+                        "pumpkin",
+                        "magnetshroom",
+                        "blover",
+                        "lilypad"
+            ],
+            "rewardPlant": "doomshroom",
+            "rewardText": "阵线坚如钢铁！",
+            "waves": [
+                        {
+                                    "delay": 16,
+                                    "zombies": [
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 3
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 5
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 4
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "4-8": {
+            "id": "4-8",
+            "world": 4,
+            "title": "第 4-8 关：迷雾暗流",
+            "bg": "assets/backgrounds/fog_viewport.jpg",
+            "isPool": true,
+            "isFog": true,
+            "rowCount": 6,
+            "waterRows": [
+                        2,
+                        3
+            ],
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+            ],
+            "allowedPlants": [
+                        "puffshroom",
+                        "sunshroom",
+                        "seashroom",
+                        "starfruit",
+                        "pumpkin",
+                        "magnetshroom",
+                        "blover",
+                        "lilypad"
+            ],
+            "rewardPlant": "jalapeno",
+            "rewardText": "暗流汹涌！向终极试炼进发！",
+            "waves": [
+                        {
+                                    "delay": 16,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 5
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "4-9": {
+            "id": "4-9",
+            "world": 4,
+            "title": "第 4-9 关：终战前夕",
+            "bg": "assets/backgrounds/fog_viewport.jpg",
+            "isPool": true,
+            "isFog": true,
+            "rowCount": 6,
+            "waterRows": [
+                        2,
+                        3
+            ],
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+            ],
+            "allowedPlants": [
+                        "puffshroom",
+                        "sunshroom",
+                        "seashroom",
+                        "starfruit",
+                        "pumpkin",
+                        "magnetshroom",
+                        "blover",
+                        "lilypad"
+            ],
+            "rewardPlant": "cherrybomb",
+            "rewardText": "浓雾即将消散！准备大决战！",
+            "waves": [
+                        {
+                                    "delay": 16,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 3
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 3
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 5
+                                                },
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 4
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "4-10": {
+            "id": "4-10",
+            "world": 4,
+            "title": "第 4-10 关：浓雾大决战 (传送带终极大试炼)",
+            "bg": "assets/backgrounds/fog_viewport.jpg",
+            "isPool": true,
+            "isFog": true,
+            "rowCount": 6,
+            "waterRows": [
+                        2,
+                        3
+            ],
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+            ],
+            "isConveyorBelt": true,
+            "conveyorCards": [
+                        "starfruit",
+                        "fumeshroom",
+                        "puffshroom",
+                        "seashroom",
+                        "pumpkin",
+                        "magnetshroom",
+                        "blover",
+                        "lilypad",
+                        "hypnoshroom"
+            ],
+            "allowedPlants": [
+                        "starfruit",
+                        "fumeshroom",
+                        "puffshroom",
+                        "seashroom",
+                        "pumpkin",
+                        "magnetshroom",
+                        "blover",
+                        "lilypad",
+                        "hypnoshroom"
+            ],
+            "rewardPlant": "trophy_fog",
+            "rewardText": "🎉 彻底驱散无尽浓雾！荣获第四大关荣誉勋章【紫晶幽夜向日葵】！🏆",
+            "waves": [
+                        {
+                                    "delay": 15,
+                                    "zombies": [
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 1
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 2
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 5
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 25,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 3
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 5
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "5-1": {
+            "id": "5-1",
+            "world": 5,
+            "title": "第 5-1 关：登高远望 (屋顶初战)",
+            "bg": "assets/backgrounds/roof_viewport.jpg",
+            "isRoof": true,
+            "rowCount": 5,
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4
+            ],
+            "allowedPlants": [
+                        "flowerpot",
+                        "cabbagepult",
+                        "sunflower",
+                        "wallnut",
+                        "repeater"
+            ],
+            "rewardPlant": "kernelpult",
+            "rewardText": "恭喜解锁：玉米投手！投掷玉米与定身黄油！",
+            "waves": [
+                        {
+                                    "delay": 20,
+                                    "zombies": [
+                                                {
+                                                            "type": "normal",
+                                                            "row": 2
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "zombies": [
+                                                {
+                                                            "type": "normal",
+                                                            "row": 1
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 25,
+                                    "zombies": [
+                                                {
+                                                            "type": "conehead",
+                                                            "row": 3
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 28,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "conehead",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "normal",
+                                                            "row": 4
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "5-2": {
+            "id": "5-2",
+            "world": 5,
+            "title": "第 5-2 关：黄油定身",
+            "bg": "assets/backgrounds/roof_viewport.jpg",
+            "isRoof": true,
+            "rowCount": 5,
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4
+            ],
+            "allowedPlants": [
+                        "flowerpot",
+                        "cabbagepult",
+                        "kernelpult",
+                        "sunflower",
+                        "wallnut"
+            ],
+            "rewardPlant": "garlic",
+            "rewardText": "恭喜解锁：大蒜！让僵尸换行避开！",
+            "waves": [
+                        {
+                                    "delay": 20,
+                                    "zombies": [
+                                                {
+                                                            "type": "normal",
+                                                            "row": 1
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "zombies": [
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 3
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 25,
+                                    "zombies": [
+                                                {
+                                                            "type": "conehead",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 28,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "conehead",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 3
+                                                },
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 4
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "5-3": {
+            "id": "5-3",
+            "world": 5,
+            "title": "第 5-3 关：辛辣换道",
+            "bg": "assets/backgrounds/roof_viewport.jpg",
+            "isRoof": true,
+            "rowCount": 5,
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4
+            ],
+            "allowedPlants": [
+                        "flowerpot",
+                        "cabbagepult",
+                        "kernelpult",
+                        "garlic",
+                        "sunflower",
+                        "wallnut"
+            ],
+            "rewardPlant": "melonpult",
+            "rewardText": "恭喜解锁：西瓜投手！超强80伤害与群伤溅射！",
+            "waves": [
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "conehead",
+                                                            "row": 2
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "zombies": [
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 1
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 25,
+                                    "zombies": [
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 3
+                                                },
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 0
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 28,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "5-4": {
+            "id": "5-4",
+            "world": 5,
+            "title": "第 5-4 关：碧玉飞瓜",
+            "bg": "assets/backgrounds/roof_viewport.jpg",
+            "isRoof": true,
+            "rowCount": 5,
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4
+            ],
+            "allowedPlants": [
+                        "flowerpot",
+                        "cabbagepult",
+                        "kernelpult",
+                        "garlic",
+                        "melonpult",
+                        "sunflower",
+                        "wallnut"
+            ],
+            "rewardPlant": "tallnut",
+            "rewardText": "高空重炮防线大成！",
+            "waves": [
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "zombies": [
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 3
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 25,
+                                    "zombies": [
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 28,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 3
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "5-5": {
+            "id": "5-5",
+            "world": 5,
+            "title": "第 5-5 关：瓦顶坚壁",
+            "bg": "assets/backgrounds/roof_viewport.jpg",
+            "isRoof": true,
+            "rowCount": 5,
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4
+            ],
+            "allowedPlants": [
+                        "flowerpot",
+                        "cabbagepult",
+                        "kernelpult",
+                        "melonpult",
+                        "garlic",
+                        "tallnut",
+                        "sunflower"
+            ],
+            "rewardPlant": "squash",
+            "rewardText": "防守密不透风！",
+            "waves": [
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "polevault",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 20,
+                                    "zombies": [
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 2
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 3
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 28,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 3
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "5-6": {
+            "id": "5-6",
+            "world": 5,
+            "title": "第 5-6 关：天台交锋",
+            "bg": "assets/backgrounds/roof_viewport.jpg",
+            "isRoof": true,
+            "rowCount": 5,
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4
+            ],
+            "allowedPlants": [
+                        "flowerpot",
+                        "cabbagepult",
+                        "kernelpult",
+                        "melonpult",
+                        "garlic",
+                        "tallnut",
+                        "sunflower"
+            ],
+            "rewardPlant": "jalapeno",
+            "rewardText": "横扫强敌！",
+            "waves": [
+                        {
+                                    "delay": 16,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 3
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 4
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "5-7": {
+            "id": "5-7",
+            "world": 5,
+            "title": "第 5-7 关：重炮齐鸣",
+            "bg": "assets/backgrounds/roof_viewport.jpg",
+            "isRoof": true,
+            "rowCount": 5,
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4
+            ],
+            "allowedPlants": [
+                        "flowerpot",
+                        "cabbagepult",
+                        "kernelpult",
+                        "melonpult",
+                        "garlic",
+                        "tallnut",
+                        "sunflower"
+            ],
+            "rewardPlant": "cherrybomb",
+            "rewardText": "火力覆盖全场！",
+            "waves": [
+                        {
+                                    "delay": 16,
+                                    "zombies": [
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 3
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 3
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "5-8": {
+            "id": "5-8",
+            "world": 5,
+            "title": "第 5-8 关：决胜屋脊",
+            "bg": "assets/backgrounds/roof_viewport.jpg",
+            "isRoof": true,
+            "rowCount": 5,
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4
+            ],
+            "allowedPlants": [
+                        "flowerpot",
+                        "cabbagepult",
+                        "kernelpult",
+                        "melonpult",
+                        "garlic",
+                        "tallnut",
+                        "sunflower"
+            ],
+            "rewardPlant": "torchwood",
+            "rewardText": "胜利近在咫尺！",
+            "waves": [
+                        {
+                                    "delay": 16,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 3
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 3
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 4
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "5-9": {
+            "id": "5-9",
+            "world": 5,
+            "title": "第 5-9 关：决战前夜",
+            "bg": "assets/backgrounds/roof_viewport.jpg",
+            "isRoof": true,
+            "rowCount": 5,
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4
+            ],
+            "allowedPlants": [
+                        "flowerpot",
+                        "cabbagepult",
+                        "kernelpult",
+                        "melonpult",
+                        "garlic",
+                        "tallnut",
+                        "sunflower"
+            ],
+            "rewardPlant": "starfruit",
+            "rewardText": "全军集结，准备终极大决战！",
+            "waves": [
+                        {
+                                    "delay": 15,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 3
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                }
+                                    ]
+                        }
+            ]
+}        ,
+        "5-10": {
+            "id": "5-10",
+            "world": 5,
+            "title": "第 5-10 关：屋顶终极大决战 (全通关最终试炼)",
+            "bg": "assets/backgrounds/roof_viewport.jpg",
+            "isRoof": true,
+            "rowCount": 5,
+            "activeRows": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4
+            ],
+            "isConveyorBelt": true,
+            "conveyorCards": [
+                        "flowerpot",
+                        "melonpult",
+                        "kernelpult",
+                        "cabbagepult",
+                        "tallnut",
+                        "squash",
+                        "jalapeno",
+                        "cherrybomb",
+                        "garlic"
+            ],
+            "allowedPlants": [
+                        "flowerpot",
+                        "melonpult",
+                        "kernelpult",
+                        "cabbagepult",
+                        "tallnut",
+                        "squash",
+                        "jalapeno",
+                        "cherrybomb",
+                        "garlic"
+            ],
+            "rewardPlant": "trophy_roof",
+            "rewardText": "👑 全通关大满贯！终极守护成功！荣获全游戏最高荣誉【黄金向日葵大奖杯】！🏆✨",
+            "waves": [
+                        {
+                                    "delay": 15,
+                                    "zombies": [
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 18,
+                                    "zombies": [
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 3
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 2
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 22,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "screendoor",
+                                                            "row": 3
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 25,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 3
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                }
+                                    ]
+                        },
+                        {
+                                    "delay": 28,
+                                    "isFlag": true,
+                                    "zombies": [
+                                                {
+                                                            "type": "flag",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 1
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 2
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 3
+                                                },
+                                                {
+                                                            "type": "football",
+                                                            "row": 4
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 0
+                                                },
+                                                {
+                                                            "type": "buckethead",
+                                                            "row": 4
+                                                }
+                                    ]
+                        }
+            ]
+}

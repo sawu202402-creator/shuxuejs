@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Raw materials and large archives
+*.zip
+newsucai/
+sucai/
+
+# Logs & temp files
+*.log
+scratch/
+test_*.png
+*.tmp
+
+# System files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

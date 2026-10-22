@@ -1,0 +1,11 @@
+serverAddr = "47.90.160.228"
+serverPort = 20009
+
+auth.token = "0918283328891823**."
+
+[[proxies]]
+name = "shuxue-pvz-10023"
+type = "tcp"
+remotePort = 10023
+localIP = "127.0.0.1"
+localPort = 8089
