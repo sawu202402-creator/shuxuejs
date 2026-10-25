@@ -35,6 +35,7 @@ class GameApp {
 
         // 绑定 DOM 元素
         this.dom = {
+            gameApp: document.getElementById('game-app'),
             loadingOverlay: document.getElementById('loadingOverlay'),
             loadingBarFill: document.getElementById('loadingBarFill'),
             loadingHintText: document.getElementById('loadingHintText'),
@@ -134,6 +135,7 @@ class GameApp {
 
     async init() {
         this.updateProfileUI();
+        this.fitToScreen();
 
         // 收集所有需要预加载的资产
         const assetPaths = [
@@ -432,6 +434,12 @@ class GameApp {
             document.addEventListener('webkitfullscreenchange', () => this.syncFullscreenBtn());
         }
 
+        // 窗口尺寸变化与屏幕旋转自适应
+        window.addEventListener('resize', () => this.fitToScreen());
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => this.fitToScreen(), 200);
+        });
+
         this.dom.btnPause.addEventListener('click', () => {
             this.pvzEngine.isPaused = !this.pvzEngine.isPaused;
             this.dom.btnPause.innerText = this.pvzEngine.isPaused ? '▶️' : '⏸️';
@@ -585,6 +593,54 @@ class GameApp {
         const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
         this.dom.btnFullscreen.innerText = isFull ? '🗗' : '⛶';
         this.dom.btnFullscreen.title = isFull ? '退出全屏' : '进入全屏沉浸模式 (隐藏浏览器边框)';
+        setTimeout(() => this.fitToScreen(), 100);
+    }
+
+    /**
+     * 屏幕自适应等比缩放引擎
+     * 解决 iPad / 平板 / 笔记本全屏或普通模式下画面过大、右侧计算器溢出屏幕的问题
+     * 保持 900x600 战场与 320px 算术黑板 1:1 并排完整可视，且触控与点击坐标 100% 精准
+     */
+    fitToScreen() {
+        const app = this.dom.gameApp || document.getElementById('game-app');
+        if (!app) return;
+
+        const baseW = 1250;
+        const baseH = 760;
+        const winW = window.innerWidth;
+        const winH = window.innerHeight;
+
+        // 预留平板防误触及安全区边距
+        const padX = 16;
+        const padY = 16;
+        const availW = Math.max(320, winW - padX);
+        const availH = Math.max(320, winH - padY);
+
+        const scaleX = availW / baseW;
+        const scaleY = availH / baseH;
+        const scale = Math.min(scaleX, scaleY, 1);
+
+        if (scale < 0.995) {
+            app.style.transformOrigin = 'top center';
+            app.style.transform = `scale(${scale})`;
+            app.style.width = `${baseW}px`;
+            app.style.maxWidth = 'none';
+
+            const scaledH = Math.ceil(baseH * scale);
+            const topMargin = Math.max(0, Math.floor((winH - scaledH) / 2));
+            document.body.style.overflow = 'hidden';
+            document.body.style.paddingTop = `${topMargin}px`;
+            document.body.style.paddingBottom = '0px';
+            document.body.style.paddingLeft = '0px';
+            document.body.style.paddingRight = '0px';
+        } else {
+            app.style.transformOrigin = 'top center';
+            app.style.transform = '';
+            app.style.width = '100%';
+            app.style.maxWidth = '1250px';
+            document.body.style.overflow = '';
+            document.body.style.padding = '8px 12px';
+        }
     }
 
     updateProfileUI() {

@@ -38,10 +38,12 @@ body {
 
 #game-app {
     width: 100%;
-    max-width: 1320px;
+    max-width: 1250px;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    transform-origin: top center;
+    transition: transform 0.12s ease-out;
 }
 
 /* ================= 1. 顶部原木 HUD 状态栏 ================= */
@@ -172,7 +174,9 @@ body {
 /* ================= 2. 主舞台视窗 (战区 + 黑板) ================= */
 .main-stage {
     display: flex;
-    gap: 14px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 12px;
     width: 100%;
     align-items: flex-start;
 }
@@ -744,15 +748,15 @@ body {
 
 /* ================= 3. 右侧：智慧小黑板算术法阵 ================= */
 .chalkboard-card {
-    width: 340px;
+    width: 320px;
     background: linear-gradient(180deg, #34495e 0%, #2c3e50 100%);
     border: 4px solid #4e342e;
     border-radius: 20px;
-    padding: 12px;
+    padding: 10px;
     box-shadow: 0 8px 0 #2d1810, 0 14px 26px rgba(0,0,0,0.3);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     color: #fff;
     flex-shrink: 0;
 }
@@ -867,8 +871,8 @@ body {
     background: linear-gradient(180deg, #ffffff 0%, #ecf0f1 100%);
     border: 3px solid #bdc3c7;
     border-radius: 14px;
-    padding: 12px 0;
-    font-size: 24px;
+    padding: 10px 0;
+    font-size: 22px;
     font-weight: 900;
     color: #2c3e50;
     box-shadow: 0 4px 0 #95a5a6;
@@ -1464,24 +1468,15 @@ body {
     z-index: 20;
 }
 
-@media (max-width: 900px) {
-    .main-stage {
-        flex-direction: column;
-    }
-    .chalkboard-card {
-        width: 100%;
-    }
-}
-
 /* ==========================================================================
    iPadOS / iOS 独立应用 (PWA Standalone) 与网页全屏 (Fullscreen) 专属适配
    ========================================================================== */
 @media all and (display-mode: standalone), (display-mode: fullscreen) {
     body {
-        padding-top: max(8px, env(safe-area-inset-top));
-        padding-bottom: max(8px, env(safe-area-inset-bottom));
-        padding-left: max(12px, env(safe-area-inset-left));
-        padding-right: max(12px, env(safe-area-inset-right));
+        padding-top: max(4px, env(safe-area-inset-top));
+        padding-bottom: max(4px, env(safe-area-inset-bottom));
+        padding-left: max(8px, env(safe-area-inset-left));
+        padding-right: max(8px, env(safe-area-inset-right));
         min-height: 100dvh;
     }
 }
@@ -1490,12 +1485,5 @@ body {
     width: 100%;
     height: 100%;
     background: linear-gradient(180deg, #74b9ff 0%, #a8e6cf 45%, #1dd1a1 100%);
-}
-
-:fullscreen #game-app, :-webkit-full-screen #game-app {
-    width: 100%;
-    max-width: 1320px;
-    height: 100%;
-    justify-content: center;
 }
 
