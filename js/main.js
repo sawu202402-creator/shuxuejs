@@ -218,11 +218,15 @@ class GameApp {
         // 加入所有植物卡牌与动画及状态变体
         Object.values(GAME_CONFIG.plants).forEach(p => {
             if (p.anim) assetPaths.push(p.anim);
+            if (p.attackAnim) assetPaths.push(p.attackAnim);
+            if (p.digestAnim) assetPaths.push(p.digestAnim);
             if (p.icon) assetPaths.push(p.icon);
             if (p.crack1Anim) assetPaths.push(p.crack1Anim);
             if (p.crack2Anim) assetPaths.push(p.crack2Anim);
             if (p.unarmedAnim) assetPaths.push(p.unarmedAnim);
             if (p.armedAnim) assetPaths.push(p.armedAnim);
+            if (p.mashedAnim) assetPaths.push(p.mashedAnim);
+            if (p.boomAnim) assetPaths.push(p.boomAnim);
             if (p.bigAnim) assetPaths.push(p.bigAnim);
             if (p.hideAnim) assetPaths.push(p.hideAnim);
             if (p.sleepAnim) assetPaths.push(p.sleepAnim);

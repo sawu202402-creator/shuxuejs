@@ -423,6 +423,12 @@ body {
     filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.95)) drop-shadow(0 0 6px #e67e22);
 }
 
+.sun-entity.small-sun {
+    width: 56px;
+    height: 56px;
+    filter: drop-shadow(0 0 7px rgba(255, 230, 0, 0.8));
+}
+
 .sun-img {
     width: 100%;
     height: 100%;
@@ -601,6 +607,20 @@ body {
     width: 166px;
     height: 144px;
     object-fit: contain;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.52));
+}
+
+/* 橄榄球僵尸原版魁梧体型规格 (200x168 画布，脚底与中心 1:1 对齐标准僵尸网格) */
+.zombie-entity.zombie-football {
+    width: 200px;
+    height: 168px;
+    margin-left: -17px;
+    margin-top: -24px;
+}
+
+.zombie-entity.zombie-football .zombie-gif {
+    width: 200px;
+    height: 168px;
 }
 
 .zombie-entity.hit-flash {
@@ -661,6 +681,11 @@ body {
     height: 48px;
     animation: armorDropFly 0.75s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
     z-index: 15;
+}
+
+.armor-drop-entity.armor-football {
+    width: 64px;
+    height: 68px;
 }
 
 .armor-drop-entity img {

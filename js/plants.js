@@ -301,22 +301,45 @@ export class PotatoMinePlant extends Plant {
         super('potatomine', row, col, x, y, entityLayer);
         this.isArmed = false;
         this.armTimer = 0;
+        this.lastEngine = null;
         this.anim = this.config.unarmedAnim;
         this.setAnim(this.config.unarmedAnim);
+    }
+
+    takeDamage(amount, attacker = null) {
+        // 已武装状态下若被任何敌方僵尸触碰/啃咬，立即引爆！
+        if (this.isArmed && !this.isDead && attacker && !attacker.isDead && !attacker.isHypnotized && this.lastEngine) {
+            this.explode(this.lastEngine, attacker);
+            return;
+        }
+        super.takeDamage(amount, attacker);
     }
 
     update(dt, engine) {
         super.update(dt, engine);
         if (this.isDead) return;
+        this.lastEngine = engine;
         if (!this.isArmed) {
             this.armTimer += dt;
-            if (this.armTimer >= this.config.armTime) {
+            if (this.armTimer >= (this.config.armTime || 15.0)) {
                 this.isArmed = true;
                 this.setAnim(this.config.armedAnim);
+                soundEngine.playPlant();
+                if (engine && engine.floatingTexts) {
+                    engine.floatingTexts.push(new FloatingText(this.x, this.y - 28, '💥 地雷已就绪!', '#e67e22', 16));
+                }
             }
-        } else {
+        }
+        if (this.isArmed && engine && engine.zombies) {
+            // 僵尸驻足啃咬距离为 38px，触发半径设为 [-38, +48] 确保僵尸踏入即刻引爆（撑杆跳起跳中除外）
             const zombieOnTop = engine.zombies.find(z =>
-                z.row === this.row && !z.isDead && Math.abs(z.x - this.x) <= 35
+                z.row === this.row &&
+                !z.isDead &&
+                !z.isDying &&
+                !z.isHypnotized &&
+                z.state !== 'jumping' &&
+                !z.hasPole &&
+                (z.x - this.x >= -38 && z.x - this.x <= 48)
             );
             if (zombieOnTop) {
                 this.explode(engine, zombieOnTop);
@@ -324,21 +347,28 @@ export class PotatoMinePlant extends Plant {
         }
     }
 
-    explode(engine, triggerZombie) {
+    explode(engine, triggerZombie = null) {
+        if (this.isDead) return;
         this.destroy();
         engine.explosions.push(new ExplosionEffect(this.x, this.y, 'potato'));
         soundEngine.playExplosion();
-        if (typeof triggerZombie.blastDie === 'function') {
-            triggerZombie.blastDie();
-        } else {
-            triggerZombie.takeDamage(this.config.damage);
+        if (engine.floatingTexts) {
+            engine.floatingTexts.push(new FloatingText(this.x, this.y - 46, '💥 SPUDOW!', '#f39c12', 22));
+        }
+        const dmg = this.config.damage || 1800;
+        if (triggerZombie && !triggerZombie.isDead && !triggerZombie.isHypnotized) {
+            if (typeof triggerZombie.blastDie === 'function') {
+                triggerZombie.blastDie();
+            } else {
+                triggerZombie.takeDamage(dmg);
+            }
         }
         engine.zombies.forEach(z => {
-            if (!z.isDead && z.row === this.row && Math.abs(z.x - this.x) <= 45) {
+            if (!z.isDead && !z.isHypnotized && z.row === this.row && Math.abs(z.x - this.x) <= 65) {
                 if (typeof z.blastDie === 'function') {
                     z.blastDie();
                 } else {
-                    z.takeDamage(this.config.damage);
+                    z.takeDamage(dmg);
                 }
             }
         });
@@ -507,7 +537,7 @@ export class PuffshroomPlant extends Plant {
     }
 }
 
-// 阳光菇 (25阳光，成长型产日)
+// 阳光菇 (25阳光，由幼体小蘑菇 120 秒成长为大蘑菇)
 export class SunshroomPlant extends Plant {
     constructor(row, col, x, y, entityLayer) {
         super('sunshroom', row, col, x, y, entityLayer);
@@ -517,14 +547,21 @@ export class SunshroomPlant extends Plant {
         this.hasProducedFirstSun = false;
     }
 
+    wakeUp(engine) {
+        super.wakeUp(engine);
+        if (!this.isAsleep && this.isGrown) {
+            this.setAnim(this.config.bigAnim || 'assets/plants/sunshroom_big.gif');
+        }
+    }
+
     update(dt, engine) {
         super.update(dt, engine);
         if (this.isDead || this.isAsleep) return;
 
-        // 90秒成长机制
+        // 120秒原版成长机制：从小阳光菇长大为大阳光菇
         if (!this.isGrown) {
             this.growTimer += dt;
-            if (this.growTimer >= (this.config.growTime || 90.0)) {
+            if (this.growTimer >= (this.config.growTime || 120.0)) {
                 this.isGrown = true;
                 this.setAnim(this.config.bigAnim || 'assets/plants/sunshroom_big.gif');
                 engine.floatingTexts.push(new FloatingText(this.x, this.y - 35, '✨ 阳光菇长大了!', '#f1c40f', 18));
@@ -547,17 +584,36 @@ export class SunshroomPlant extends Plant {
     }
 }
 
-// 大喷菇 (75阳光，穿透性直线云雾)
+// 大喷菇 (75阳光，喷口前伸喷射 8 帧穿透性孢子气泡流)
 export class FumeshroomPlant extends Plant {
     constructor(row, col, x, y, entityLayer) {
         super('fumeshroom', row, col, x, y, entityLayer);
         this.shootTimer = 0.5;
+        this.attackAnimTimer = 0;
         this.range = this.config.range || 340;
+    }
+
+    createDOM(container) {
+        super.createDOM(container);
+        if (this.domElement) {
+            this.domElement.style.width = '90px';
+            this.domElement.style.height = '82px';
+            this.domElement.style.left = `${this.x - 42}px`;
+            this.domElement.style.top = `${this.y - 49}px`;
+        }
     }
 
     update(dt, engine) {
         super.update(dt, engine);
         if (this.isDead || this.isAsleep) return;
+
+        if (this.attackAnimTimer > 0) {
+            this.attackAnimTimer -= dt;
+            if (this.attackAnimTimer <= 0) {
+                this.setAnim(this.config.anim);
+            }
+        }
+
         this.shootTimer += dt;
         let interval = this.config.attackInterval || 1.425;
         if (engine.isSuperCharge) interval *= 0.65;
@@ -568,8 +624,10 @@ export class FumeshroomPlant extends Plant {
             );
             if (hasZombieAhead) {
                 this.shootTimer = 0;
+                this.attackAnimTimer = 0.54;
+                this.setAnim(this.config.attackAnim || 'assets/plants/fumeshroom_attack.gif');
                 engine.projectiles.push(
-                    new FumeCloud(this.row, this.x + 28, this.y, this.range, this.config.damage)
+                    new FumeCloud(this.row, this.x + 28, this.y - 10, this.range, this.config.damage)
                 );
                 soundEngine.playShoot();
             }

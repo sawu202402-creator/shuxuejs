@@ -419,6 +419,83 @@ function startStaticServer() {
         assert.equal(afterConfirm.hasRepeaterInBank, true);
         console.log('✅ 7. Seed Chooser modal selection, zombie preview & custom deck verified (+ screenshot saved)');
 
+        // 8. Regression Check for Potato Mine Detonation, Fume-shroom 8-Frame Bubble Jet & Sun-shroom Small->Big
+        const threeFixes = await page.evaluate(async () => {
+            window.gameApp.loadNewLevel('2-3');
+            const engine = window.gameApp.pvzEngine;
+            engine.isPaused = true; // manual stepping for crisp capture
+            const { createPlant } = await import('./js/plants.js');
+            const { Zombie } = await import('./js/zombies.js');
+
+            // Row 1: Armed Potato Mine + walking zombie approaching from right (+85px -> walks naturally into mine!)
+            const pMinePos = engine.getGridCoords(2, 1);
+            const pMine = createPlant('potatomine', 1, 2, pMinePos.x, pMinePos.y, engine.entityLayer, true);
+            engine.plants.push(pMine);
+            // Advance 15.2s to arm mine
+            pMine.update(15.2, engine);
+            const mineArmed = pMine.isArmed;
+
+            const walker = new Zombie('buckethead', 1, pMinePos.x + 70, engine.entityLayer);
+            engine.zombies.push(walker);
+            // Step engine loop normally (just like PvzEngine.update) until walker reaches mine
+            for (let i = 0; i < 65; i++) {
+                engine.plants.forEach(p => p.update(0.05, engine));
+                engine.zombies.forEach(z => z.update(0.05, engine));
+                engine.explosions.forEach(ex => ex.update(0.05));
+                engine.plants = engine.plants.filter(p => !p.isDead);
+                if (walker.isDead || walker.isDying) break;
+            }
+            const mineExploded = pMine.isDead && (walker.isDead || walker.isDying);
+            const hasPotatoExplosion = engine.explosions.some(ex => ex.type === 'potato' && !ex.isDead);
+
+            // Row 2: Fume-shroom shooting at Screen Door Zombie -> mid-stream frame 3 of 8!
+            const fumePos = engine.getGridCoords(2, 2);
+            const fume = createPlant('fumeshroom', 2, 2, fumePos.x, fumePos.y, engine.entityLayer, true);
+            engine.plants.push(fume);
+            const sd = new Zombie('screendoor', 2, fumePos.x + 210, engine.entityLayer);
+            engine.zombies.push(sd);
+            fume.shootTimer = 2.0;
+            fume.update(0.05, engine);
+            const fumeAttackAnim = fume.currentAnim;
+            // Advance fume cloud to ~0.26s (frame 3/4 of 8)
+            engine.projectiles.forEach(pr => pr.update(0.26, engine));
+
+            // Row 3: Baby Sun-shroom (col 1) next to Grown Sun-shroom (col 2)
+            const sSmallPos = engine.getGridCoords(1, 3);
+            const sBigPos = engine.getGridCoords(2, 3);
+            const sSmall = createPlant('sunshroom', 3, 1, sSmallPos.x, sSmallPos.y, engine.entityLayer, true);
+            const sBig = createPlant('sunshroom', 3, 2, sBigPos.x, sBigPos.y, engine.entityLayer, true);
+            sBig.growTimer = 121.0;
+            sBig.update(0.1, engine);
+            // Trigger sun drop from both to compare small-sun vs standard sun
+            sSmall.sunTimer = 8.0;
+            sSmall.update(0.1, engine);
+            sBig.sunTimer = 8.0;
+            sBig.update(0.1, engine);
+            engine.plants.push(sSmall, sBig);
+
+            engine.render();
+            return {
+                mineArmed,
+                mineExploded,
+                hasPotatoExplosion,
+                fumeAttackAnim,
+                smallAnim: sSmall.currentAnim,
+                bigAnim: sBig.currentAnim,
+                hasSmallSunClass: !!document.querySelector('.sun-entity.small-sun')
+            };
+        });
+        assert.equal(threeFixes.mineArmed, true, 'Potato Mine must arm after 15s');
+        assert.equal(threeFixes.mineExploded, true, 'Armed Potato Mine must detonate when zombie walks up to it');
+        assert.equal(threeFixes.hasPotatoExplosion, true, 'Potato Mine explosion effect must spawn');
+        assert.equal(threeFixes.fumeAttackAnim, 'assets/plants/fumeshroom_attack.gif', 'Fume-shroom must switch to puffing attack GIF');
+        assert.equal(threeFixes.smallAnim, 'assets/plants/sunshroom.gif');
+        assert.equal(threeFixes.bigAnim, 'assets/plants/sunshroom_big.gif');
+        assert.equal(threeFixes.hasSmallSunClass, true, 'Baby Sun-shroom must spawn small-sun');
+        await new Promise(r => setTimeout(r, 180));
+        await page.screenshot({ path: `${SCRATCH_DIR}/verify_fixes_3bugs.png` });
+        console.log('✅ 8. Potato Mine detonation, Fume-shroom 8-frame bubble jet & Sun-shroom small->big verified (+ screenshot saved)');
+
         assert.equal(consoleErrors.length, 0, `Unexpected console/page errors: ${consoleErrors.join('; ')}`);
         assert.equal(failedRequests.length, 0, `Failed asset requests: ${failedRequests.join('; ')}`);
 

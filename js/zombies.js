@@ -243,7 +243,7 @@ export class Zombie {
         this.isHypnotized = true;
         this.speed = -Math.abs(this.speed || 18);
         if (this.domElement) {
-            this.domElement.style.transformOrigin = '105px center';
+            this.domElement.style.transformOrigin = this.type === 'football' ? '122px center' : '105px center';
             this.domElement.style.transform = 'scaleX(-1)';
             this.domElement.style.filter = 'drop-shadow(0 0 12px #d980fa) hue-rotate(280deg)';
         }

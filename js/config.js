@@ -123,6 +123,7 @@ export const GAME_CONFIG = {
             icon: 'assets/cards/card_potatomine.png',
             unarmedAnim: 'assets/plants/potatomine_unarmed.gif',
             armedAnim: 'assets/plants/potatomine_armed.gif',
+            mashedAnim: 'assets/projectiles/potatomine_mashed.gif',
             boomAnim: 'assets/projectiles/spudow.gif',
             unlockLevel: '1-6'
         },
@@ -221,6 +222,7 @@ export const GAME_CONFIG = {
             desc: '喷射穿透性孢子云雾，穿透铁栅门与报纸并攻击直线4格内所有僵尸',
             icon: 'assets/cards/card_fumeshroom.png',
             anim: 'assets/plants/fumeshroom.gif',
+            attackAnim: 'assets/plants/fumeshroom_attack.gif',
             sleepAnim: 'assets/plants/fumeshroom_sleep.gif',
             cloudAnim: 'assets/projectiles/fume_cloud.gif',
             unlockLevel: '2-3'

@@ -17,13 +17,183 @@ z_costumes = targets.get('僵尸', {})
 b_costumes = targets.get('子弹&掉落物&饰品&动画', {})
 
 
+import glob
+
+
+def get_exterior_bg(im):
+    """Flood-fill transparent background from canvas borders (plus large >=30px open gaps between limbs),
+    keeping small interior holes (like Screen Door wire mesh) untouched."""
+    w, h = im.size
+    px = im.load()
+    visited = [[False] * w for _ in range(h)]
+    ext = set()
+    stack = []
+    for x in range(w):
+        stack.append((x, 0))
+        stack.append((x, h - 1))
+    for y in range(h):
+        stack.append((0, y))
+        stack.append((w - 1, y))
+    while stack:
+        x, y = stack.pop()
+        if x < 0 or y < 0 or x >= w or y >= h or visited[y][x]:
+            continue
+        visited[y][x] = True
+        if px[x, y][3] == 0:
+            ext.add((x, y))
+            stack.extend(((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)))
+
+    for sy in range(h):
+        for sx in range(w):
+            if not visited[sy][sx] and px[sx, sy][3] == 0:
+                comp = []
+                st = [(sx, sy)]
+                visited[sy][sx] = True
+                while st:
+                    cx, cy = st.pop()
+                    comp.append((cx, cy))
+                    for nx, ny in ((cx - 1, cy), (cx + 1, cy), (cx, cy - 1), (cx, cy + 1)):
+                        if 0 <= nx < w and 0 <= ny < h and not visited[ny][nx] and px[nx, ny][3] == 0:
+                            visited[ny][nx] = True
+                            st.append((nx, ny))
+                if len(comp) >= 30:
+                    ext.update(comp)
+    return ext
+
+
+def defringe_1bit_rgba(im, heal_white_pinholes=False):
+    """Remove white/gray GIF matte fringe on 1-bit zombie sprites so night-lawn silhouettes stay crisp."""
+    out = im.convert('RGBA')
+    w, h = out.size
+    px = out.load()
+    ext = get_exterior_bg(out)
+
+    if heal_white_pinholes:
+        for y in range(1, h - 1):
+            for x in range(1, w - 1):
+                if px[x, y][3] == 0 and (x, y) not in ext:
+                    nbrs = [px[nx, ny] for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)) if px[nx, ny][3] > 0]
+                    if len(nbrs) >= 2 and sum((r + g + b) / 3.0 for r, g, b, _ in nbrs) / len(nbrs) > 150:
+                        px[x, y] = (238, 238, 234, 255)
+
+    # Pass 1: Strip bright low-saturation white halo spurs facing exterior background
+    to_strip = []
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a == 0:
+                continue
+            ext_4 = 0
+            ext_8 = 0
+            dark_inner = False
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    if dx == 0 and dy == 0:
+                        continue
+                    nx, ny = x + dx, y + dy
+                    if nx < 0 or ny < 0 or nx >= w or ny >= h or (nx, ny) in ext:
+                        ext_8 += 1
+                        if dx == 0 or dy == 0:
+                            ext_4 += 1
+                    elif px[nx, ny][3] > 0:
+                        nr, ng, nb, _ = px[nx, ny]
+                        if (nr + ng + nb) / 3.0 < 135:
+                            dark_inner = True
+            if ext_4 >= 1:
+                sat = max(r, g, b) - min(r, g, b)
+                lum = (r + g + b) / 3.0
+                if sat <= 34 and ((lum >= 182 and (dark_inner or ext_8 >= 3)) or (lum >= 155 and ext_8 >= 5)):
+                    to_strip.append((x, y))
+    for x, y in to_strip:
+        px[x, y] = (0, 0, 0, 0)
+        ext.add((x, y))
+
+    # Pass 2: Restore dark PVZ cartoon ink outline along 1px exterior silhouette
+    orig = out.copy()
+    opx = orig.load()
+    ink = (26, 28, 32)
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = opx[x, y]
+            if a == 0:
+                continue
+            ext_4 = sum(
+                1 for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1))
+                if nx < 0 or ny < 0 or nx >= w or ny >= h or (nx, ny) in ext
+            )
+            if ext_4 == 0:
+                continue
+            sat = max(r, g, b) - min(r, g, b)
+            lum = (r + g + b) / 3.0
+            if sat <= 44 and lum >= 56:
+                t = 0.82 if lum >= 110 else 0.70
+                px[x, y] = (
+                    int(round(r * (1 - t) + ink[0] * t)),
+                    int(round(g * (1 - t) + ink[1] * t)),
+                    int(round(b * (1 - t) + ink[2] * t)),
+                    255
+                )
+    return out
+
+
+def clean_newsucai_2x(im):
+    """Strip cyan chroma-key halo (#0078AA), stray ground flecks, and light matte fringe from 2x PNG sprites."""
+    out = im.convert('RGBA')
+    w, h = out.size
+    px = out.load()
+
+    # Remove tiny disconnected stray lawn flecks near feet (e.g. 4x2 grass dot between cleats)
+    seen = [[False] * w for _ in range(h)]
+    for sy in range(int(h * 0.75), h):
+        for sx in range(w):
+            if not seen[sy][sx] and px[sx, sy][3] > 0:
+                comp = []
+                st = [(sx, sy)]
+                seen[sy][sx] = True
+                while st:
+                    cx, cy = st.pop()
+                    comp.append((cx, cy))
+                    for nx, ny in ((cx - 1, cy), (cx + 1, cy), (cx, cy - 1), (cx, cy + 1)):
+                        if 0 <= nx < w and 0 <= ny < h and not seen[ny][nx] and px[nx, ny][3] > 0:
+                            seen[ny][nx] = True
+                            st.append((nx, ny))
+                if len(comp) < 40 and all(cy >= int(h * 0.82) for _, cy in comp):
+                    for cx, cy in comp:
+                        px[cx, cy] = (0, 0, 0, 0)
+
+    ext = get_exterior_bg(out)
+    for _ in range(2):
+        strip = []
+        for y in range(h):
+            for x in range(w):
+                r, g, b, a = px[x, y]
+                if a == 0:
+                    continue
+                ext_4 = sum(
+                    1 for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1))
+                    if nx < 0 or ny < 0 or nx >= w or ny >= h or (nx, ny) in ext
+                )
+                if ext_4 >= 1:
+                    if b > r + 28 and g > r + 15 and r < 65:
+                        if b > 95 and ext_4 >= 2:
+                            strip.append((x, y))
+                        else:
+                            px[x, y] = (24, 26, 30, a)
+                    elif max(r, g, b) - min(r, g, b) <= 36 and (r + g + b) / 3.0 >= 72:
+                        px[x, y] = (26, 28, 32, a)
+        for x, y in strip:
+            px[x, y] = (0, 0, 0, 0)
+            ext.add((x, y))
+    return out
+
+
 def load_newsucai_img(costume):
     md5ext = costume['md5ext']
     path = os.path.join('newsucai', md5ext)
     if not os.path.exists(path):
         return None
     if md5ext.endswith('.png'):
-        im = Image.open(path).convert('RGBA')
+        im = clean_newsucai_2x(Image.open(path).convert('RGBA'))
     else:
         content = open(path, 'r', encoding='utf-8', errors='ignore').read()
         idx = content.find('data:image/png;base64,')
@@ -46,16 +216,16 @@ def save_gif(frames, out_path, duration=90):
     for fr in frames:
         rgba = fr.convert('RGBA')
         alpha = rgba.getchannel('A')
-        rgb = Image.new('RGB', rgba.size, (0, 0, 0))
-        rgb.paste(rgba, mask=alpha.point(lambda a: 255 if a >= 96 else 0))
+        # Composite semi-transparent anti-aliased edges onto dark cartoon ink (22, 24, 28) instead of leaving bright halos
+        ink_bg = Image.new('RGBA', rgba.size, (22, 24, 28, 255))
+        rgb = Image.alpha_composite(ink_bg, rgba).convert('RGB')
         # Quantize to 254 colors so we can shift indices +1 and reserve index 0 for transparency!
         q = rgb.quantize(colors=254, method=Image.FASTOCTREE)
         raw_pal = q.getpalette() or []
-        # Pad raw_pal to 254*3 if shorter
         raw_pal = (raw_pal + [0] * 768)[:254 * 3]
         new_pal = [0, 0, 0] + raw_pal + [0, 0, 0]
         shifted = q.point(lambda p: p + 1)
-        transparent_mask = alpha.point(lambda a: 255 if a < 96 else 0)
+        transparent_mask = alpha.point(lambda a: 255 if a < 145 else 0)
         shifted.paste(0, mask=transparent_mask)
         shifted.putpalette(new_pal)
         shifted.info['transparency'] = 0
@@ -86,28 +256,60 @@ def extract_gif_frames(path):
 
 
 # ==============================================================================
+# 0. 原版基础僵尸去白边毛刺 (Normal / Conehead / Buckethead / Polevault / Charred)
+# ==============================================================================
+def defringe_existing_base_zombies():
+    base_gifs = [
+        'assets/zombies/zombie_walk.gif',
+        'assets/zombies/zombie_walk2.gif',
+        'assets/zombies/zombie_walk3.gif',
+        'assets/zombies/zombie_attack.gif',
+        'assets/zombies/zombie_die.gif',
+        'assets/zombies/zombie_head.gif',
+        'assets/zombies/zombie_losthead_walk.gif',
+        'assets/zombies/zombie_losthead_attack.gif',
+        'assets/zombies/zombie_charred.gif',
+        'assets/zombies/conehead_walk.gif',
+        'assets/zombies/conehead_attack.gif',
+        'assets/zombies/buckethead_walk.gif',
+        'assets/zombies/buckethead_attack.gif',
+        'assets/zombies/polevault_run.gif',
+        'assets/zombies/polevault_jump.gif',
+        'assets/zombies/polevault_walk.gif',
+        'assets/zombies/polevault_attack.gif',
+        'assets/zombies/polevault_die.gif',
+    ]
+    for path in base_gifs:
+        if not os.path.exists(path):
+            continue
+        frames, dur = extract_gif_frames(path)
+        cleaned = [defringe_1bit_rgba(fr) for fr in frames]
+        save_gif(cleaned, path, duration=dur)
+
+
+# ==============================================================================
 # 1. 读报僵尸 (Newspaper Zombie) - 对齐到 166x144 标准僵尸画布 (脚底 y=142, 中心 x=105)
 # ==============================================================================
 def build_newspaper_assets():
     mapping = [
-        ('sucai/═╖╫▀1(HeadWalk1).gif', 'assets/zombies/newspaper_walk.gif'),
-        ('sucai/═╖▓┐╣Ñ╗≈1(HeadAttack.gif', 'assets/zombies/newspaper_attack.gif'),
-        ('sucai/╢¬╩º╡─▒¿╓╜(LostNewspa.gif', 'assets/zombies/newspaper_lost.gif'),
-        ('sucai/═╖╫▀0(HeadWalk0).gif', 'assets/zombies/newspaper_rage_walk.gif'),
-        ('sucai/═╖▓┐╣Ñ╗≈0(HeadAttack.gif', 'assets/zombies/newspaper_rage_attack.gif'),
-        ('sucai/╦└(Die).gif', 'assets/zombies/newspaper_die.gif'),
+        ('sucai/═╖╫▀1(HeadWalk1).gif', 'assets/zombies/newspaper_walk.gif', True),
+        ('sucai/═╖▓┐╣Ñ╗≈1(HeadAttack.gif', 'assets/zombies/newspaper_attack.gif', True),
+        ('sucai/╢¬╩º╡─▒¿╓╜(LostNewspa.gif', 'assets/zombies/newspaper_lost.gif', True),
+        ('sucai/═╖╫▀0(HeadWalk0).gif', 'assets/zombies/newspaper_rage_walk.gif', False),
+        ('sucai/═╖▓┐╣Ñ╗≈0(HeadAttack.gif', 'assets/zombies/newspaper_rage_attack.gif', False),
+        ('sucai/╦└(Die).gif', 'assets/zombies/newspaper_die.gif', False),
     ]
-    for src, dst in mapping:
+    for src, dst, heal_paper in mapping:
         if not os.path.exists(src):
             print('Missing:', src)
             continue
         raw_frames, dur = extract_gif_frames(src)
-        # Compute union bbox across frames so animation doesn't jitter
-        boxes = [fr.getbbox() for fr in raw_frames if fr.getbbox()]
+        cleaned_frames = [defringe_1bit_rgba(fr, heal_white_pinholes=heal_paper) for fr in raw_frames]
+        boxes = [fr.getbbox() for fr in cleaned_frames if fr.getbbox()]
         max_b = max(b[3] for b in boxes)
         avg_cx = int(sum((b[0] + b[2]) / 2 for b in boxes) / len(boxes))
         out_frames = []
-        for fr in raw_frames:
+        for fr in cleaned_frames:
             canvas = Image.new('RGBA', (166, 144), (0, 0, 0, 0))
             dx = 100 - avg_cx
             dy = 142 - max_b
@@ -116,13 +318,10 @@ def build_newspaper_assets():
         save_gif(out_frames, dst, duration=dur)
 
     # Torn newspaper drop sprite
-    walk_frames, _ = extract_gif_frames('sucai/═╖╫▀1(HeadWalk1).gif')
-    # Crop newspaper region from frame 0
     paper = Image.new('RGBA', (52, 46), (0, 0, 0, 0))
     draw = ImageDraw.Draw(paper)
-    # Crisp PVZ cartoon torn newspaper sheets
-    draw.polygon([(6, 12), (34, 4), (46, 30), (16, 40)], fill=(235, 232, 222, 255), outline=(55, 55, 55, 255))
-    draw.polygon([(14, 18), (44, 12), (48, 38), (18, 43)], fill=(246, 244, 236, 255), outline=(65, 65, 65, 255))
+    draw.polygon([(6, 12), (34, 4), (46, 30), (16, 40)], fill=(235, 232, 222, 255), outline=(40, 42, 46, 255))
+    draw.polygon([(14, 18), (44, 12), (48, 38), (18, 43)], fill=(246, 244, 236, 255), outline=(45, 48, 52, 255))
     for ly in range(18, 36, 5):
         draw.line([(20, ly), (40, ly - 3)], fill=(120, 120, 120, 220), width=2)
     draw.rectangle([20, 19, 28, 26], fill=(150, 60, 60, 220))
@@ -138,26 +337,28 @@ def build_screendoor_assets():
     atk_src = 'sucai/═╖▓┐╣Ñ╗≈1(HeadAttack(1).gif'
 
     walk_frames, dur_w = extract_gif_frames(walk_src)
+    clean_w = [defringe_1bit_rgba(fr) for fr in walk_frames]
     # Shift slightly right (+12px) so body matches standard zombie x=105
     w_out = []
-    for fr in walk_frames:
+    for fr in clean_w:
         c = Image.new('RGBA', (166, 144), (0, 0, 0, 0))
         c.alpha_composite(fr, (12, 0))
         w_out.append(c)
     save_gif(w_out, 'assets/zombies/screendoor_walk.gif', duration=dur_w)
 
     atk_frames, dur_a = extract_gif_frames(atk_src)
-    boxes = [fr.getbbox() for fr in atk_frames if fr.getbbox()]
+    clean_a = [defringe_1bit_rgba(fr) for fr in atk_frames]
+    boxes = [fr.getbbox() for fr in clean_a if fr.getbbox()]
     max_b = max(b[3] for b in boxes)
     a_out = []
-    for fr in atk_frames:
+    for fr in clean_a:
         c = Image.new('RGBA', (166, 144), (0, 0, 0, 0))
         c.alpha_composite(fr, (12, 142 - max_b))
         a_out.append(c)
     save_gif(a_out, 'assets/zombies/screendoor_attack.gif', duration=dur_a)
 
     # Extract screen door portion for falling armor effect
-    fr0 = walk_frames[0]
+    fr0 = clean_w[0]
     door_crop = fr0.crop((40, 52, 98, 140)).resize((48, 72), Image.LANCZOS)
     door_drop = Image.new('RGBA', (60, 76), (0, 0, 0, 0))
     door_drop.alpha_composite(door_crop, (6, 2))
@@ -166,7 +367,7 @@ def build_screendoor_assets():
 
 
 # ==============================================================================
-# 3. 橄榄球僵尸 (Football Zombie) - 原版红球衣 + 红头盔合成与脱盔状态
+# 3. 橄榄球僵尸 (Football Zombie) - 原版大体型 200x168 (脚底 y=166, 中心 x=122)
 # ==============================================================================
 def find_zombie_head_top(im):
     """Locate the green zombie head top-center inside a 1x frame."""
@@ -189,13 +390,16 @@ def find_zombie_head_top(im):
 
 def build_football_assets():
     helmet_im = load_newsucai_img(b_costumes['橄榄球头盔1'])
-    # Scale helmet slightly to fit 1x zombie head snugly
-    helmet_fit = helmet_im.resize((52, 56), Image.LANCZOS)
-    helmet_drop = helmet_im.resize((54, 58), Image.LANCZOS)
+    # Scale helmet to fit 1x zombie cranium before overall 1.10x bulky athlete upscale
+    helmet_fit = helmet_im.resize((54, 58), Image.LANCZOS)
+    helmet_drop = helmet_im.resize((64, 68), Image.LANCZOS)
     helmet_drop.save('assets/zombies/football_drop.png')
     print('Saved assets/zombies/football_drop.png')
 
-    def build_seq(prefix, count, anchor_x=105, scale=0.88, with_helmet=True):
+    canvas_w, canvas_h = 200, 168
+    foot_y = 166  # 142 + 24px (paired with margin-top: -24px in CSS)
+
+    def build_seq(prefix, count, anchor_x=122, scale=1.10, with_helmet=True):
         raw = []
         for i in range(1, count + 1):
             key = f'{prefix}{i}'
@@ -208,7 +412,6 @@ def build_football_assets():
             ry = c['rotationCenterY'] / res
             raw.append((im, rx, ry))
 
-        # Determine foot bottom relative to anchor ry across sequence
         foot_rels = []
         for im, rx, ry in raw:
             bb = im.getbbox()
@@ -221,35 +424,33 @@ def build_football_assets():
             work = im.copy()
             if with_helmet:
                 hx, hy = find_zombie_head_top(work)
-                tmp = Image.new('RGBA', (work.width + 40, work.height + 40), (0, 0, 0, 0))
-                tmp.alpha_composite(work, (20, 20))
-                # Place football helmet right over cranium
-                tmp.alpha_composite(helmet_fit, (20 + hx - 26, 20 + hy - 7))
+                tmp = Image.new('RGBA', (work.width + 44, work.height + 44), (0, 0, 0, 0))
+                tmp.alpha_composite(work, (22, 22))
+                tmp.alpha_composite(helmet_fit, (22 + hx - 27, 22 + hy - 8))
                 work = tmp
-                rx += 20
-                ry += 20
+                rx += 22
+                ry += 22
 
-            sw = max(1, int(work.width * scale))
-            sh = max(1, int(work.height * scale))
+            sw = max(1, int(round(work.width * scale)))
+            sh = max(1, int(round(work.height * scale)))
             scaled = work.resize((sw, sh), Image.LANCZOS)
             srx = rx * scale
             sry = ry * scale
-            target_ry = 142 - max_foot_rel * scale
+            target_ry = foot_y - max_foot_rel * scale
 
-            canvas = Image.new('RGBA', (166, 144), (0, 0, 0, 0))
+            canvas = Image.new('RGBA', (canvas_w, canvas_h), (0, 0, 0, 0))
             px = int(round(anchor_x - srx))
             py = int(round(target_ry - sry))
             canvas.alpha_composite(scaled, (px, py))
             frames.append(canvas)
         return frames
 
-    save_gif(build_seq('橄榄球僵尸1w', 9, anchor_x=104, scale=0.88, with_helmet=True), 'assets/zombies/football_walk.gif', duration=75)
-    save_gif(build_seq('橄榄球僵尸1a', 9, anchor_x=100, scale=0.88, with_helmet=True), 'assets/zombies/football_attack.gif', duration=80)
-    save_gif(build_seq('橄榄球僵尸1w', 9, anchor_x=104, scale=0.88, with_helmet=False), 'assets/zombies/football_nohelmet_walk.gif', duration=75)
-    save_gif(build_seq('橄榄球僵尸1a', 9, anchor_x=100, scale=0.88, with_helmet=False), 'assets/zombies/football_nohelmet_attack.gif', duration=80)
+    save_gif(build_seq('橄榄球僵尸1w', 9, anchor_x=122, scale=1.10, with_helmet=True), 'assets/zombies/football_walk.gif', duration=75)
+    save_gif(build_seq('橄榄球僵尸1a', 9, anchor_x=118, scale=1.10, with_helmet=True), 'assets/zombies/football_attack.gif', duration=80)
+    save_gif(build_seq('橄榄球僵尸1w', 9, anchor_x=122, scale=1.10, with_helmet=False), 'assets/zombies/football_nohelmet_walk.gif', duration=75)
+    save_gif(build_seq('橄榄球僵尸1a', 9, anchor_x=118, scale=1.10, with_helmet=False), 'assets/zombies/football_nohelmet_attack.gif', duration=80)
 
-    # Football die sequence
-    die_frames = build_seq('橄榄球僵尸倒下', 7, anchor_x=95, scale=0.88, with_helmet=False)
+    die_frames = build_seq('橄榄球僵尸倒下', 7, anchor_x=112, scale=1.10, with_helmet=False)
     if die_frames:
         save_gif(die_frames, 'assets/zombies/football_die.gif', duration=100)
 
@@ -258,7 +459,7 @@ def build_football_assets():
 # 4. 旗帜僵尸 (Flag Zombie) - 原版举脑子红旗行走与啃咬
 # ==============================================================================
 def build_flag_assets():
-    def build_flag_seq(prefix, count, anchor_x=104, scale=0.88):
+    def build_flag_seq(prefix, count, anchor_x=104, scale=0.98):
         raw = []
         for i in range(1, count + 1):
             key = f'{prefix}{i}'
@@ -276,8 +477,8 @@ def build_flag_assets():
 
         frames = []
         for im, rx, ry in raw:
-            sw = max(1, int(im.width * scale))
-            sh = max(1, int(im.height * scale))
+            sw = max(1, int(round(im.width * scale)))
+            sh = max(1, int(round(im.height * scale)))
             scaled = im.resize((sw, sh), Image.LANCZOS)
             srx = rx * scale
             sry = ry * scale
@@ -287,8 +488,8 @@ def build_flag_assets():
             frames.append(canvas)
         return frames
 
-    save_gif(build_flag_seq('旗帜僵尸1w', 11, anchor_x=96, scale=0.88), 'assets/zombies/flag_walk.gif', duration=85)
-    save_gif(build_flag_seq('旗帜僵尸1a', 10, anchor_x=98, scale=0.88), 'assets/zombies/flag_attack.gif', duration=85)
+    save_gif(build_flag_seq('旗帜僵尸1w', 11, anchor_x=95, scale=0.98), 'assets/zombies/flag_walk.gif', duration=85)
+    save_gif(build_flag_seq('旗帜僵尸1a', 10, anchor_x=97, scale=0.98), 'assets/zombies/flag_attack.gif', duration=85)
 
 
 # ==============================================================================
@@ -500,6 +701,7 @@ def build_mallet_and_sleep_assets():
 
 
 if __name__ == '__main__':
+    defringe_existing_base_zombies()
     build_newspaper_assets()
     build_screendoor_assets()
     build_football_assets()

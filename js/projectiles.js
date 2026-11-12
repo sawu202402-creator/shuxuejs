@@ -97,7 +97,7 @@ export class HitSplat {
     }
 }
 
-// 大喷菇穿透云雾
+// 大喷菇穿透孢子云雾 (原版 343x496 纵向 8 帧逐帧动画精灵条)
 export class FumeCloud {
     constructor(row, x, y, range = 340, damage = 20) {
         this.row = row;
@@ -106,7 +106,7 @@ export class FumeCloud {
         this.range = range;
         this.damage = damage;
         this.age = 0;
-        this.lifespan = 0.5;
+        this.lifespan = 0.64;
         this.isDead = false;
         this.anim = 'assets/projectiles/fume_cloud.gif';
         this.hitZombies = new Set();
@@ -138,10 +138,26 @@ export class FumeCloud {
 
     render(ctx) {
         const img = assetsLoader.getImage(this.anim);
-        const w = this.range;
-        const h = 76;
-        if (img && img.complete) {
-            ctx.drawImage(img, this.x, this.y - h / 2, w, h);
+        if (img && img.complete && img.naturalHeight >= 400) {
+            // 原版 ShroomBullet/FumeCloud 为纵向拼接的 8 帧条带 (每帧 343x62)
+            const totalFrames = 8;
+            const frameW = img.naturalWidth || 343;
+            const frameH = Math.floor(img.naturalHeight / totalFrames);
+            const frameIdx = Math.min(totalFrames - 1, Math.floor((this.age / this.lifespan) * totalFrames));
+            const fadeAlpha = this.age > this.lifespan * 0.78
+                ? Math.max(0.2, (this.lifespan - this.age) / (this.lifespan * 0.22))
+                : 0.96;
+            ctx.save();
+            ctx.globalAlpha = fadeAlpha;
+            ctx.drawImage(
+                img,
+                0, frameIdx * frameH, frameW, frameH,
+                this.x, this.y - frameH / 2, this.range, frameH
+            );
+            ctx.restore();
+        } else if (img && img.complete) {
+            const h = 62;
+            ctx.drawImage(img, this.x, this.y - h / 2, this.range, h);
         } else {
             ctx.save();
             ctx.fillStyle = 'rgba(165, 55, 253, 0.45)';
@@ -158,7 +174,7 @@ export class ExplosionEffect {
         this.y = y;
         this.type = type;
         this.age = 0;
-        this.lifespan = type === 'doom' ? 2.4 : (type === 'cherry' ? 0.75 : 0.6);
+        this.lifespan = type === 'doom' ? 2.4 : (type === 'potato' ? 0.85 : (type === 'cherry' ? 0.75 : 0.6));
         this.isDead = false;
         if (type === 'doom') {
             this.anim = 'assets/projectiles/doom_cloud.png';
@@ -166,6 +182,7 @@ export class ExplosionEffect {
             this.anim = 'assets/projectiles/cherry_boom.gif';
         } else {
             this.anim = 'assets/projectiles/spudow.gif';
+            this.mashedAnim = 'assets/projectiles/potatomine_mashed.gif';
         }
     }
 
@@ -221,6 +238,30 @@ export class ExplosionEffect {
             return;
         }
 
+        if (this.type === 'potato') {
+            const mashedImg = assetsLoader.getImage(this.mashedAnim || 'assets/projectiles/potatomine_mashed.gif');
+            const spudowImg = assetsLoader.getImage(this.anim);
+            const alpha = this.age > this.lifespan * 0.7
+                ? Math.max(0, (this.lifespan - this.age) / (this.lifespan * 0.3))
+                : 1.0;
+            const popScale = Math.min(1.08, 0.65 + (this.age / 0.18) * 0.43);
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            if (mashedImg && mashedImg.complete) {
+                const mw = 132 * popScale;
+                const mh = 93 * popScale;
+                ctx.drawImage(mashedImg, this.x - mw / 2, this.y - mh / 2 + 4, mw, mh);
+            }
+            if (spudowImg && spudowImg.complete) {
+                const sw = 168;
+                const sh = 52;
+                const rise = Math.min(14, this.age * 24);
+                ctx.drawImage(spudowImg, this.x - sw / 2, this.y - 54 - rise, sw, sh);
+            }
+            ctx.restore();
+            return;
+        }
+
         const img = assetsLoader.getImage(this.anim);
         const w = this.type === 'cherry' ? 180 : 130;
         const h = this.type === 'cherry' ? 180 : 130;
@@ -249,8 +290,9 @@ export class SunEntity {
         this.isMathSuper = isMathSuper;
         this.speedY = isMathSuper ? 130 : 75;
         this.anim = 'assets/ui/sun.gif';
-        // 原版阳光规格：标准阳光 78px 直径 (半径 39)，算术超级阳光 96px 直径 (半径 48)
-        this.radius = isMathSuper ? 48 : 39;
+        this.isSmallSun = !isMathSuper && value < 25;
+        // 原版阳光规格：小阳光 56px (半径28)，标准阳光 78px (半径39)，算术超级阳光 96px (半径48)
+        this.radius = isMathSuper ? 48 : (this.isSmallSun ? 28 : 39);
         this.age = 0;
         this.lifespan = 12.0; // 地面停留12秒未拾取自动飞入收集
         this.isCollecting = false;
@@ -269,7 +311,7 @@ export class SunEntity {
     createDOM() {
         if (!this.container || typeof document === 'undefined') return;
         this.domElement = document.createElement('div');
-        this.domElement.className = `sun-entity${this.isMathSuper ? ' super-sun' : ''}`;
+        this.domElement.className = `sun-entity${this.isMathSuper ? ' super-sun' : (this.isSmallSun ? ' small-sun' : '')}`;
         this.domElement.innerHTML = `
             <img src="${this.anim}" class="sun-img" alt="sun" />
             <span class="sun-badge">+${this.value}</span>
