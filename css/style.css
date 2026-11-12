@@ -151,6 +151,29 @@ body {
     to { transform: scale(1.08); }
 }
 
+.btn-jelly-pill-endless {
+    background: linear-gradient(135deg, #f39c12, #d35400);
+    color: #fff;
+    border-color: #ffeaa7;
+    box-shadow: 0 3px 0 #7f2b00;
+    font-weight: 900;
+}
+
+.btn-jelly-pill-endless.active-endless {
+    background: linear-gradient(135deg, #f1c40f, #e67e22);
+    box-shadow: 0 0 10px rgba(241, 196, 15, 0.85), 0 3px 0 #7f2b00;
+}
+
+.level-card.level-card-endless {
+    background: linear-gradient(145deg, #5d3a14, #3b2209);
+    border: 2px solid #f1c40f;
+    box-shadow: 0 0 10px rgba(241, 196, 15, 0.25);
+}
+
+.level-card.level-card-endless .level-card-id {
+    color: #ffeaa7;
+}
+
 .btn-jelly-circle {
     width: 44px;
     height: 44px;
@@ -362,6 +385,27 @@ body {
     will-change: transform;
     transition: box-shadow 0.12s, border-color 0.12s;
     transform: translate3d(var(--card-x, 6px), 0, 0);
+}
+
+.plant-card.conveyor-card .card-cooldown-overlay {
+    display: none !important;
+    height: 0% !important;
+}
+
+.plant-card.conveyor-card .card-conveyor-tag {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 0;
+    background: linear-gradient(180deg, #f2e8cf, #dfd0ad);
+    color: #4e342e;
+    border-top: 1.5px solid #5d4037;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    text-align: center;
+    padding: 1px 0;
 }
 
 .plant-card.conveyor-card:hover {

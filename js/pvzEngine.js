@@ -1,12 +1,12 @@
 /**
  * pvzEngine.js - 核心战场循环、波次推进、除草机与 DOM 实体混合架构
  */
-import { GAME_CONFIG } from './config.js';
-import { assetsLoader } from './assetsLoader.js';
-import { soundEngine } from './audio.js';
-import { createPlant } from './plants.js';
-import { Zombie } from './zombies.js';
-import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js';
+import { GAME_CONFIG } from './config.js?v=20261112_v5';
+import { assetsLoader } from './assetsLoader.js?v=20261112_v5';
+import { soundEngine } from './audio.js?v=20261112_v5';
+import { createPlant } from './plants.js?v=20261112_v5';
+import { Zombie } from './zombies.js?v=20261112_v5';
+import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261112_v5';
 
 export class PvzEngine {
     constructor(canvas, entityLayer, onStateChange = null) {
@@ -53,7 +53,13 @@ export class PvzEngine {
         this.isNight = false;
         this.isFog = false;
         this.isRoof = false;
+        this.isEndless = false;
+        this.endlessFlags = 0;
+        this._activeEndlessWave = null;
         this.fogClearTimer = 0;
+        this.fogSlideX = 0;
+        this.fogAge = 0;
+        this._fogPuffCanvases = null;
 
         // 植物卡片槽与冷却表
         this.activePlants = [];
@@ -112,11 +118,16 @@ export class PvzEngine {
         this.sun = this.levelConfig.isConveyorBelt ? 0 : (this.levelConfig.initialSun ?? GAME_CONFIG.initialSun);
         this.lives = GAME_CONFIG.maxLives;
 
-        // 关卡环境与地形属性 (World 2 黑夜、World 3 泳池、World 4 浓雾泳池、World 5 倾斜屋顶)
+        // 关卡环境与地形属性 (World 2 黑夜、World 3 泳池、World 4 浓雾泳池、World 5 倾斜屋顶、World 6 无尽模式)
         this.isNight = this.levelConfig.world === 2 || this.levelConfig.world === 4;
         this.isFog = !!this.levelConfig.isFog;
         this.isRoof = !!this.levelConfig.isRoof;
+        this.isEndless = !!this.levelConfig.isEndless;
+        this.endlessFlags = 0;
+        this._activeEndlessWave = null;
         this.fogClearTimer = 0;
+        this.fogSlideX = this.isFog ? 480 : 0; // 开局浓雾从右侧缓缓漫入草坪
+        this.fogAge = 0;
         this.waterRows = this.levelConfig.waterRows || [];
 
         // 泳池 / 屋顶 / 草坪 网格坐标精确对位
@@ -520,13 +531,17 @@ export class PvzEngine {
                 }
                 if (!this.levelConfig.isConveyorBelt) {
                     this.sun -= plantConf.cost;
+                    this.cardCooldowns[this.selectedCard] = plantConf.cooldown;
                 }
-                this.cardCooldowns[this.selectedCard] = plantConf.cooldown;
                 const gridPos = this.getGridCoords(cell.col, cell.row);
                 const bean = createPlant('coffeebean', cell.row, cell.col, gridPos.x, gridPos.y, this.entityLayer, this.isNight, existingPlant);
                 this.plants.push(bean);
                 soundEngine.playPlant();
+                if (this.levelConfig.isConveyorBelt) {
+                    this.consumeConveyorCard(this.selectedCard, this.selectedConveyorIdx);
+                }
                 this.selectedCard = null;
+                this.selectedConveyorIdx = null;
                 if (this.onStateChange) this.onStateChange('plant_placed', { plantType: 'coffeebean' });
                 return;
             }
@@ -553,9 +568,13 @@ export class PvzEngine {
                     return;
                 }
             } else if (this.isRoof) {
-                // 2. 屋顶关卡种植规则 (必须有花盆底座，且地刺无法种在屋顶花盆中)
-                if (this.selectedCard === 'spikeweed') {
+                // 2. 屋顶关卡种植规则 (必须有花盆底座，且地刺/地刺王无法种在屋顶花盆中)
+                if (this.selectedCard === 'spikeweed' || this.selectedCard === 'spikerock') {
                     this.floatingTexts.push(new FloatingText(x, y, '🚫 地刺只能直接种在草地/陆地上!', '#e67e22', 18));
+                    return;
+                }
+                if (this.selectedCard === 'seashroom' || this.selectedCard === 'tanglekelp' || this.selectedCard === 'lilypad') {
+                    this.floatingTexts.push(new FloatingText(x, y, '🚫 水生植物只能种在泳池水中!', '#3498db', 18));
                     return;
                 }
                 if (this.selectedCard === 'flowerpot') {
@@ -575,12 +594,12 @@ export class PvzEngine {
                 }
             } else if (isWaterRow) {
                 // 3. 水路种植检测
-                if (this.selectedCard === 'spikeweed') {
+                if (this.selectedCard === 'spikeweed' || this.selectedCard === 'spikerock') {
                     this.floatingTexts.push(new FloatingText(x, y, '🚫 地刺不能种在水路睡莲上!', '#3498db', 18));
                     return;
                 }
-                if (this.selectedCard === 'seashroom') {
-                    // 海蘑菇水生植物，直接种在水中，不需要睡莲
+                if (this.selectedCard === 'seashroom' || this.selectedCard === 'tanglekelp') {
+                    // 海蘑菇 / 缠绕水草：水生植物，直接种在水中，不需要睡莲
                     if (lilyOnCell || normalPlantOnCell) {
                         this.floatingTexts.push(new FloatingText(x, y, '🌊 此处水面已有植物', '#3498db', 16));
                         return;
@@ -610,8 +629,8 @@ export class PvzEngine {
                     this.floatingTexts.push(new FloatingText(x, y, '🚫 睡莲只能种在水中!', '#3498db', 18));
                     return;
                 }
-                if (this.selectedCard === 'seashroom') {
-                    this.floatingTexts.push(new FloatingText(x, y, '🚫 海蘑菇只能种在水中!', '#3498db', 18));
+                if (this.selectedCard === 'seashroom' || this.selectedCard === 'tanglekelp') {
+                    this.floatingTexts.push(new FloatingText(x, y, '🚫 水生植物只能种在水中!', '#3498db', 18));
                     return;
                 }
                 if (normalPlantOnCell) {
@@ -622,8 +641,8 @@ export class PvzEngine {
 
             if (!this.levelConfig.isConveyorBelt) {
                 this.sun -= plantConf.cost;
+                this.cardCooldowns[this.selectedCard] = plantConf.cooldown;
             }
-            this.cardCooldowns[this.selectedCard] = plantConf.cooldown;
 
             const gridPos = this.getGridCoords(cell.col, cell.row);
             const plantObj = createPlant(this.selectedCard, cell.row, cell.col, gridPos.x, gridPos.y, this.entityLayer, this.isNight);
@@ -833,6 +852,16 @@ export class PvzEngine {
         if (this.fogClearTimer > 0) {
             this.fogClearTimer = Math.max(0, this.fogClearTimer - dt);
         }
+        if (this.isFog) {
+            this.fogAge += dt;
+            if (this.fogClearTimer > 3.6) {
+                // 三叶草狂风大作：将整片浓雾向右疾速吹出屏幕右侧！
+                this.fogSlideX = Math.min(580, this.fogSlideX + dt * 760);
+            } else {
+                // 开局漫入 或 三叶草风停后浓雾从右侧边缘缓缓重新聚拢漫回
+                this.fogSlideX = Math.max(0, this.fogSlideX - dt * 155);
+            }
+        }
 
         if (this.flagWaveBannerTimer > 0) {
             this.flagWaveBannerTimer = Math.max(0, this.flagWaveBannerTimer - dt);
@@ -928,6 +957,86 @@ export class PvzEngine {
         this.checkVictoryCondition();
     }
 
+    blowFogAway(duration = 24.0) {
+        this.fogClearTimer = Math.max(this.fogClearTimer, duration);
+    }
+
+    generateEndlessWave(waveNum) {
+        const activeRows = this.levelConfig.activeRows || [0, 1, 2, 3, 4];
+        const waterRows = this.waterRows || [];
+        const landRows = activeRows.filter(r => !waterRows.includes(r));
+        const hasWater = waterRows.length > 0;
+        const isFlag = (waveNum % 10 === 0);
+
+        const landPool = ['normal', 'conehead'];
+        const waterPool = hasWater ? ['ducky'] : [];
+
+        if (waveNum >= 4) {
+            landPool.push('buckethead', 'polevault', 'newspaper');
+            if (hasWater) waterPool.push('snorkel');
+            if (this.isRoof) landPool.push('bungee');
+        }
+        if (waveNum >= 8) {
+            landPool.push('screendoor', 'football');
+            if (!this.isRoof) landPool.push('dancing', 'zomboni');
+            if (this.isRoof) landPool.push('ladder');
+            if (hasWater) waterPool.push('dolphin');
+        }
+        if (waveNum >= 13) {
+            landPool.push('pogo', 'jackinthebox', 'balloon');
+            if (!this.isRoof) landPool.push('digger');
+            if (this.isRoof || waveNum >= 18) landPool.push('catapult');
+        }
+        if (waveNum >= 20) {
+            landPool.push('gargantuar');
+        }
+
+        const pickRow = (type) => {
+            const zc = GAME_CONFIG.zombies[type] || GAME_CONFIG.zombies.normal;
+            if (zc.isAquatic || zc.isWaterOnly) {
+                return waterRows[Math.floor(Math.random() * waterRows.length)];
+            }
+            if (zc.isFlying || type === 'bungee') {
+                return activeRows[Math.floor(Math.random() * activeRows.length)];
+            }
+            return landRows[Math.floor(Math.random() * landRows.length)];
+        };
+
+        const zombies = [];
+        if (waveNum <= 2) {
+            zombies.push({ type: 'normal', row: pickRow('normal') });
+        } else if (waveNum === 3) {
+            const t = (hasWater && Math.random() < 0.5) ? 'ducky' : 'conehead';
+            zombies.push({ type: t, row: pickRow(t) });
+        } else {
+            const baseCount = isFlag
+                ? Math.min(18, 6 + Math.floor(waveNum / 3))
+                : Math.min(12, 2 + Math.floor(waveNum / 4));
+            if (isFlag) {
+                zombies.push({ type: 'flag', row: pickRow('flag') });
+                // 高阶无尽旗帜波保底刷出伽刚特尔巨人压阵
+                if (waveNum >= 20) {
+                    const gargCount = Math.min(4, Math.floor(waveNum / 15));
+                    for (let g = 0; g < gargCount; g++) {
+                        zombies.push({ type: 'gargantuar', row: pickRow('gargantuar') });
+                    }
+                }
+            }
+            for (let i = 0; i < baseCount; i++) {
+                const useWater = hasWater && waterPool.length > 0 && Math.random() < 0.28;
+                const pool = useWater ? waterPool : landPool;
+                const picked = pool[Math.floor(Math.random() * pool.length)];
+                zombies.push({ type: picked, row: pickRow(picked) });
+            }
+        }
+
+        return {
+            delay: waveNum <= 2 ? 24 : (isFlag ? 27 : 22),
+            isFlag,
+            zombies
+        };
+    }
+
     spawnWaveZombies(currentWave) {
         if (currentWave.isGraveWave && this.tombstones && this.tombstones.length > 0) {
             currentWave.zombies.forEach((zData, idx) => {
@@ -946,28 +1055,39 @@ export class PvzEngine {
         const waterRows = this.waterRows || [];
         const landRows = activeRows.filter(r => !waterRows.includes(r));
 
-        currentWave.zombies.forEach(zData => {
-            const zConf = GAME_CONFIG.zombies[zData.type] || GAME_CONFIG.zombies.normal;
+        currentWave.zombies.forEach((zData, idx) => {
+            let zType = zData.type;
+            let zConf = GAME_CONFIG.zombies[zType] || GAME_CONFIG.zombies.normal;
+            let isAquatic = !!(zConf.isAquatic || zConf.isWaterOnly);
+            if (isAquatic && waterRows.length === 0) {
+                zType = 'normal';
+                zConf = GAME_CONFIG.zombies.normal;
+                isAquatic = false;
+            }
             let spawnRow = zData.row;
             if (!activeRows.includes(spawnRow)) {
                 spawnRow = activeRows[Math.floor(Math.random() * activeRows.length)];
             }
-            if (zConf.isAquatic && waterRows.length > 0 && !waterRows.includes(spawnRow)) {
-                spawnRow = waterRows[Math.floor(Math.random() * waterRows.length)];
-            } else if (!zConf.isAquatic && !zConf.isFlying && zData.type !== 'bungee' && waterRows.includes(spawnRow) && landRows.length > 0) {
+            if (isAquatic) {
+                if (!waterRows.includes(spawnRow)) {
+                    spawnRow = waterRows[Math.floor(Math.random() * waterRows.length)];
+                }
+            } else if (!zConf.isFlying && zType !== 'bungee' && waterRows.includes(spawnRow) && landRows.length > 0) {
                 spawnRow = landRows[Math.floor(Math.random() * landRows.length)];
             }
-            const startX = zData.type === 'bungee' ? 500 : (900 + Math.random() * 45);
-            const zombie = new Zombie(zData.type, spawnRow, startX, this.entityLayer);
+            const startX = zType === 'bungee' ? 500 : (900 + Math.random() * 50 + Math.min(70, idx * 12));
+            const zombie = new Zombie(zType, spawnRow, startX, this.entityLayer);
             this.zombies.push(zombie);
         });
     }
 
     updateWaves(dt) {
         const waves = this.levelConfig.waves || [];
-        if (this.waveIndex >= waves.length) return;
+        if (!this.isEndless && this.waveIndex >= waves.length) return;
 
-        const currentWave = waves[this.waveIndex];
+        const currentWave = this.isEndless
+            ? (this._activeEndlessWave || (this._activeEndlessWave = this.generateEndlessWave(this.waveIndex + 1)))
+            : waves[this.waveIndex];
 
         // 1. 旗帜大波预警声光倒计时 (3.5秒预警，横幅震撼展开，完毕后僵尸正式出击)
         if (this.isFlagWarning) {
@@ -987,12 +1107,27 @@ export class PvzEngine {
                 }
 
                 this.waveIndex++;
+                this._activeEndlessWave = null;
                 this.waveTimer = 0;
                 this.clearedGraceTimer = -1;
+                if (this.isEndless) {
+                    this.endlessFlags = Math.floor(this.waveIndex / 10);
+                    this.sun += 100;
+                    this.floatingTexts.push(
+                        new FloatingText(450, 155, `🚩 第 ${this.endlessFlags} 面旗帜突破！奖励 +100 ☀️！`, '#f1c40f', 24)
+                    );
+                    if (this.onStateChange) {
+                        this.onStateChange('endless_flag', {
+                            flags: this.endlessFlags,
+                            wave: this.waveIndex
+                        });
+                    }
+                }
                 if (this.onStateChange) {
                     this.onStateChange('wave_advanced', {
                         current: this.waveIndex,
-                        total: this.totalWaves
+                        total: this.isEndless ? 0 : this.totalWaves,
+                        flags: this.endlessFlags
                     });
                 }
             }
@@ -1007,11 +1142,11 @@ export class PvzEngine {
         let shouldTriggerWave = false;
 
         // 原版官方节奏核心：
-        // 第1波绝对不早产，必须等待完整的开局备战期(20~25s)，供玩家收集阳光和种植
-        // 第2波及之后：若玩家提前全歼场上僵尸，则给 5 秒舒适休整期(捡阳光/思考)后刷下一波；若僵尸仍在慢走，则等待完整delay倒计时
+        // 第1波绝对不早产，必须等待完整的开局备战期(22~25s)，供玩家收集阳光和种植
+        // 第2波及之后：若玩家提前全歼场上僵尸，则给 4.2 秒舒适休整期(捡阳光/思考)后刷下一波；若僵尸仍在慢走，则等待完整delay倒计时
         if (this.waveIndex > 0 && !hasActiveZombies) {
             if (this.clearedGraceTimer < 0) {
-                this.clearedGraceTimer = this.isWhackAZombie ? 2.2 : 5.0; // 锤僵尸紧凑休整期
+                this.clearedGraceTimer = this.isWhackAZombie ? 2.2 : 4.2;
             } else {
                 this.clearedGraceTimer -= dt;
                 if (this.clearedGraceTimer <= 0) {
@@ -1033,20 +1168,27 @@ export class PvzEngine {
                 this.isFlagWarning = true;
                 this.flagWarningTimer = 3.5;
                 this.flagWaveBannerTimer = 3.5;
-                const isFinal = (this.waveIndex === waves.length - 1);
-                this.flagWaveText = isFinal ? '🧟 最后一波！' : '🧟 一大波僵尸正在逼近！';
+                if (this.isEndless) {
+                    const nextFlag = Math.floor((this.waveIndex + 1) / 10);
+                    this.flagWaveText = `🚩 第 ${nextFlag} 面旗帜！大波僵尸来袭！`;
+                } else {
+                    const isFinal = (this.waveIndex === waves.length - 1);
+                    this.flagWaveText = isFinal ? '🧟 最后一波！' : '🧟 一大波僵尸正在逼近！';
+                }
                 soundEngine.playHugeWave();
             } else {
                 // 普通波次正常出击
                 this.spawnWaveZombies(currentWave);
 
                 this.waveIndex++;
+                this._activeEndlessWave = null;
                 this.waveTimer = 0;
                 this.clearedGraceTimer = -1;
                 if (this.onStateChange) {
                     this.onStateChange('wave_advanced', {
                         current: this.waveIndex,
-                        total: this.totalWaves
+                        total: this.isEndless ? 0 : this.totalWaves,
+                        flags: this.endlessFlags
                     });
                 }
             }
@@ -1152,7 +1294,14 @@ export class PvzEngine {
 
                         if (this.lives <= 0) {
                             this.isGameOver = true;
-                            if (this.onStateChange) this.onStateChange('game_over');
+                            if (this.onStateChange) {
+                                this.onStateChange('game_over', {
+                                    levelId: this.levelId,
+                                    isEndless: this.isEndless,
+                                    wave: this.waveIndex,
+                                    flags: this.endlessFlags
+                                });
+                            }
                         }
                     }
                 }
@@ -1161,6 +1310,7 @@ export class PvzEngine {
     }
 
     checkVictoryCondition() {
+        if (this.isEndless) return;
         const waves = this.levelConfig.waves || [];
         if (this.waveIndex >= waves.length && this.zombies.length === 0 && !this.isGameOver && !this.isVictory) {
             this.isVictory = true;
@@ -1173,6 +1323,62 @@ export class PvzEngine {
                 });
             }
         }
+    }
+
+    ensureFogPuffSprites() {
+        if (this._fogPuffCanvases || typeof document === 'undefined') {
+            return this._fogPuffCanvases;
+        }
+        const presets = [
+            // 4 款不同形态的多核蓬松云团纹理（边缘 100% 高斯径向羽化归零，彻底杜绝生硬几何圆边）
+            [
+                { x: 110, y: 82, r: 68, c: [216, 230, 246], a: 0.44 },
+                { x: 74, y: 88, r: 54, c: [204, 222, 242], a: 0.38 },
+                { x: 146, y: 86, r: 56, c: [198, 218, 240], a: 0.38 },
+                { x: 96, y: 62, r: 48, c: [232, 242, 252], a: 0.36 },
+                { x: 128, y: 66, r: 46, c: [226, 238, 250], a: 0.34 },
+                { x: 112, y: 100, r: 52, c: [164, 188, 216], a: 0.34 }
+            ],
+            [
+                { x: 108, y: 80, r: 66, c: [208, 226, 244], a: 0.42 },
+                { x: 68, y: 82, r: 50, c: [222, 236, 250], a: 0.36 },
+                { x: 148, y: 90, r: 54, c: [188, 210, 236], a: 0.38 },
+                { x: 118, y: 58, r: 46, c: [236, 245, 255], a: 0.34 },
+                { x: 90, y: 98, r: 50, c: [168, 192, 220], a: 0.34 }
+            ],
+            [
+                { x: 112, y: 84, r: 70, c: [196, 216, 238], a: 0.44 },
+                { x: 76, y: 74, r: 52, c: [226, 238, 252], a: 0.36 },
+                { x: 144, y: 76, r: 52, c: [218, 232, 248], a: 0.36 },
+                { x: 108, y: 102, r: 54, c: [156, 182, 212], a: 0.36 }
+            ],
+            [
+                { x: 110, y: 78, r: 64, c: [228, 240, 252], a: 0.40 },
+                { x: 78, y: 92, r: 52, c: [192, 214, 238], a: 0.36 },
+                { x: 142, y: 88, r: 54, c: [202, 220, 242], a: 0.36 },
+                { x: 112, y: 60, r: 44, c: [240, 248, 255], a: 0.32 }
+            ]
+        ];
+        this._fogPuffCanvases = presets.map(lobes => {
+            const c = document.createElement('canvas');
+            c.width = 220;
+            c.height = 160;
+            const pctx = c.getContext('2d');
+            lobes.forEach(lb => {
+                const g = pctx.createRadialGradient(lb.x, lb.y, lb.r * 0.08, lb.x, lb.y, lb.r);
+                const [r, gr, b] = lb.c;
+                g.addColorStop(0.0, `rgba(${r}, ${gr}, ${b}, ${lb.a})`);
+                g.addColorStop(0.45, `rgba(${r}, ${gr}, ${b}, ${(lb.a * 0.58).toFixed(3)})`);
+                g.addColorStop(0.78, `rgba(${r}, ${gr}, ${b}, ${(lb.a * 0.18).toFixed(3)})`);
+                g.addColorStop(1.0, `rgba(${r}, ${gr}, ${b}, 0)`);
+                pctx.fillStyle = g;
+                pctx.beginPath();
+                pctx.arc(lb.x, lb.y, lb.r, 0, Math.PI * 2);
+                pctx.fill();
+            });
+            return c;
+        });
+        return this._fogPuffCanvases;
     }
 
     render() {
@@ -1357,46 +1563,60 @@ export class PvzEngine {
         }
 
         if (this.isFog) {
-            let fogAlpha = 0;
-            if (this.fogClearTimer <= 0) {
-                fogAlpha = 1.0;
-            } else if (this.fogClearTimer < 2.2) {
-                fogAlpha = (2.2 - this.fogClearTimer) / 2.2;
-            }
+            const slideX = this.fogSlideX || 0;
+            const baseStartCol = (this.levelId === '4-1' || this.levelId === '4-2') ? 5 : 4;
+            const fogEdgeX = this.gridStartX + baseStartCol * this.cellW - 28 + slideX;
 
-            if (fogAlpha > 0.01) {
+            if (fogEdgeX < this.canvas.width + 40) {
                 fgCtx.save();
-                const fogStartX = 360;
-                const fogGrad = fgCtx.createLinearGradient(fogStartX, 0, 860, 0);
-                fogGrad.addColorStop(0, 'rgba(182, 202, 224, 0.0)');
-                fogGrad.addColorStop(0.16, `rgba(176, 198, 222, ${0.72 * fogAlpha})`);
-                fogGrad.addColorStop(0.38, `rgba(166, 190, 216, ${0.95 * fogAlpha})`);
-                fogGrad.addColorStop(1.0, `rgba(148, 174, 204, ${0.98 * fogAlpha})`);
+                // 1) 柔和羽化雾底（模拟夜幕水汽弥漫，无任何硬边）
+                const gradStart = Math.max(0, fogEdgeX - 36);
+                const gradEnd = Math.min(this.canvas.width + 120, fogEdgeX + 190);
+                const fogGrad = fgCtx.createLinearGradient(gradStart, 0, gradEnd, 0);
+                fogGrad.addColorStop(0.0, 'rgba(168, 192, 220, 0.0)');
+                fogGrad.addColorStop(0.32, 'rgba(166, 190, 218, 0.58)');
+                fogGrad.addColorStop(0.68, 'rgba(156, 182, 212, 0.88)');
+                fogGrad.addColorStop(1.0, 'rgba(144, 170, 202, 0.94)');
                 fgCtx.fillStyle = fogGrad;
-                fgCtx.fillRect(fogStartX, 0, this.canvas.width - fogStartX, this.canvas.height);
+                fgCtx.fillRect(gradStart, 0, this.canvas.width - gradStart, this.canvas.height);
 
-                // 漂浮翻涌雾团纹理
-                const time = Date.now() * 0.0008;
-                fgCtx.fillStyle = `rgba(225, 238, 252, ${0.22 * fogAlpha})`;
-                for (let i = 0; i < 12; i++) {
-                    const fx = 410 + ((i * 73 + Math.sin(time + i) * 28) % 470);
-                    const fy = 75 + ((i * 83 + Math.cos(time * 0.9 + i) * 18) % 480);
-                    fgCtx.beginPath();
-                    fgCtx.arc(fx, fy, 56 + (i % 3) * 16, 0, Math.PI * 2);
-                    fgCtx.fill();
+                // 2) 原版风格多层蓬松翻涌云雾团（按行列网格交错排布，轻柔呼吸起伏）
+                const puffs = this.ensureFogPuffSprites();
+                const t = (this.fogAge || 0);
+                if (puffs && puffs.length > 0) {
+                    const fogCols = 9 - baseStartCol + 1;
+                    for (let r = -1; r <= 6; r++) {
+                        for (let c = 0; c <= fogCols; c++) {
+                            const seed = (r + 2) * 13.7 + c * 7.3;
+                            const puffImg = puffs[(Math.abs(r * 3 + c * 5)) % puffs.length];
+                            const driftX = Math.sin(t * 0.75 + seed) * 14 + Math.cos(t * 0.42 + seed * 0.5) * 6;
+                            const driftY = Math.cos(t * 0.65 + seed * 1.1) * 7;
+                            const breathe = 1.0 + Math.sin(t * 0.9 + seed * 0.8) * 0.07;
+
+                            const cx = fogEdgeX + 34 + c * 78 + (r % 2 === 0 ? 0 : 28) + driftX;
+                            const cy = 68 + r * 84 + driftY;
+                            if (cx - 125 > this.canvas.width) continue;
+
+                            const pw = 228 * breathe;
+                            const ph = 166 * breathe;
+                            fgCtx.globalAlpha = c === 0 ? 0.78 : 0.94;
+                            fgCtx.drawImage(puffImg, cx - pw / 2, cy - ph / 2, pw, ph);
+                        }
+                    }
+                    fgCtx.globalAlpha = 1.0;
                 }
 
-                // 路灯花 (Plantern) 与火炬树桩 (Torchwood) 驱散周围浓雾视野
+                // 3) 路灯花 (Plantern) 与火炬树桩 (Torchwood) 驱散周围浓雾视野
                 const lightPlants = this.plants.filter(
                     p => !p.isDead && !p.isAsleep && (p.isLightSource || p.type === 'plantern' || p.type === 'torchwood')
                 );
                 if (lightPlants.length > 0 && this.fogCtx) {
                     fgCtx.globalCompositeOperation = 'destination-out';
                     lightPlants.forEach(lp => {
-                        const r = lp.lightRadius || (lp.type === 'torchwood' ? 115 : 205);
-                        const holeGrad = fgCtx.createRadialGradient(lp.x, lp.y, r * 0.32, lp.x, lp.y, r);
+                        const r = lp.lightRadius || (lp.type === 'torchwood' ? 115 : 215);
+                        const holeGrad = fgCtx.createRadialGradient(lp.x, lp.y, r * 0.30, lp.x, lp.y, r);
                         holeGrad.addColorStop(0, 'rgba(0, 0, 0, 1.0)');
-                        holeGrad.addColorStop(0.68, 'rgba(0, 0, 0, 0.86)');
+                        holeGrad.addColorStop(0.65, 'rgba(0, 0, 0, 0.88)');
                         holeGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
                         fgCtx.fillStyle = holeGrad;
                         fgCtx.beginPath();
@@ -1405,9 +1625,9 @@ export class PvzEngine {
                     });
                     fgCtx.globalCompositeOperation = 'source-over';
                     lightPlants.forEach(lp => {
-                        const r = lp.lightRadius || (lp.type === 'torchwood' ? 115 : 205);
+                        const r = lp.lightRadius || (lp.type === 'torchwood' ? 115 : 215);
                         const warmGrad = fgCtx.createRadialGradient(lp.x, lp.y, 8, lp.x, lp.y, r * 0.85);
-                        warmGrad.addColorStop(0, 'rgba(255, 236, 150, 0.22)');
+                        warmGrad.addColorStop(0, 'rgba(255, 236, 150, 0.20)');
                         warmGrad.addColorStop(1, 'rgba(255, 220, 120, 0.0)');
                         fgCtx.fillStyle = warmGrad;
                         fgCtx.beginPath();

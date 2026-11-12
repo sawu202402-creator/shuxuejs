@@ -1,7 +1,7 @@
 /**
  * profileManager.js - 小朋友多档案、自适应难度与错题本持久化存储系统 (完全对标 shuxue)
  */
-import { AVATAR_LIST } from './config.js';
+import { AVATAR_LIST } from './config.js?v=20261112_v5';
 
 const STORAGE_KEY = 'pvz_math_user_profiles_v2';
 
@@ -153,15 +153,32 @@ export class UserProfileManager {
         return true;
     }
 
+    recordEndlessProgress(flags = 0, wave = 0) {
+        const user = this.getActiveUser();
+        if (!user) return;
+        user.bestEndlessFlags = Math.max(user.bestEndlessFlags || 0, flags || 0);
+        user.bestEndlessWave = Math.max(user.bestEndlessWave || 0, wave || 0);
+        this.save();
+    }
+
     recordGameRound(record) {
         const user = this.getActiveUser();
         if (!user) return;
         if (!Array.isArray(user.history)) user.history = [];
         if (!Array.isArray(user.mistakes)) user.mistakes = [];
 
+        if (record.isEndless) {
+            user.bestEndlessFlags = Math.max(user.bestEndlessFlags || 0, record.flags || 0);
+            user.bestEndlessWave = Math.max(user.bestEndlessWave || 0, record.wave || 0);
+        }
+
+        const levelLabel = record.isEndless
+            ? `${record.levelId} (守住${record.wave || 0}波·🚩${record.flags || 0})`
+            : (record.levelId || '1-1');
+
         user.history.unshift({
             date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString().slice(0, 5),
-            levelId: record.levelId || '1-1',
+            levelId: levelLabel,
             total: record.total || 0,
             correct: record.correct || 0,
             accuracy: record.accuracy || 100,

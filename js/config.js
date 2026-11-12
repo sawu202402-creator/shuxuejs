@@ -584,6 +584,74 @@ export const GAME_CONFIG = {
             anim: 'assets/plants/melonpult.gif',
             attackAnim: 'assets/plants/melonpult_attack.gif',
             unlockLevel: '5-4'
+        },
+        tanglekelp: {
+            id: 'tanglekelp',
+            name: '缠绕水草',
+            cost: 25,
+            cooldown: 30.0,
+            hp: 300,
+            isWaterPlant: true,
+            desc: '直接种植在泳池水面，将靠近的第一只水中僵尸瞬间拖入水底秒杀！',
+            icon: 'assets/cards/card_tanglekelp.png',
+            anim: 'assets/plants/tanglekelp.gif',
+            unlockLevel: '3-5'
+        },
+        gatlingpea: {
+            id: 'gatlingpea',
+            name: '机枪射手',
+            cost: 250,
+            cooldown: 30.0,
+            hp: 300,
+            damage: 20,
+            attackInterval: 1.425,
+            desc: '无尽强力紫卡！每次齐射连续喷吐 4 颗高速豌豆，配合火炬树桩毁天灭地！',
+            icon: 'assets/cards/card_gatlingpea.png',
+            anim: 'assets/plants/gatlingpea.gif',
+            bulletAnim: 'assets/projectiles/pea.gif',
+            unlockLevel: 'endless'
+        },
+        twinsunflower: {
+            id: 'twinsunflower',
+            name: '双子向日葵',
+            cost: 150,
+            cooldown: 30.0,
+            hp: 300,
+            produceInterval: 24.0,
+            desc: '无尽经济核心！每次产出双倍阳光 (50☀️)，撑起后期重装防线！',
+            icon: 'assets/cards/card_twinsunflower.png',
+            anim: 'assets/plants/twinsunflower.gif',
+            unlockLevel: 'endless'
+        },
+        gloomshroom: {
+            id: 'gloomshroom',
+            name: '忧郁菇',
+            cost: 150,
+            cooldown: 30.0,
+            hp: 300,
+            damage: 80,
+            attackInterval: 1.9,
+            isNocturnal: true,
+            desc: '无尽近战神卡！向周围 3x3 八方向同时喷射四连穿透孢子群伤！',
+            icon: 'assets/cards/card_gloomshroom.png',
+            anim: 'assets/plants/gloomshroom.gif',
+            attackAnim: 'assets/plants/gloomshroom_attack.gif',
+            sleepAnim: 'assets/plants/gloomshroom_sleep.gif',
+            unlockLevel: 'endless'
+        },
+        spikerock: {
+            id: 'spikerock',
+            name: '地刺王',
+            cost: 125,
+            cooldown: 30.0,
+            hp: 900,
+            damage: 40,
+            attackInterval: 0.7,
+            isFlat: true,
+            desc: '无尽陆路磐石！双倍尖刺伤害，可连续扎爆多辆冰车/投石车并承受巨人重击！',
+            icon: 'assets/cards/card_spikerock.png',
+            anim: 'assets/plants/spikerock.gif',
+            unlockLevel: 'endless'
         }
     },
 
@@ -747,7 +815,7 @@ export const GAME_CONFIG = {
             walkAnims: ['assets/zombies/dancing_walk.gif'],
             attackAnim: 'assets/zombies/dancing_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_die.gif'
+            dieAnim: 'assets/zombies/dancing_die.gif'
         },
         backup_dancer: {
             id: 'backup_dancer',
@@ -763,7 +831,7 @@ export const GAME_CONFIG = {
             walkAnims: ['assets/zombies/backup_walk.gif'],
             attackAnim: 'assets/zombies/backup_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_die.gif'
+            dieAnim: 'assets/zombies/backup_die.gif'
         },
         polevault: {
             id: 'polevault',
@@ -796,11 +864,13 @@ export const GAME_CONFIG = {
             biteInterval: 0.25,
             biteDamage: 25,
             score: 180,
+            isAquatic: true,
             isWaterOnly: true,
+            landWalkAnim: 'assets/zombies/ducky_land_walk.gif',
             walkAnims: ['assets/zombies/ducky_walk.gif'],
             attackAnim: 'assets/zombies/ducky_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_die.gif'
+            dieAnim: 'assets/zombies/ducky_die.gif'
         },
         snorkel: {
             id: 'snorkel',
@@ -813,11 +883,13 @@ export const GAME_CONFIG = {
             biteInterval: 0.25,
             biteDamage: 25,
             score: 320,
+            isAquatic: true,
             isWaterOnly: true,
+            landWalkAnim: 'assets/zombies/snorkel_land_walk.gif',
             walkAnims: ['assets/zombies/snorkel_swim.gif'],
             attackAnim: 'assets/zombies/snorkel_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_die.gif'
+            dieAnim: 'assets/zombies/snorkel_die.gif'
         },
         dolphin: {
             id: 'dolphin',
@@ -826,20 +898,24 @@ export const GAME_CONFIG = {
             armorHp: 0,
             headLossThreshold: 70,
             speed: 48,
+            landSpeed: 20,
             walkSpeed: 18,
+            swimSpeed: 18,
             dps: 100,
             biteInterval: 0.25,
             biteDamage: 25,
             score: 480,
+            isAquatic: true,
             isWaterOnly: true,
             hasDolphin: true,
+            landWalkAnim: 'assets/zombies/dolphin_land_walk.gif',
             rideAnim: 'assets/zombies/dolphin_ride.gif',
             jumpAnim: 'assets/zombies/dolphin_jump.gif',
             swimAnim: 'assets/zombies/dolphin_swim.gif',
             walkAnims: ['assets/zombies/dolphin_ride.gif'],
             attackAnim: 'assets/zombies/dolphin_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_die.gif'
+            dieAnim: 'assets/zombies/dolphin_die.gif'
         },
         zomboni: {
             id: 'zomboni',
@@ -856,7 +932,7 @@ export const GAME_CONFIG = {
             walkAnims: ['assets/zombies/zomboni_drive.gif'],
             attackAnim: 'assets/zombies/zomboni_drive.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_charred.gif'
+            dieAnim: 'assets/zombies/zomboni_die.gif'
         },
         jackinthebox: {
             id: 'jackinthebox',
@@ -871,10 +947,11 @@ export const GAME_CONFIG = {
             score: 520,
             hasShield: true,
             shieldType: 'jackbox',
+            openAnim: 'assets/zombies/jack_open.gif',
             walkAnims: ['assets/zombies/jack_walk.gif'],
             attackAnim: 'assets/zombies/jack_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_die.gif'
+            dieAnim: 'assets/zombies/jack_die.gif'
         },
         balloon: {
             id: 'balloon',
@@ -1016,7 +1093,7 @@ export const GAME_CONFIG = {
             walkAnims: ['assets/zombies/imp_walk.gif'],
             attackAnim: 'assets/zombies/imp_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_die.gif'
+            dieAnim: 'assets/zombies/imp_die.gif'
         }
     },
 
@@ -1770,8 +1847,8 @@ export const GAME_CONFIG = {
             waterRows: [2, 3],
             activeRows: [0, 1, 2, 3, 4, 5],
             allowedPlants: ['peashooter', 'threepeater', 'lilypad', 'wallnut', 'squash', 'jalapeno', 'cherrybomb'],
-            rewardPlant: 'torchwood',
-            rewardText: '烈焰豌豆防线成型！',
+            rewardPlant: 'tanglekelp',
+            rewardText: '恭喜解锁：缠绕水草！直接潜伏泳池水面，瞬间将靠近的水生僵尸拽入深水秒杀！',
             waves: [
                 { delay: 14, zombies: [{ type: 'normal', row: 1 }, { type: 'ducky', row: 2 }] },
                 { delay: 17, zombies: [{ type: 'conehead', row: 4 }, { type: 'snorkel', row: 3 }] },
@@ -2428,14 +2505,15 @@ export const GAME_CONFIG = {
         '5-10': {
             id: '5-10',
             world: 5,
-            title: '第 5-10 关：屋顶终极大决战 (全通关最终试炼)',
-            bg: 'assets/backgrounds/roof_viewport.jpg',
+            title: '第 5-10 关：月夜屋顶终极大决战 (全通关最终试炼)',
+            bg: 'assets/backgrounds/roof_night_viewport.jpg',
+            isNight: true,
             isRoof: true,
             initialPotsCols: [0, 1, 2, 3],
             isConveyorBelt: true,
-            conveyorCards: ['flowerpot', 'melonpult', 'kernelpult', 'cabbagepult', 'jalapeno', 'squash', 'cherrybomb', 'tallnut'],
+            conveyorCards: ['flowerpot', 'melonpult', 'kernelpult', 'cabbagepult', 'jalapeno', 'iceshroom', 'squash', 'cherrybomb', 'tallnut'],
             activeRows: [0, 1, 2, 3, 4],
-            allowedPlants: ['flowerpot', 'melonpult', 'kernelpult', 'cabbagepult', 'jalapeno', 'squash', 'cherrybomb', 'tallnut'],
+            allowedPlants: ['flowerpot', 'melonpult', 'kernelpult', 'cabbagepult', 'jalapeno', 'iceshroom', 'squash', 'cherrybomb', 'tallnut'],
             rewardPlant: 'trophy_roof',
             rewardText: '🎉 恭喜通关全部五大世界！荣获至尊通关大奖杯【黄金向日葵奖杯】！🏆🌻',
             waves: [
@@ -2460,9 +2538,248 @@ export const GAME_CONFIG = {
                     { type: 'ladder', row: 2 }
                 ]}
             ]
+        },
+        'endless_pool': {
+            id: 'endless_pool',
+            world: 6,
+            isEndless: true,
+            isPool: true,
+            initialSun: 250,
+            rowCount: 6,
+            waterRows: [2, 3],
+            activeRows: [0, 1, 2, 3, 4, 5],
+            title: '生存模式：泳池无尽版 (Survival: Endless)',
+            bg: 'assets/backgrounds/pool_viewport.jpg',
+            allowedPlants: ['twinsunflower', 'lilypad', 'melonpult', 'gatlingpea', 'torchwood', 'tallnut', 'pumpkin', 'spikerock'],
+            selectablePlants: [
+                'twinsunflower', 'gatlingpea', 'gloomshroom', 'spikerock', 'tanglekelp',
+                'peashooter', 'sunflower', 'cherrybomb', 'wallnut', 'potatomine', 'snowpea', 'chomper', 'repeater',
+                'puffshroom', 'sunshroom', 'fumeshroom', 'hypnoshroom', 'scaredyshroom', 'iceshroom', 'doomshroom', 'coffeebean',
+                'lilypad', 'squash', 'threepeater', 'jalapeno', 'spikeweed', 'torchwood', 'tallnut', 'seashroom',
+                'plantern', 'cactus', 'blover', 'splitpea', 'starfruit', 'pumpkin', 'magnetshroom',
+                'cabbagepult', 'kernelpult', 'garlic', 'melonpult'
+            ],
+            waves: []
+        },
+        'endless_day': {
+            id: 'endless_day',
+            world: 6,
+            isEndless: true,
+            initialSun: 200,
+            activeRows: [0, 1, 2, 3, 4],
+            title: '生存模式：草坪无尽版 (Day Endless)',
+            bg: 'assets/backgrounds/day_5row_viewport.jpg',
+            allowedPlants: ['twinsunflower', 'gatlingpea', 'torchwood', 'melonpult', 'tallnut', 'spikerock', 'squash', 'cherrybomb'],
+            selectablePlants: [
+                'twinsunflower', 'gatlingpea', 'gloomshroom', 'spikerock',
+                'peashooter', 'sunflower', 'cherrybomb', 'wallnut', 'potatomine', 'snowpea', 'chomper', 'repeater',
+                'puffshroom', 'sunshroom', 'fumeshroom', 'hypnoshroom', 'scaredyshroom', 'iceshroom', 'doomshroom', 'coffeebean',
+                'squash', 'threepeater', 'jalapeno', 'spikeweed', 'torchwood', 'tallnut',
+                'cactus', 'splitpea', 'starfruit', 'pumpkin', 'magnetshroom',
+                'cabbagepult', 'kernelpult', 'garlic', 'melonpult'
+            ],
+            waves: []
+        },
+        'endless_roof': {
+            id: 'endless_roof',
+            world: 6,
+            isEndless: true,
+            isRoof: true,
+            initialPotsCols: [0, 1, 2, 3],
+            initialSun: 250,
+            activeRows: [0, 1, 2, 3, 4],
+            title: '生存模式：屋顶无尽版 (Roof Endless)',
+            bg: 'assets/backgrounds/roof_viewport.jpg',
+            allowedPlants: ['twinsunflower', 'flowerpot', 'melonpult', 'kernelpult', 'cabbagepult', 'tallnut', 'jalapeno', 'cherrybomb'],
+            selectablePlants: [
+                'flowerpot', 'twinsunflower', 'sunflower', 'cabbagepult', 'kernelpult', 'melonpult',
+                'gloomshroom', 'cherrybomb', 'jalapeno', 'squash',
+                'wallnut', 'tallnut', 'pumpkin', 'garlic', 'potatomine', 'chomper', 'starfruit',
+                'iceshroom', 'doomshroom', 'magnetshroom', 'coffeebean', 'blover'
+            ],
+            waves: []
         }
     }
 };
+
+// ============================================================================
+// 原版 PVZ1 关卡波次长度标准化引擎：
+// 还原原版 1 面旗帜 (10 波) 与 2 面旗帜 (20 波) 节奏，前 3 波平稳发育攒阳光，中期渐进施压，旗帜波高潮总攻
+// ============================================================================
+(function normalizeAdventureLevelWaves(cfg) {
+    const ONE_FLAG_LEVELS = new Set([
+        '1-4', '1-5', '1-6', '1-8',
+        '2-1', '2-3', '2-5',
+        '3-1', '3-5',
+        '4-1', '4-5',
+        '5-1', '5-5'
+    ]);
+
+    Object.keys(cfg.levels).forEach(lvlId => {
+        const lvl = cfg.levels[lvlId];
+        if (!lvl || lvl.isEndless || lvlId === '1-1' || lvlId === '1-2' || lvlId === '1-3') {
+            return;
+        }
+        const origWaves = Array.isArray(lvl.waves) ? lvl.waves : [];
+        if (origWaves.length === 0) return;
+
+        const targetTotal = ONE_FLAG_LEVELS.has(lvlId) ? 10 : 20;
+        if (origWaves.length >= targetTotal) return;
+
+        const activeRows = lvl.activeRows || [0, 1, 2, 3, 4];
+        const waterRows = lvl.waterRows || [];
+        const landRows = activeRows.filter(r => !waterRows.includes(r));
+
+        const seenTypes = [];
+        origWaves.forEach(w => {
+            (w.zombies || []).forEach(z => {
+                if (z && z.type && z.type !== 'flag' && !seenTypes.includes(z.type)) {
+                    seenTypes.push(z.type);
+                }
+            });
+        });
+        if (seenTypes.length === 0) seenTypes.push('normal');
+
+        const waterTypes = seenTypes.filter(t => cfg.zombies[t] && (cfg.zombies[t].isAquatic || cfg.zombies[t].isWaterOnly));
+        const landTypes = seenTypes.filter(t => !(cfg.zombies[t] && (cfg.zombies[t].isAquatic || cfg.zombies[t].isWaterOnly)));
+        const specialLand = landTypes.filter(t => t !== 'normal' && t !== 'conehead' && t !== 'buckethead');
+        const specialAll = seenTypes.filter(t => t !== 'normal' && t !== 'conehead');
+        const hasCone = seenTypes.includes('conehead') || lvl.world >= 2;
+        const hasBucket = seenTypes.includes('buckethead');
+
+        const pickRowFor = (type, seed) => {
+            const zc = cfg.zombies[type] || cfg.zombies.normal;
+            if (zc.isAquatic || zc.isWaterOnly) {
+                return waterRows.length > 0 ? waterRows[seed % waterRows.length] : activeRows[seed % activeRows.length];
+            }
+            if (zc.isFlying || type === 'bungee') {
+                return activeRows[seed % activeRows.length];
+            }
+            const pool = landRows.length > 0 ? landRows : activeRows;
+            return pool[seed % pool.length];
+        };
+
+        const sanitizeZombieList = (list) => list.map((z, idx) => ({
+            type: z.type,
+            row: pickRowFor(z.type, (typeof z.row === 'number' ? z.row : idx))
+        }));
+
+        const origFlagWaves = origWaves.filter(w => w.isFlag);
+        const finalOrigFlag = origFlagWaves.length > 0 ? origFlagWaves[origFlagWaves.length - 1] : origWaves[origWaves.length - 1];
+        const midOrigFlag = origFlagWaves.length > 1 ? origFlagWaves[0] : finalOrigFlag;
+
+        const baseDelay = lvl.isWhackAZombie ? 9 : (lvl.isBowling ? 13 : (lvl.isConveyorBelt ? 16 : 23));
+        const newWaves = [];
+
+        for (let w = 1; w <= targetTotal; w++) {
+            const isMidFlag = (targetTotal === 20 && w === 10);
+            const isFinalFlag = (w === targetTotal);
+            const waveObj = {
+                delay: w <= 2 ? baseDelay + 2 : baseDelay,
+                zombies: []
+            };
+            if (lvl.isWhackAZombie) {
+                waveObj.isGraveWave = true;
+            }
+
+            if (isFinalFlag) {
+                waveObj.isFlag = true;
+                waveObj.delay = baseDelay + 4;
+                const baseZ = sanitizeZombieList(finalOrigFlag.zombies || []);
+                if (!baseZ.some(z => z.type === 'flag')) {
+                    baseZ.unshift({ type: 'flag', row: pickRowFor('flag', w) });
+                }
+                // 终极波次补足原版压迫感密度
+                const minFinalCount = targetTotal === 20 ? 8 : 6;
+                let extraSeed = w * 3;
+                while (baseZ.length < minFinalCount) {
+                    const pickPool = specialAll.length > 0 ? specialAll : seenTypes;
+                    const t = pickPool[extraSeed % pickPool.length];
+                    baseZ.push({ type: t, row: pickRowFor(t, extraSeed + 1) });
+                    extraSeed++;
+                }
+                waveObj.zombies = baseZ;
+            } else if (isMidFlag) {
+                waveObj.isFlag = true;
+                waveObj.delay = baseDelay + 3;
+                const baseZ = sanitizeZombieList(midOrigFlag.zombies || []).slice(0, 6);
+                if (!baseZ.some(z => z.type === 'flag')) {
+                    baseZ.unshift({ type: 'flag', row: pickRowFor('flag', w) });
+                }
+                while (baseZ.length < 6) {
+                    const pickPool = specialAll.length > 0 ? specialAll : seenTypes;
+                    const t = pickPool[(w + baseZ.length) % pickPool.length];
+                    baseZ.push({ type: t, row: pickRowFor(t, w + baseZ.length) });
+                }
+                waveObj.zombies = baseZ;
+            } else if (w <= 2) {
+                // 前 2 波：单只普通僵尸探路，留给玩家充足时间种向日葵/阳光菇与答题攒阳光
+                waveObj.zombies.push({ type: 'normal', row: pickRowFor('normal', w + 1) });
+                if (lvl.isConveyorBelt && w === 2) {
+                    const t2 = hasCone ? 'conehead' : 'normal';
+                    waveObj.zombies.push({ type: t2, row: pickRowFor(t2, w + 3) });
+                }
+            } else if (w === 3) {
+                if (waterTypes.length > 0 && seenTypes.includes('ducky')) {
+                    waveObj.zombies.push({ type: 'ducky', row: pickRowFor('ducky', w) });
+                } else {
+                    const t = hasCone ? 'conehead' : 'normal';
+                    waveObj.zombies.push({ type: t, row: pickRowFor(t, w + 2) });
+                }
+            } else if (w <= 6) {
+                // 第 4~6 波：路障与本关特色兵种初次亮相 (1~2 只)
+                const primary = specialAll.length > 0 && w >= 5
+                    ? specialAll[(w - 5) % specialAll.length]
+                    : (hasCone ? 'conehead' : 'normal');
+                waveObj.zombies.push({ type: primary, row: pickRowFor(primary, w * 2) });
+                if (w >= 5) {
+                    const sec = (waterTypes.length > 0 && w % 2 === 0)
+                        ? waterTypes[w % waterTypes.length]
+                        : 'normal';
+                    waveObj.zombies.push({ type: sec, row: pickRowFor(sec, w * 2 + 1) });
+                }
+            } else if (w <= 9) {
+                // 第 7~9 波：第一面旗帜前的中期推进 (2~3 只)
+                const count = w === 9 ? 3 : 2;
+                for (let k = 0; k < count; k++) {
+                    let t = 'normal';
+                    if (k === 0 && specialAll.length > 0) {
+                        t = specialAll[(w + k) % specialAll.length];
+                    } else if (k === 1 && waterTypes.length > 0 && w % 2 === 1) {
+                        t = waterTypes[(w + k) % waterTypes.length];
+                    } else if (hasBucket && k === 1 && w >= 8) {
+                        t = 'buckethead';
+                    } else if (hasCone) {
+                        t = 'conehead';
+                    }
+                    waveObj.zombies.push({ type: t, row: pickRowFor(t, w * 3 + k) });
+                }
+            } else {
+                // 第 11~19 波 (双旗帜关卡下半场)：火力全开攻防战 (3~5 只)
+                const count = w >= 17 ? 4 : (w >= 14 ? 3 : 2);
+                for (let k = 0; k < count; k++) {
+                    let t = 'normal';
+                    if (k === 0 && specialAll.length > 0) {
+                        t = specialAll[(w + k) % specialAll.length];
+                    } else if (k === 1 && waterTypes.length > 0) {
+                        t = waterTypes[(w + k) % waterTypes.length];
+                    } else if (k === 2 && specialLand.length > 0) {
+                        t = specialLand[(w + k) % specialLand.length];
+                    } else if (hasBucket && (w + k) % 2 === 0) {
+                        t = 'buckethead';
+                    } else if (hasCone) {
+                        t = 'conehead';
+                    }
+                    waveObj.zombies.push({ type: t, row: pickRowFor(t, w * 5 + k * 2) });
+                }
+            }
+
+            newWaves.push(waveObj);
+        }
+
+        lvl.waves = newWaves;
+    });
+})(GAME_CONFIG);
 
 // 12款可爱萌宠头像 (完全对标 shuxue)
 export const AVATAR_LIST = ['🐰', '🐸', '🐱', '🐶', '🐼', '🦊', '🐯', '🦁', '🐻', '🐨', '🐵', '🦄'];

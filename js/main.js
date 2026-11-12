@@ -2,14 +2,14 @@
  * main.js - 游戏全局协调控制器、事件总线与主循环
  * 深度融合原版 1:1 植物大战僵尸战场与儿童趣味心算学习引擎
  */
-import { GAME_CONFIG, AVATAR_LIST, DIFFICULTY_PRESETS } from './config.js';
-import { assetsLoader } from './assetsLoader.js';
-import { soundEngine } from './audio.js';
-import { mathEngine } from './mathEngine.js';
-import { profileManager } from './profileManager.js';
-import { PvzEngine } from './pvzEngine.js';
-import { createPlant } from './plants.js';
-import { Zombie } from './zombies.js';
+import { GAME_CONFIG, AVATAR_LIST, DIFFICULTY_PRESETS } from './config.js?v=20261112_v5';
+import { assetsLoader } from './assetsLoader.js?v=20261112_v5';
+import { soundEngine } from './audio.js?v=20261112_v5';
+import { mathEngine } from './mathEngine.js?v=20261112_v5';
+import { profileManager } from './profileManager.js?v=20261112_v5';
+import { PvzEngine } from './pvzEngine.js?v=20261112_v5';
+import { createPlant } from './plants.js?v=20261112_v5';
+import { Zombie } from './zombies.js?v=20261112_v5';
 
 window.createPlant = createPlant;
 window.Zombie = Zombie;
@@ -50,6 +50,7 @@ class GameApp {
             syringeFluid: document.getElementById('syringeFluid'),
             comboBadge: document.getElementById('comboBadge'),
             comboCount: document.getElementById('comboCount'),
+            btnEndlessMode: document.getElementById('btnEndlessMode'),
             btnSelectLevel: document.getElementById('btnSelectLevel'),
             btnFullscreen: document.getElementById('btnFullscreen'),
             btnPause: document.getElementById('btnPause'),
@@ -140,6 +141,9 @@ class GameApp {
             btnNextLevel: document.getElementById('btnNextLevel'),
             btnReplayVictory: document.getElementById('btnReplayVictory'),
             defeatModal: document.getElementById('defeatModal'),
+            defeatModalIcon: document.getElementById('defeatModalIcon'),
+            defeatModalTitle: document.getElementById('defeatModalTitle'),
+            defeatModalDesc: document.getElementById('defeatModalDesc'),
             btnRetryLevel: document.getElementById('btnRetryLevel'),
             btnSelectLevelFromDefeat: document.getElementById('btnSelectLevelFromDefeat')
         };
@@ -178,6 +182,8 @@ class GameApp {
             'assets/backgrounds/pool_viewport.jpg',
             'assets/backgrounds/fog_viewport.jpg',
             'assets/backgrounds/roof_viewport.jpg',
+            'assets/backgrounds/roof_night_viewport.jpg',
+            'assets/plants/tanglekelp_grab.png',
             'assets/projectiles/cabbage.png',
             'assets/projectiles/corn.png',
             'assets/projectiles/butter.png',
@@ -219,9 +225,9 @@ class GameApp {
         // 加入所有僵尸动画及状态变体 (含第 1~5 大关全部僵尸精灵)
         Object.values(GAME_CONFIG.zombies).forEach(z => {
             if (Array.isArray(z.walkAnims)) z.walkAnims.forEach(a => a && assetPaths.push(a));
-            ['attackAnim', 'headAnim', 'dieAnim', 'lostPaperAnim', 'rageAnim', 'rageAttackAnim',
+            ['attackAnim', 'headAnim', 'dieAnim', 'openAnim', 'lostPaperAnim', 'rageAnim', 'rageAttackAnim',
              'noHelmetWalkAnim', 'noHelmetAttackAnim', 'moonwalkAnim', 'summonAnim',
-             'runAnim', 'jumpAnim', 'walkAnim', 'rideAnim', 'swimAnim', 'digAnim', 'surfacedWalkAnim',
+             'runAnim', 'jumpAnim', 'walkAnim', 'landWalkAnim', 'rideAnim', 'swimAnim', 'digAnim', 'surfacedWalkAnim',
              'lostHeadWalkAnim', 'lostHeadAttackAnim'].forEach(k => {
                 if (z[k]) assetPaths.push(z[k]);
             });
@@ -324,9 +330,16 @@ class GameApp {
 
         const curWave = this.pvzEngine.waveIndex;
         const totalWave = this.pvzEngine.totalWaves;
-        this.dom.waveVal.innerText = `${curWave}/${totalWave}`;
-        const pct = totalWave > 0 ? (curWave / totalWave) * 100 : 0;
-        this.dom.syringeFluid.style.width = `${pct}%`;
+        if (this.pvzEngine.isEndless) {
+            const flags = this.pvzEngine.endlessFlags || 0;
+            this.dom.waveVal.innerText = `第${curWave}波·🚩${flags}`;
+            const pct = ((curWave % 10) / 10) * 100;
+            this.dom.syringeFluid.style.width = `${pct}%`;
+        } else {
+            this.dom.waveVal.innerText = `${curWave}/${totalWave}`;
+            const pct = totalWave > 0 ? (curWave / totalWave) * 100 : 0;
+            this.dom.syringeFluid.style.width = `${pct}%`;
+        }
 
         // 连对勋章
         const combo = mathEngine.combo;
@@ -340,15 +353,30 @@ class GameApp {
 
     updateCardCooldowns() {
         if (!this.pvzEngine) return;
+        const isConveyor = !!this.pvzEngine.levelConfig.isConveyorBelt;
         const cardElements = this.dom.cardsList.querySelectorAll('.plant-card');
         cardElements.forEach(cardEl => {
             const pId = cardEl.getAttribute('data-id');
             const conf = GAME_CONFIG.plants[pId];
             if (!conf) return;
 
+            const overlay = cardEl.querySelector('.card-cooldown-overlay');
+
+            // 原版履带/传送带关卡无任何冷却 CD，所有送达卡片立即可用
+            if (isConveyor) {
+                if (overlay) overlay.style.height = '0%';
+                cardEl.classList.remove('disabled');
+                const cIdx = parseInt(cardEl.getAttribute('data-conveyor-idx'), 10);
+                if (this.pvzEngine.selectedCard === pId && this.pvzEngine.selectedConveyorIdx === cIdx) {
+                    cardEl.classList.add('selected');
+                } else {
+                    cardEl.classList.remove('selected');
+                }
+                return;
+            }
+
             const cdRemain = this.pvzEngine.cardCooldowns[pId] || 0;
             const cdTotal = conf.cooldown || 7.5;
-            const overlay = cardEl.querySelector('.card-cooldown-overlay');
 
             if (cdRemain > 0) {
                 const pct = (cdRemain / cdTotal) * 100;
@@ -356,21 +384,14 @@ class GameApp {
                 cardEl.classList.add('disabled');
             } else {
                 overlay.style.height = '0%';
-                if (!this.pvzEngine.levelConfig.isConveyorBelt && this.pvzEngine.sun < conf.cost) {
+                if (this.pvzEngine.sun < conf.cost) {
                     cardEl.classList.add('disabled');
                 } else {
                     cardEl.classList.remove('disabled');
                 }
             }
 
-            if (this.pvzEngine.levelConfig.isConveyorBelt) {
-                const cIdx = parseInt(cardEl.getAttribute('data-conveyor-idx'), 10);
-                if (this.pvzEngine.selectedCard === pId && this.pvzEngine.selectedConveyorIdx === cIdx) {
-                    cardEl.classList.add('selected');
-                } else {
-                    cardEl.classList.remove('selected');
-                }
-            } else if (this.pvzEngine.selectedCard === pId) {
+            if (this.pvzEngine.selectedCard === pId) {
                 cardEl.classList.add('selected');
             } else {
                 cardEl.classList.remove('selected');
@@ -583,10 +604,19 @@ class GameApp {
             }, false);
         }
 
-        // 关卡选择弹窗
+        // 关卡选择弹窗与无尽模式快捷入口
         this.dom.btnSelectLevel.addEventListener('click', () => {
             this.openLevelModal();
         });
+        if (this.dom.btnEndlessMode) {
+            this.dom.btnEndlessMode.addEventListener('click', () => {
+                const curId = this.pvzEngine && this.pvzEngine.levelId;
+                const targetEndless = (curId && GAME_CONFIG.levels[curId] && GAME_CONFIG.levels[curId].isEndless)
+                    ? curId
+                    : 'endless_pool';
+                this.loadNewLevel(targetEndless, { openChooser: true });
+            });
+        }
         this.dom.btnCloseLevelModal.addEventListener('click', () => {
             this.dom.levelModal.style.display = 'none';
         });
@@ -1121,6 +1151,48 @@ class GameApp {
 
     openLevelModal() {
         this.dom.levelGrid.innerHTML = '';
+
+        // 顶部置顶：原版生存无尽模式专区
+        const activeUser = profileManager.getActiveUser() || {};
+        const bestFlags = activeUser.bestEndlessFlags || 0;
+        const bestWave = activeUser.bestEndlessWave || 0;
+        const endlessHeader = document.createElement('div');
+        endlessHeader.className = 'level-group-header';
+        endlessHeader.style.gridColumn = '1 / -1';
+        endlessHeader.style.padding = '9px 12px';
+        endlessHeader.style.margin = '2px 0 6px 0';
+        endlessHeader.style.background = 'linear-gradient(90deg, rgba(243,156,18,0.28), rgba(230,126,34,0.14))';
+        endlessHeader.style.border = '1px solid rgba(241,196,15,0.45)';
+        endlessHeader.style.borderRadius = '8px';
+        endlessHeader.style.fontWeight = 'bold';
+        endlessHeader.style.fontSize = '14px';
+        endlessHeader.style.color = '#ffeaa7';
+        endlessHeader.innerText = bestWave > 0
+            ? `♾️ 生存模式：原版无尽挑战 (最高纪录：🚩 ${bestFlags} 旗 · 第 ${bestWave} 波)`
+            : '♾️ 生存模式：原版无尽挑战 (无限波次 · 自由选卡 · 每 10 波一面旗帜)';
+        this.dom.levelGrid.appendChild(endlessHeader);
+
+        const endlessCards = [
+            { id: 'endless_pool', badge: '♾️ 泳池无尽', sub: '原版经典六行泳池' },
+            { id: 'endless_day', badge: '♾️ 草坪无尽', sub: '白天五行草坪生存' },
+            { id: 'endless_roof', badge: '♾️ 屋顶无尽', sub: '斜坡屋顶投石决战' }
+        ];
+        endlessCards.forEach(ec => {
+            const conf = GAME_CONFIG.levels[ec.id];
+            if (!conf) return;
+            const card = document.createElement('div');
+            card.className = `level-card level-card-endless ${ec.id === this.pvzEngine.levelId ? 'active' : ''}`;
+            card.innerHTML = `
+                <div class="level-card-id">${ec.badge}</div>
+                <div class="level-card-name">${ec.sub}</div>
+            `;
+            card.addEventListener('click', () => {
+                this.dom.levelModal.style.display = 'none';
+                this.loadNewLevel(ec.id, { openChooser: true });
+            });
+            this.dom.levelGrid.appendChild(card);
+        });
+
         const worlds = [
             { id: 1, name: '☀️ 第一大关：白天草坪 (1-1 ~ 1-10)' },
             { id: 2, name: '🌙 第二大关：黑夜墓地 (2-1 ~ 2-10)' },
@@ -1145,10 +1217,12 @@ class GameApp {
 
             Object.keys(GAME_CONFIG.levels).filter(id => GAME_CONFIG.levels[id].world === w.id).forEach(lvlId => {
                 const conf = GAME_CONFIG.levels[lvlId];
+                const waveCount = Array.isArray(conf.waves) ? conf.waves.length : 0;
+                const flagCount = waveCount >= 20 ? 2 : 1;
                 const card = document.createElement('div');
                 card.className = `level-card ${lvlId === this.pvzEngine.levelId ? 'active' : ''}`;
                 card.innerHTML = `
-                    <div class="level-card-id">${lvlId}</div>
+                    <div class="level-card-id">${lvlId} <span style="font-size:10px;opacity:0.78;">(${waveCount}波·${flagCount}🚩)</span></div>
                     <div class="level-card-name">${conf.title.split('：')[1] || conf.title}</div>
                 `;
                 card.addEventListener('click', () => {
@@ -1186,16 +1260,23 @@ class GameApp {
         if (this.dom.seedChooserZombies) {
             this.dom.seedChooserZombies.innerHTML = '';
             const zTypes = new Set();
-            (conf.waves || []).forEach(w => {
-                (w.zombies || []).forEach(z => {
-                    if (z.type !== 'flag') zTypes.add(z.type);
+            if (conf.isEndless) {
+                ['normal', 'conehead', 'buckethead', 'football', 'zomboni', 'pogo', 'catapult', 'gargantuar'].forEach(t => zTypes.add(t));
+                if (Array.isArray(conf.waterRows) && conf.waterRows.length > 0) {
+                    ['ducky', 'snorkel', 'dolphin'].forEach(t => zTypes.add(t));
+                }
+            } else {
+                (conf.waves || []).forEach(w => {
+                    (w.zombies || []).forEach(z => {
+                        if (z.type !== 'flag') zTypes.add(z.type);
+                    });
                 });
-            });
+            }
             if (zTypes.has('dancing')) zTypes.add('backup_dancer');
             Array.from(zTypes).forEach(zt => {
                 const zConf = GAME_CONFIG.zombies[zt];
                 if (!zConf) return;
-                const previewAnim = zConf.moonwalkAnim || (zConf.walkAnims && zConf.walkAnims[0]) || 'assets/zombies/zombie_walk.gif';
+                const previewAnim = zConf.moonwalkAnim || zConf.landWalkAnim || (zConf.walkAnims && zConf.walkAnims[0]) || 'assets/zombies/zombie_walk.gif';
                 const chip = document.createElement('div');
                 chip.className = 'zombie-preview-chip';
                 chip.innerHTML = `<img src="${previewAnim}" alt="${zConf.name}" /><span>${zConf.name}</span>`;
@@ -1309,7 +1390,21 @@ class GameApp {
         this.pvzEngine.loadLevel(lvlId);
         if (this.dom.btnPause) this.dom.btnPause.innerText = '⏸️';
         this.renderCardsList();
-        this.dom.btnSelectLevel.innerText = `🗺️ 第 ${lvlId} 关 ▾`;
+
+        const conf = this.pvzEngine.levelConfig || {};
+        if (conf.isEndless) {
+            const endlessNames = {
+                endless_pool: '♾️ 泳池无尽 ▾',
+                endless_day: '♾️ 草坪无尽 ▾',
+                endless_roof: '♾️ 屋顶无尽 ▾'
+            };
+            this.dom.btnSelectLevel.innerText = endlessNames[lvlId] || '♾️ 无尽模式 ▾';
+            if (this.dom.btnEndlessMode) this.dom.btnEndlessMode.classList.add('active-endless');
+        } else {
+            this.dom.btnSelectLevel.innerText = `🗺️ 第 ${lvlId} 关 ▾`;
+            if (this.dom.btnEndlessMode) this.dom.btnEndlessMode.classList.remove('active-endless');
+        }
+
         mathEngine.resetRoundStats();
         this.syncQuestionToBlackboard();
 
@@ -1324,6 +1419,10 @@ class GameApp {
     handleEngineState(evt, data) {
         if (evt === 'conveyor_updated' || evt === 'deck_updated') {
             this.renderCardsList();
+            return;
+        }
+        if (evt === 'endless_flag' && data) {
+            profileManager.recordEndlessProgress(data.flags || 0, data.wave || 0);
             return;
         }
 
@@ -1349,14 +1448,37 @@ class GameApp {
             this.dom.reportMaxCombo.innerText = `🔥 x${maxCombo}`;
             this.dom.victoryModal.style.display = 'flex';
         } else if (evt === 'game_over') {
+            const isEndless = !!(data && data.isEndless);
+            const survivedWaves = (data && data.survivedWaves) || 0;
+            const endlessFlags = (data && data.endlessFlags) || 0;
+            if (isEndless) {
+                profileManager.recordEndlessProgress(endlessFlags, survivedWaves);
+            }
             profileManager.recordGameRound({
                 levelId: this.pvzEngine.levelId,
                 total,
                 correct,
                 accuracy,
                 maxCombo,
+                endlessWaves: isEndless ? survivedWaves : undefined,
+                endlessFlags: isEndless ? endlessFlags : undefined,
                 mistakes: mathEngine.mistakes
             });
+
+            if (isEndless) {
+                const activeUser = profileManager.getActiveUser() || {};
+                if (this.dom.defeatModalIcon) this.dom.defeatModalIcon.innerText = '♾️';
+                if (this.dom.defeatModalTitle) this.dom.defeatModalTitle.innerText = '无尽生存战报结算！';
+                if (this.dom.defeatModalDesc) {
+                    this.dom.defeatModalDesc.innerText = `本局坚守 第 ${survivedWaves} 波 · 夺下 🚩 ${endlessFlags} 面旗帜！(历史最高：🚩 ${activeUser.bestEndlessFlags || endlessFlags} 旗 · 第 ${activeUser.bestEndlessWave || survivedWaves} 波)`;
+                }
+            } else {
+                if (this.dom.defeatModalIcon) this.dom.defeatModalIcon.innerText = '🧟‍♂️';
+                if (this.dom.defeatModalTitle) this.dom.defeatModalTitle.innerText = '僵尸吃掉了你的脑子！';
+                if (this.dom.defeatModalDesc) {
+                    this.dom.defeatModalDesc.innerText = '别灰心！深呼吸，心算更快一点就能守住防线啦！';
+                }
+            }
             this.dom.defeatModal.style.display = 'flex';
         }
     }

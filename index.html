@@ -24,7 +24,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20261112_full_pvz1">
+    <link rel="stylesheet" href="css/style.css?v=20261112_v5">
 </head>
 <body>
 
@@ -62,9 +62,10 @@
                 </div>
             </div>
 
-            <!-- 右侧：关卡选择、全屏、暂停、音效 -->
+            <!-- 右侧：关卡选择、无尽模式、全屏、暂停、音效 -->
             <div class="hud-right-group">
-                <button class="btn-jelly-pill btn-jelly-pill-level" id="btnSelectLevel" title="更换关卡 (1-1 ~ 1-10)">🗺️ 第 1-1 关 ▾</button>
+                <button class="btn-jelly-pill btn-jelly-pill-endless" id="btnEndlessMode" title="进入原版经典【生存：泳池无尽模式】">♾️ 无尽</button>
+                <button class="btn-jelly-pill btn-jelly-pill-level" id="btnSelectLevel" title="更换关卡 (1-1 ~ 5-10 & 无尽模式)">🗺️ 第 1-1 关 ▾</button>
                 <button class="btn-jelly-circle" id="btnFullscreen" title="点击切换全屏沉浸模式 (隐藏浏览器边框)">⛶</button>
                 <button class="btn-jelly-circle" id="btnPause" title="暂停/继续游戏">⏸️</button>
                 <button class="btn-jelly-circle" id="btnMute" title="开启/关闭声音">🔊</button>
@@ -423,9 +424,9 @@
     <!-- 失败重试弹窗 -->
     <div class="modal-overlay" id="defeatModal" style="display:none;">
         <div class="wood-modal-card defeat-card">
-            <div class="defeat-icon">🧟⛺</div>
-            <div class="modal-title" style="color:#e67e22;">僵尸在院子里开野餐派对啦！</div>
-            <p style="font-size:15px; color:#bdc3c7; margin:10px 0;">没关系，戴夫留下了更多阳光！我们重新调整防线再来一次！</p>
+            <div class="defeat-icon" id="defeatModalIcon">🧟⛺</div>
+            <div class="modal-title" id="defeatModalTitle" style="color:#e67e22;">僵尸在院子里开野餐派对啦！</div>
+            <p id="defeatModalDesc" style="font-size:15px; color:#bdc3c7; margin:10px 0;">没关系，戴夫留下了更多阳光！我们重新调整防线再来一次！</p>
             <div class="modal-actions-row">
                 <button class="btn-big-wood" id="btnRetryLevel">重新出击！ 🚀</button>
                 <button class="btn-big-wood" id="btnSelectLevelFromDefeat">选择其他关卡 🗺️</button>
@@ -433,6 +434,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20261112_full_pvz1"></script>
+    <script type="module" src="js/main.js?v=20261112_v5"></script>
 </body>
 </html>

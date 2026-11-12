@@ -1,9 +1,9 @@
 /**
  * zombies.js - 原版 1:1 僵尸实体系统与 DOM 60fps 动态 GIF 动画层 (完整支持第 1~5 大关全兵种与屋顶斜坡)
  */
-import { GAME_CONFIG } from './config.js';
-import { soundEngine } from './audio.js';
-import { FloatingText, LobbedProjectile, ExplosionEffect } from './projectiles.js';
+import { GAME_CONFIG } from './config.js?v=20261112_v5';
+import { soundEngine } from './audio.js?v=20261112_v5';
+import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261112_v5';
 
 export class Zombie {
     constructor(type = 'normal', row = 2, startX = 900, entityLayer = null) {
@@ -42,15 +42,19 @@ export class Zombie {
         this.isHypnotized = false;
 
         // 兵种专属状态属性
-        this.isAquatic = !!this.config.isAquatic;
+        this.isAquatic = !!(this.config.isAquatic || this.config.isWaterOnly);
+        this.inPoolWater = false;
         this.isVehicle = !!this.config.isVehicle;
         this.isFlying = !!this.config.isFlying;
         this.isBlownAway = false;
-        this.isSubmerged = (this.type === 'snorkel');
+        this.isSubmerged = false;
 
         // 撑杆跳 / 海豚骑手跳跃机制
         this.hasPole = (this.type === 'polevault');
         this.hasDolphin = (this.type === 'dolphin');
+        if (this.type === 'dolphin') {
+            this.speed = this.config.landSpeed || 20;
+        }
         this.jumpTimer = 0;
         this.jumpStartX = 0;
         this.jumpTargetX = 0;
@@ -94,11 +98,11 @@ export class Zombie {
         this.smashTarget = null;
         this.hasThrownImp = false;
 
-        // 动画资产初始化
-        if (this.type === 'polevault') {
+        // 动画资产初始化 (水生僵尸在岸边石板路上先抱圈/抱海豚步行，跨入池水瞬间再切换游泳/冲浪形态)
+        if (this.isAquatic) {
+            this.walkAnim = this.config.landWalkAnim || this.config.walkAnims[0];
+        } else if (this.type === 'polevault') {
             this.walkAnim = this.config.runAnim || 'assets/zombies/polevault_run.gif';
-        } else if (this.type === 'dolphin') {
-            this.walkAnim = this.config.rideAnim || 'assets/zombies/dolphin_ride.gif';
         } else if (this.type === 'digger') {
             this.walkAnim = this.config.digAnim || 'assets/zombies/digger_dig.gif';
         } else {
@@ -145,8 +149,9 @@ export class Zombie {
         if (!this.domElement) return;
         const slopeY = (engine && typeof engine.getSurfaceOffsetY === 'function') ? engine.getSurfaceOffsetY(this.x) : 0;
         const isWaterLane = !!(engine && engine.waterRows && engine.waterRows.includes(this.row));
-        const waterDip = (isWaterLane && this.isAquatic) ? 8 : 0;
-        if (isWaterLane && !this.isAquatic && !this.isFlying && this.type !== 'bungee') {
+        const poolRightX = (engine && ((engine.gridStartX || 80) + (engine.cols || 9) * (engine.cellW || 80) - 4)) || 796;
+        const waterDip = (isWaterLane && this.isAquatic && this.inPoolWater) ? 8 : 0;
+        if (isWaterLane && !this.isAquatic && !this.isFlying && this.type !== 'bungee' && this.x <= poolRightX) {
             this.domElement.classList.add('in-water');
         } else {
             this.domElement.classList.remove('in-water');
@@ -589,13 +594,61 @@ export class Zombie {
         if (this.isDead) return;
         this.age += dt;
 
-        // 同步引擎网格与屋顶斜坡高度
+        // 同步引擎网格与屋顶斜坡高度 + 水生僵尸严格水路约束 & 岸边入水溅水变身机制
         if (engine) {
             if (engine.cellH) this.cellH = engine.cellH;
             if (engine.cellW) this.cellW = engine.cellW;
             if (engine.gridStartY) this.gridStartY = engine.gridStartY;
+
+            if (this.isAquatic) {
+                const wRows = engine.waterRows || [];
+                if (wRows.length === 0) {
+                    // 非泳池关卡绝不允许出现水生僵尸：自动回退为普通僵尸
+                    this.type = 'normal';
+                    this.config = GAME_CONFIG.zombies.normal;
+                    this.isAquatic = false;
+                    this.inPoolWater = false;
+                    this.hasDolphin = false;
+                    this.isSubmerged = false;
+                    this.speed = this.config.speed || 18;
+                    this.walkAnim = this.config.walkAnims[0];
+                    this.attackAnim = this.config.attackAnim;
+                    this.setAnim(this.walkAnim);
+                } else if (!wRows.includes(this.row)) {
+                    // 严格锁定在泳池水路 (row 2 / 3)
+                    this.row = wRows[this.row < wRows[0] ? 0 : wRows.length - 1];
+                }
+            }
+
             const slopeY = (typeof engine.getSurfaceOffsetY === 'function') ? engine.getSurfaceOffsetY(this.x) : 0;
             this.y = this.gridStartY + this.row * this.cellH + this.cellH / 2 + slopeY;
+
+            // 原版 PVZ1 入水变身细节：在右侧石板岸上 (x > 796) 正常步行，跨过池沿进入水池瞬间溅起水花切换救生圈/潜水/骑海豚！
+            if (this.isAquatic && (engine.waterRows || []).includes(this.row)) {
+                const poolRightX = (engine.gridStartX || 80) + (engine.cols || 9) * (engine.cellW || 80) - 4;
+                if (!this.inPoolWater && this.x <= poolRightX) {
+                    this.inPoolWater = true;
+                    soundEngine.playSplat();
+                    if (engine.hitSplats) {
+                        engine.hitSplats.push(new HitSplat(this.x - 10, this.y + 10, 'snow'));
+                    }
+                    if (this.type === 'ducky') {
+                        this.walkAnim = this.config.walkAnims[0];
+                    } else if (this.type === 'snorkel') {
+                        this.isSubmerged = true;
+                        this.walkAnim = this.config.walkAnims[0];
+                    } else if (this.type === 'dolphin') {
+                        const swimSpd = this.config.speed || 48;
+                        this.speed = this.isHypnotized ? -Math.abs(swimSpd) : swimSpd;
+                        this.walkAnim = this.hasDolphin
+                            ? (this.config.rideAnim || this.config.walkAnims[0])
+                            : (this.config.swimAnim || this.config.walkAnims[0]);
+                    }
+                    if (this.state === 'walk' && !this.hasLostHead) {
+                        this.setAnim(this.walkAnim);
+                    }
+                }
+            }
         }
 
         // 三叶草狂风吹飞气球僵尸
@@ -766,6 +819,9 @@ export class Zombie {
         if (this.type === 'jackinthebox' && this.hasShield && !this.hasLostHead && !this.isHypnotized && engine) {
             if (this.x <= 680) {
                 this.jackFuse -= dt;
+                if (this.jackFuse <= 0.65 && this.config.openAnim) {
+                    this.setAnim(this.config.openAnim);
+                }
                 if (this.jackFuse <= 0 || this.x <= 240) {
                     soundEngine.playBoom();
                     soundEngine.playThunder();
@@ -1035,7 +1091,7 @@ export class Zombie {
 
         if (targetPlant) {
             // 1. 撑杆跳或海豚骑手首次跳跃判定
-            if (this.hasPole || this.hasDolphin) {
+            if (this.hasPole || (this.hasDolphin && this.inPoolWater)) {
                 if (targetPlant.isTall) {
                     if (this.hasDolphin) {
                         this.hasDolphin = false;
@@ -1125,7 +1181,7 @@ export class Zombie {
             }
         } else {
             if (this.type === 'snorkel') {
-                this.isSubmerged = true;
+                this.isSubmerged = !!this.inPoolWater;
             }
             const desiredWalk = (this.type === 'dancing' && this.dancePhase === 'moonwalk')
                 ? (this.config.moonwalkAnim || this.walkAnim)

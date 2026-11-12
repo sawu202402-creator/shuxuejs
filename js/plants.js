@@ -1,9 +1,9 @@
 /**
  * plants.js - 原版 1:1 植物实体系统与 DOM 60fps 动态 GIF 动画层
  */
-import { GAME_CONFIG } from './config.js';
-import { Projectile, ExplosionEffect, SunEntity, FumeCloud, HitSplat, FloatingText, JalapenoFireLine, StarProjectile, LobbedProjectile } from './projectiles.js';
-import { soundEngine } from './audio.js';
+import { GAME_CONFIG } from './config.js?v=20261112_v5';
+import { Projectile, ExplosionEffect, SunEntity, FumeCloud, HitSplat, FloatingText, JalapenoFireLine, StarProjectile, LobbedProjectile } from './projectiles.js?v=20261112_v5';
+import { soundEngine } from './audio.js?v=20261112_v5';
 
 export class Plant {
     constructor(type, row, col, x, y, entityLayer = null) {
@@ -1315,7 +1315,11 @@ export class BloverPlant extends Plant {
         this.timer += dt;
         if (this.timer >= 0.35 && !this.blown) {
             this.blown = true;
-            engine.fogClearTimer = 18.0;
+            if (typeof engine.blowFogAway === 'function') {
+                engine.blowFogAway(24.0);
+            } else {
+                engine.fogClearTimer = 24.0;
+            }
             let blownCount = 0;
             engine.zombies.forEach(z => {
                 if (!z.isDead && z.isFlying && typeof z.blowAway === 'function') {
@@ -1667,6 +1671,204 @@ export class MelonPultPlant extends Plant {
     }
 }
 
+// 缠绕水草 (泳池水生陷阱：瞬间把靠近的水中僵尸拽入水底秒杀)
+export class TangleKelpPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('tanglekelp', row, col, x, y, entityLayer);
+        this.grabbing = false;
+        this.grabTimer = 0;
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead) return;
+        if (this.grabbing) {
+            this.grabTimer -= dt;
+            if (this.grabTimer <= 0) {
+                this.destroy();
+            }
+            return;
+        }
+        const target = engine.zombies.find(z =>
+            z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized &&
+            !z.isFlying && Math.abs(z.x - this.x) <= 44
+        );
+        if (target) {
+            this.grabbing = true;
+            this.grabTimer = 0.45;
+            if (this.domImg) {
+                this.domImg.src = 'assets/plants/tanglekelp_grab.png';
+            }
+            soundEngine.playSplat();
+            if (engine.hitSplats) {
+                engine.hitSplats.push(new HitSplat(target.x, target.y, 'snow'));
+            }
+            engine.floatingTexts.push(new FloatingText(this.x, this.y - 32, '🌿 水草缠绕拖入水底!', '#1abc9c', 20));
+            target.destroy();
+        }
+    }
+}
+
+// 机枪射手 (无尽紫卡：4连发高速豌豆齐射)
+export class GatlingPeaPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('gatlingpea', row, col, x, y, entityLayer);
+        this.attackTimer = 0;
+        this.attackInterval = this.config.attackInterval || 1.425;
+        this.burstQueue = [];
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead) return;
+        this.attackTimer += dt;
+        const currentInterval = (engine.isSuperCharge || this.isSuperGatling) ? this.attackInterval * 0.45 : this.attackInterval;
+
+        for (let i = this.burstQueue.length - 1; i >= 0; i--) {
+            this.burstQueue[i] -= dt;
+            if (this.burstQueue[i] <= 0) {
+                this.burstQueue.splice(i, 1);
+                soundEngine.playShoot();
+                engine.projectiles.push(new Projectile(this.row, this.x + 28, this.y - 14, 'pea', this.config.damage || 20));
+            }
+        }
+
+        if (this.attackTimer >= currentInterval) {
+            const hasTarget = engine.zombies.some(z =>
+                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying &&
+                !z.isSubmerged && !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+                z.x > this.x - 10 && z.x < 920
+            );
+            if (hasTarget) {
+                this.attackTimer = 0;
+                soundEngine.playShoot();
+                engine.projectiles.push(new Projectile(this.row, this.x + 28, this.y - 14, 'pea', this.config.damage || 20));
+                this.burstQueue.push(0.11, 0.22, 0.33);
+            }
+        }
+    }
+}
+
+// 双子向日葵 (无尽紫卡：每次产出双份 25 阳光)
+export class TwinSunflowerPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('twinsunflower', row, col, x, y, entityLayer);
+        this.produceInterval = this.config.produceInterval || 24.0;
+        this.produceTimer = this.produceInterval - 6.0;
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead) return;
+        this.produceTimer += dt;
+        if (this.produceTimer >= this.produceInterval) {
+            this.produceTimer = 0;
+            soundEngine.playSunCollect();
+            if (engine.sunLayer) {
+                engine.suns.push(new SunEntity(this.x - 16, this.y - 18, this.y + 18, 25, false, engine.sunLayer, engine));
+                engine.suns.push(new SunEntity(this.x + 18, this.y - 18, this.y + 18, 25, false, engine.sunLayer, engine));
+            } else {
+                engine.sun += 50;
+            }
+        }
+    }
+}
+
+// 忧郁菇 (无尽紫卡：周围 3x3 八方向四连穿透孢子群伤)
+export class GloomShroomPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('gloomshroom', row, col, x, y, entityLayer);
+        this.isNocturnal = true;
+        this.attackTimer = 0;
+        this.attackInterval = this.config.attackInterval || 1.9;
+        this.animResetTimer = 0;
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead || this.isAsleep) return;
+        if (this.animResetTimer > 0) {
+            this.animResetTimer -= dt;
+            if (this.animResetTimer <= 0 && this.domImg) {
+                this.domImg.src = this.config.anim;
+            }
+        }
+        this.attackTimer += dt;
+        const currentInterval = (engine.isSuperCharge || this.isSuperGatling) ? this.attackInterval * 0.5 : this.attackInterval;
+        if (this.attackTimer >= currentInterval) {
+            const targets = engine.zombies.filter(z =>
+                !z.isDead && !z.isDying && !z.isHypnotized && !z.isFlying &&
+                Math.abs(z.row - this.row) <= 1 && Math.abs(z.x - this.x) <= 135
+            );
+            if (targets.length > 0) {
+                this.attackTimer = 0;
+                this.animResetTimer = 0.45;
+                if (this.domImg && this.config.attackAnim) {
+                    this.domImg.src = this.config.attackAnim;
+                }
+                soundEngine.playFume();
+                if (engine.fumeClouds) {
+                    engine.fumeClouds.push(new FumeCloud(this.x - 95, this.y, 190));
+                }
+                const dmg = this.config.damage || 80;
+                targets.forEach(z => {
+                    if (z.shieldType === 'screendoor' && typeof z.takeBypassArmorDamage === 'function') {
+                        z.takeBypassArmorDamage(dmg);
+                    } else {
+                        z.takeDamage(dmg);
+                    }
+                });
+            }
+        }
+    }
+}
+
+// 地刺王 (无尽紫卡：双倍尖刺伤害，可连续扎爆 3 辆冰车/投石车)
+export class SpikerockPlant extends SpikeweedPlant {
+    constructor(row, col, x, y, entityLayer) {
+        super(row, col, x, y, entityLayer);
+        this.type = 'spikerock';
+        this.config = GAME_CONFIG.plants.spikerock;
+        this.hp = this.config.hp || 900;
+        this.maxHp = this.hp;
+        this.anim = this.config.anim;
+        if (this.domImg) {
+            this.domImg.src = this.anim;
+        }
+    }
+
+    update(dt, engine) {
+        Plant.prototype.update.call(this, dt, engine);
+        if (this.isDead) return;
+
+        const vehicle = engine.zombies.find(z =>
+            z.row === this.row && !z.isDead && !z.isDying && z.isVehicle && Math.abs(z.x - this.x) <= 44
+        );
+        if (vehicle) {
+            soundEngine.playBoom();
+            engine.explosions.push(new ExplosionEffect(vehicle.x, vehicle.y - 10, 'cherry'));
+            engine.floatingTexts.push(new FloatingText(this.x, this.y - 32, '🪨 地刺王扎爆巨轮!', '#f1c40f', 22));
+            vehicle.takeDamage(9999);
+            this.takeDamage(300);
+            return;
+        }
+
+        this.attackTimer += dt;
+        if (this.attackTimer >= this.attackInterval) {
+            const victims = engine.zombies.filter(z =>
+                z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized &&
+                !z.isFlying && !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+                Math.abs(z.x - this.x) <= 42
+            );
+            if (victims.length > 0) {
+                this.attackTimer = 0;
+                soundEngine.playSplat();
+                victims.forEach(z => z.takeDamage(this.config.damage || 40));
+            }
+        }
+    }
+}
+
 // 植物工厂函数
 export function createPlant(type, row, col, x, y, entityLayer, isNight = false, targetPlant = null) {
     if (type === 'coffeebean') {
@@ -1698,7 +1900,12 @@ export function createPlant(type, row, col, x, y, entityLayer, isNight = false, 
         case 'torchwood': p = new TorchwoodPlant(row, col, x, y, entityLayer); break;
         case 'tallnut': p = new TallnutPlant(row, col, x, y, entityLayer); break;
         case 'seashroom': p = new SeaShroomPlant(row, col, x, y, entityLayer); break;
+        case 'tanglekelp': p = new TangleKelpPlant(row, col, x, y, entityLayer); break;
         case 'spikeweed': p = new SpikeweedPlant(row, col, x, y, entityLayer); break;
+        case 'spikerock': p = new SpikerockPlant(row, col, x, y, entityLayer); break;
+        case 'gatlingpea': p = new GatlingPeaPlant(row, col, x, y, entityLayer); break;
+        case 'twinsunflower': p = new TwinSunflowerPlant(row, col, x, y, entityLayer); break;
+        case 'gloomshroom': p = new GloomShroomPlant(row, col, x, y, entityLayer); break;
         case 'plantern': p = new PlanternPlant(row, col, x, y, entityLayer); break;
         case 'cactus': p = new CactusPlant(row, col, x, y, entityLayer); break;
         case 'splitpea': p = new SplitPeaPlant(row, col, x, y, entityLayer); break;
