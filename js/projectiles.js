@@ -119,14 +119,14 @@ export class FumeCloud {
             return;
         }
 
-        // 贯穿攻击：直线 range 距离内所有僵尸受伤害（穿透铁栅门）
+        // 贯穿攻击：直线 range 距离内所有敌方僵尸受伤害（穿透铁栅门/报纸等前向护盾，不无视铁桶/路障/橄榄球头盔）
         if (engine && engine.zombies) {
             engine.zombies.forEach(z => {
-                if (z.row === this.row && !z.isDead && !this.hitZombies.has(z.id)) {
+                if (z.row === this.row && !z.isDead && !z.isHypnotized && !this.hitZombies.has(z.id)) {
                     if (z.x >= this.x - 20 && z.x <= this.x + this.range) {
                         this.hitZombies.add(z.id);
-                        if (typeof z.takePiercingDamage === 'function') {
-                            z.takePiercingDamage(this.damage);
+                        if (typeof z.takeFumeDamage === 'function') {
+                            z.takeFumeDamage(this.damage);
                         } else {
                             z.takeDamage(this.damage);
                         }

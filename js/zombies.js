@@ -43,12 +43,26 @@ export class Zombie {
         this.jumpStartX = 0;
         this.jumpTargetX = 0;
 
+        // 读报僵尸失报问号停顿与狂暴状态
+        this.isEnraged = false;
+        this.enrageTimer = 0;
+
+        // 舞王僵尸太空步与伴舞召唤状态机
+        this.dancePhase = this.type === 'dancing' ? 'moonwalk' : null;
+        this.moonwalkTimer = 2.8;
+        this.summonTimer = 0;
+        this.summonCooldown = 1.5;
+        this.backupDancers = { front: null, back: null, up: null, down: null };
+        if (this.type === 'dancing') {
+            this.speed = this.config.moonwalkSpeed || 48;
+        }
+
         // 动画资产
         this.walkAnim = this.type === 'polevault' ? (this.config.runAnim || 'assets/zombies/polevault_run.gif') : this.config.walkAnims[Math.floor(Math.random() * this.config.walkAnims.length)];
         this.attackAnim = this.config.attackAnim;
         this.headAnim = this.config.headAnim;
         this.dieAnim = this.config.dieAnim;
-        this.currentAnim = this.walkAnim;
+        this.currentAnim = this.type === 'dancing' ? (this.config.moonwalkAnim || this.walkAnim) : this.walkAnim;
 
         // 数理破盾徽章
         this.hasShield = !!this.config.hasShield && this.armorHp > 0;
@@ -94,6 +108,36 @@ export class Zombie {
         }
     }
 
+    onArmorBroken(prevShield) {
+        this.armorHp = 0;
+        this.hasShield = false;
+        if (this.domShield) this.domShield.style.display = 'none';
+
+        this.spawnFallingArmor(prevShield);
+
+        if (this.type === 'newspaper') {
+            this.isEnraged = true;
+            this.state = 'enraging';
+            this.enrageTimer = this.config.enragePauseDuration || 1.35;
+            const nextSpeed = this.config.rageSpeed || 52;
+            this.speed = this.isHypnotized ? -Math.abs(nextSpeed) : nextSpeed;
+            this.dps = this.config.rageDps || 165;
+            this.biteInterval = this.config.rageBiteInterval || 0.15;
+            this.walkAnim = this.config.rageAnim || 'assets/zombies/newspaper_rage_walk.gif';
+            this.attackAnim = this.config.rageAttackAnim || this.walkAnim;
+            this.setAnim(this.config.lostPaperAnim || 'assets/zombies/newspaper_lost.gif');
+            soundEngine.playGroan();
+        } else if (this.type === 'football') {
+            this.walkAnim = this.config.noHelmetWalkAnim || 'assets/zombies/football_nohelmet_walk.gif';
+            this.attackAnim = this.config.noHelmetAttackAnim || 'assets/zombies/football_nohelmet_attack.gif';
+            this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
+        } else {
+            this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
+            this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
+            this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
+        }
+    }
+
     takeDamage(amount, isSlow = false) {
         if (this.isDead || this.isDying) return;
 
@@ -105,7 +149,10 @@ export class Zombie {
             }, 80);
         }
 
-        if (isSlow) {
+        // 原版机制：前向手持护盾（铁栅门/报纸）完好时阻挡寒冰豌豆的减速效果
+        const shieldBlocksChill = this.hasShield && this.armorHp > 0 &&
+            (this.shieldType === 'screendoor' || this.shieldType === 'newspaper');
+        if (isSlow && !shieldBlocksChill) {
             this.slowTimer = 10.0;
             this.isSlowed = true;
             if (this.domElement) this.domElement.classList.add('slowed');
@@ -115,27 +162,9 @@ export class Zombie {
             this.armorHp -= amount;
             if (this.armorHp <= 0) {
                 const overflow = -this.armorHp;
-                this.armorHp = 0;
                 const prevShield = this.shieldType;
-                this.hasShield = false;
-                if (this.domShield) this.domShield.style.display = 'none';
-
-                // 击落防具动效
-                this.spawnFallingArmor(prevShield);
                 soundEngine.playSplat();
-
-                if (this.type === 'newspaper') {
-                    this.speed = this.config.rageSpeed || 48;
-                    this.dps = this.config.rageDps || 150;
-                    this.walkAnim = this.config.rageAnim || 'assets/zombies/newspaper_lost.gif';
-                    this.attackAnim = this.config.rageAnim || 'assets/zombies/newspaper_lost.gif';
-                    this.setAnim(this.walkAnim);
-                    soundEngine.playGroan();
-                } else {
-                    this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
-                    this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
-                    this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
-                }
+                this.onArmorBroken(prevShield);
                 this.hp -= overflow;
             }
         } else {
@@ -161,10 +190,38 @@ export class Zombie {
         }
     }
 
+    takeFumeDamage(amount) {
+        if (this.isDead || this.isDying) return;
+        // 大喷菇孢子雾：穿透铁栅门与报纸直击本体，但不能绕过路障/铁桶/橄榄球等头顶防具
+        if (this.hasShield && this.shieldType === 'screendoor') {
+            this.takePiercingDamage(amount);
+            return;
+        }
+        if (this.hasShield && this.shieldType === 'newspaper') {
+            // 同时侵蚀报纸与读报僵尸本体
+            if (this.armorHp > 0) {
+                this.armorHp -= amount;
+                if (this.armorHp <= 0) {
+                    const prevShield = this.shieldType;
+                    soundEngine.playSplat();
+                    this.onArmorBroken(prevShield);
+                }
+            }
+            this.takePiercingDamage(amount);
+            return;
+        }
+        this.takeDamage(amount, false);
+    }
+
     takePiercingDamage(amount) {
         if (this.isDead || this.isDying) return;
         this.hitFlashTimer = 0.12;
-        if (this.domElement) this.domElement.classList.add('hit-flash');
+        if (this.domElement) {
+            this.domElement.classList.add('hit-flash');
+            setTimeout(() => {
+                if (this.domElement) this.domElement.classList.remove('hit-flash');
+            }, 80);
+        }
 
         this.hp -= amount;
         if (this.hp <= this.headLossThreshold && !this.hasLostHead) {
@@ -186,6 +243,7 @@ export class Zombie {
         this.isHypnotized = true;
         this.speed = -Math.abs(this.speed || 18);
         if (this.domElement) {
+            this.domElement.style.transformOrigin = '105px center';
             this.domElement.style.transform = 'scaleX(-1)';
             this.domElement.style.filter = 'drop-shadow(0 0 12px #d980fa) hue-rotate(280deg)';
         }
@@ -206,8 +264,14 @@ export class Zombie {
         armorEl.className = `armor-drop-entity armor-${shieldType || 'cone'}`;
         armorEl.style.left = `${this.x - 20}px`;
         armorEl.style.top = `${this.gridStartY + this.row * this.cellH - 35}px`;
-        const imgSrc = shieldType === 'bucket' ? 'assets/zombies/bucket_drop.png' :
-                       (shieldType === 'newspaper' ? 'assets/zombies/newspaper_drop.png' : 'assets/zombies/cone_drop.png');
+        const dropMap = {
+            bucket: 'assets/zombies/bucket_drop.png',
+            newspaper: 'assets/zombies/newspaper_drop.png',
+            screendoor: 'assets/zombies/screendoor_drop.png',
+            football: 'assets/zombies/football_drop.png',
+            cone: 'assets/zombies/cone_drop.png'
+        };
+        const imgSrc = dropMap[shieldType] || 'assets/zombies/cone_drop.png';
         armorEl.innerHTML = `<img src="${imgSrc}" />`;
         this.entityLayer.appendChild(armorEl);
 
@@ -233,22 +297,7 @@ export class Zombie {
     breakShieldInstantly(engine) {
         if (!this.hasShield || this.armorHp <= 0) return;
         const prevShield = this.shieldType;
-        this.armorHp = 0;
-        this.hasShield = false;
-        if (this.domShield) this.domShield.style.display = 'none';
-
-        this.spawnFallingArmor(prevShield);
-        if (this.type === 'newspaper') {
-            this.speed = this.config.rageSpeed || 48;
-            this.dps = this.config.rageDps || 150;
-            this.walkAnim = this.config.rageAnim || 'assets/zombies/newspaper_lost.gif';
-            this.attackAnim = this.config.rageAnim || 'assets/zombies/newspaper_lost.gif';
-            this.setAnim(this.walkAnim);
-        } else {
-            this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
-            this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
-            this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
-        }
+        this.onArmorBroken(prevShield);
 
         engine.floatingTexts.push(
             new FloatingText(this.x, this.y - 45, '💥 破盾神雷!', '#ff3838', 22)
@@ -293,8 +342,71 @@ export class Zombie {
         }
     }
 
+    getBackupSlots(engine) {
+        const activeRows = (engine && engine.levelConfig && engine.levelConfig.activeRows) || [0, 1, 2, 3, 4];
+        const waterRows = (engine && engine.waterRows) || [];
+        const dir = this.isHypnotized ? 1 : -1;
+        const rawSlots = {
+            front: { row: this.row, dx: 68 * dir },
+            back: { row: this.row, dx: -68 * dir },
+            up: { row: this.row - 1, dx: 0 },
+            down: { row: this.row + 1, dx: 0 }
+        };
+        const valid = {};
+        Object.keys(rawSlots).forEach(k => {
+            const s = rawSlots[k];
+            if (activeRows.includes(s.row) && !waterRows.includes(s.row)) {
+                valid[k] = s;
+            }
+        });
+        return valid;
+    }
+
+    hasMissingBackup(engine) {
+        const slots = this.getBackupSlots(engine);
+        return Object.keys(slots).some(k => {
+            const d = this.backupDancers[k];
+            return !d || d.isDead || d.isDying;
+        });
+    }
+
+    summonBackupDancers(engine) {
+        if (!engine || !engine.zombies) return;
+        const slots = this.getBackupSlots(engine);
+        let spawned = 0;
+        Object.keys(slots).forEach(k => {
+            const cur = this.backupDancers[k];
+            if (!cur || cur.isDead || cur.isDying) {
+                const s = slots[k];
+                const spawnX = Math.max(90, Math.min(890, this.x + s.dx));
+                const dancer = new Zombie('backup_dancer', s.row, spawnX, this.entityLayer);
+                if (this.isHypnotized) {
+                    dancer.hypnotize();
+                }
+                this.backupDancers[k] = dancer;
+                engine.zombies.push(dancer);
+                spawned++;
+            }
+        });
+        if (spawned > 0) {
+            soundEngine.playDisco();
+            if (engine.floatingTexts) {
+                engine.floatingTexts.push(
+                    new FloatingText(this.x, this.y - 45, '🕺 迪斯科伴舞登场!', '#f368e0', 18)
+                );
+            }
+        }
+    }
+
     update(dt, engine) {
         if (this.isDead) return;
+
+        // 同步引擎当前网格尺寸 (泳池关 6 行 rowCount=6, cellH=85)
+        if (engine) {
+            if (engine.cellH) this.cellH = engine.cellH;
+            if (engine.gridStartY) this.gridStartY = engine.gridStartY;
+            this.y = this.gridStartY + this.row * this.cellH + this.cellH / 2;
+        }
 
         if (this.freezeTimer > 0) {
             this.freezeTimer -= dt;
@@ -316,20 +428,101 @@ export class Zombie {
             return;
         }
 
-        // 倒戈魅惑状态 (反向向右走，攻击其他僵尸)
+        // 读报僵尸报纸被打碎后的原地问号愤怒停顿 (原版 ~1.35s)
+        if (this.state === 'enraging') {
+            this.enrageTimer -= dt;
+            if (this.enrageTimer > 0) {
+                if (this.domElement) {
+                    this.domElement.style.left = `${this.x - 105}px`;
+                    this.domElement.style.top = `${this.gridStartY + this.row * this.cellH - 46}px`;
+                }
+                return;
+            }
+            this.state = 'walk';
+            this.setAnim(this.walkAnim);
+            if (engine && engine.floatingTexts) {
+                engine.floatingTexts.push(new FloatingText(this.x, this.y - 45, '😡 报纸碎了！狂暴冲锋！', '#e74c3c', 18));
+            }
+        }
+
+        // 舞王僵尸太空步入场与聚光灯召唤伴舞状态机 (支持魅惑状态下召唤魅惑伴舞)
+        if (this.type === 'dancing' && !this.hasLostHead && engine) {
+            if (this.dancePhase === 'moonwalk') {
+                this.moonwalkTimer -= dt;
+                const hasObstacle = this.isHypnotized
+                    ? engine.zombies.some(z => !z.isDead && !z.isDying && !z.isHypnotized && z.row === this.row && Math.abs(z.x - this.x) <= 45)
+                    : (engine.plants.some(p => p.row === this.row && !p.isDead && p.x <= this.x && Math.abs(p.x - this.x) <= 45) ||
+                       engine.zombies.some(z => !z.isDead && !z.isDying && z.isHypnotized && z.row === this.row && Math.abs(z.x - this.x) <= 45));
+                if (this.moonwalkTimer <= 0 || hasObstacle || (!this.isHypnotized && this.x <= 680)) {
+                    this.dancePhase = 'summon';
+                    this.summonTimer = 1.15;
+                    const baseSpd = this.config.speed || 16;
+                    this.speed = this.isHypnotized ? -Math.abs(baseSpd) : baseSpd;
+                    this.setAnim(this.config.summonAnim || 'assets/zombies/dancing_summon.gif');
+                    soundEngine.playDisco();
+                    return;
+                }
+            } else if (this.dancePhase === 'summon') {
+                this.summonTimer -= dt;
+                this.setAnim(this.config.summonAnim || 'assets/zombies/dancing_summon.gif');
+                if (this.summonTimer <= 0) {
+                    this.summonBackupDancers(engine);
+                    this.dancePhase = 'dance_walk';
+                    this.summonCooldown = 7.0;
+                    this.state = 'walk';
+                    this.setAnim(this.walkAnim);
+                }
+                if (this.domElement) {
+                    this.domElement.style.left = `${this.x - 105}px`;
+                    this.domElement.style.top = `${this.gridStartY + this.row * this.cellH - 46}px`;
+                }
+                return;
+            } else if (this.dancePhase === 'dance_walk') {
+                this.summonCooldown -= dt;
+                if (this.summonCooldown <= 0 && this.state !== 'attack' && this.hasMissingBackup(engine)) {
+                    this.dancePhase = 'summon';
+                    this.summonTimer = 1.15;
+                    this.setAnim(this.config.summonAnim || 'assets/zombies/dancing_summon.gif');
+                    soundEngine.playDisco();
+                    return;
+                }
+            }
+        }
+
+        // 倒戈魅惑状态 (反向向右走，与其他僵尸双向互啃)
         if (this.isHypnotized) {
-            const enemyZombie = engine.zombies.find(z =>
-                !z.isDead && !z.isHypnotized && z.row === this.row && Math.abs(z.x - this.x) <= 35
+            const enemyZombie = !this.hasLostHead && engine.zombies.find(z =>
+                !z.isDead && !z.isDying && !z.isHypnotized && z.row === this.row && Math.abs(z.x - this.x) <= 35
             );
             if (enemyZombie) {
+                if (this.state !== 'attack') {
+                    this.state = 'attack';
+                    this.setAnim(this.attackAnim);
+                }
                 this.biteTimer += dt;
-                if (this.biteTimer >= this.biteInterval) {
+                const biteRate = this.isSlowed ? this.biteInterval * 2 : this.biteInterval;
+                if (this.biteTimer >= biteRate) {
                     this.biteTimer = 0;
                     enemyZombie.takeDamage(this.biteDamage);
                     soundEngine.playBite();
                 }
             } else {
-                this.x += Math.abs(this.speed) * dt;
+                const desiredWalk = (this.type === 'dancing' && this.dancePhase === 'moonwalk')
+                    ? (this.config.moonwalkAnim || this.walkAnim)
+                    : this.walkAnim;
+                if (this.state !== 'walk' || this.currentAnim !== desiredWalk) {
+                    this.state = 'walk';
+                    this.setAnim(desiredWalk);
+                }
+                const baseMove = this.isSlowed ? Math.abs(this.speed) * 0.5 : Math.abs(this.speed);
+                this.x += (this.hasLostHead ? baseMove * 0.75 : baseMove) * dt;
+                if (this.hasLostHead) {
+                    this.hp -= dt * 20;
+                    if (this.hp <= 0) {
+                        this.hp = 0;
+                        this.die();
+                    }
+                }
                 if (this.x > 960) {
                     this.destroy();
                 }
@@ -339,12 +532,6 @@ export class Zombie {
                 this.domElement.style.top = `${this.gridStartY + this.row * this.cellH - 46}px`;
             }
             return;
-        }
-
-        // 同步引擎当前网格尺寸 (泳池关 6 行 rowCount=6, cellH=85)
-        if (engine) {
-            if (engine.cellH) this.cellH = engine.cellH;
-            if (engine.gridStartY) this.gridStartY = engine.gridStartY;
         }
 
         // 撑杆跳跃飞行动画
@@ -368,7 +555,7 @@ export class Zombie {
             return;
         }
 
-        // 失去头部状态 (不能再啃咬植物)
+        // 失去头部状态 (不能再啃咬植物或僵尸)
         if (this.hasLostHead) {
             if (this.state !== 'walk') {
                 this.state = 'walk';
@@ -383,37 +570,17 @@ export class Zombie {
                 this.die();
             }
         } else {
-            const candidates = engine.plants.filter(p => 
-                p.row === this.row && !p.isDead && (p.x <= this.x && Math.abs(p.x - this.x) <= 38)
+            // 优先检测同行魅惑倒戈僵尸 (原版双向互啃对决)
+            const hypnoTarget = engine.zombies.find(z =>
+                !z.isDead && !z.isDying && z.isHypnotized && z.row === this.row && Math.abs(z.x - this.x) <= 35
             );
-            // 优先攻击荷叶之上的植物；只有在没有上层植物时才啃咬荷叶底座
-            const targetPlant = candidates.find(p => p.type !== 'lilypad') || candidates[0];
-
-            if (targetPlant) {
-                // 撑杆跳僵尸遇到第一株植物！
+            if (hypnoTarget) {
                 if (this.hasPole) {
-                    if (targetPlant.isTall) {
-                        // 遇到高坚果！起跳失败！
-                        this.hasPole = false;
-                        this.speed = this.config.walkSpeed || 18;
-                        this.walkAnim = 'assets/zombies/polevault_walk.gif';
-                        this.attackAnim = 'assets/zombies/polevault_attack.gif';
-                        this.state = 'attack';
-                        this.setAnim(this.attackAnim);
-                        engine.floatingTexts.push(new FloatingText(this.x, this.y - 45, '🛑 高坚果拦截！起跳失败！', '#e74c3c', 20));
-                        soundEngine.playSplat();
-                    } else {
-                        // 成功起跳！越过植物落于其身后！
-                        this.state = 'jumping';
-                        this.jumpTimer = 0.85;
-                        this.jumpStartX = this.x;
-                        this.jumpTargetX = targetPlant.x - 48;
-                        this.setAnim(this.config.jumpAnim || 'assets/zombies/polevault_jump.gif');
-                        soundEngine.playGroan();
-                        return;
-                    }
+                    this.hasPole = false;
+                    this.speed = this.config.walkSpeed || 18;
+                    this.walkAnim = 'assets/zombies/polevault_walk.gif';
+                    this.attackAnim = 'assets/zombies/polevault_attack.gif';
                 }
-
                 if (this.state !== 'attack') {
                     this.state = 'attack';
                     this.setAnim(this.attackAnim);
@@ -422,16 +589,63 @@ export class Zombie {
                 const biteRate = this.isSlowed ? this.biteInterval * 2 : this.biteInterval;
                 if (this.biteTimer >= biteRate) {
                     this.biteTimer = 0;
-                    targetPlant.takeDamage(this.biteDamage, this);
+                    hypnoTarget.takeDamage(this.biteDamage);
                     soundEngine.playBite();
                 }
             } else {
-                if (this.state !== 'walk') {
-                    this.state = 'walk';
-                    this.setAnim(this.walkAnim);
+                const candidates = engine.plants.filter(p => 
+                    p.row === this.row && !p.isDead && (p.x <= this.x && Math.abs(p.x - this.x) <= 38)
+                );
+                // 优先攻击荷叶之上的植物；只有在没有上层植物时才啃咬荷叶底座
+                const targetPlant = candidates.find(p => p.type !== 'lilypad') || candidates[0];
+
+                if (targetPlant) {
+                    // 撑杆跳僵尸遇到第一株植物！
+                    if (this.hasPole) {
+                        if (targetPlant.isTall) {
+                            // 遇到高坚果！起跳失败！
+                            this.hasPole = false;
+                            this.speed = this.config.walkSpeed || 18;
+                            this.walkAnim = 'assets/zombies/polevault_walk.gif';
+                            this.attackAnim = 'assets/zombies/polevault_attack.gif';
+                            this.state = 'attack';
+                            this.setAnim(this.attackAnim);
+                            engine.floatingTexts.push(new FloatingText(this.x, this.y - 45, '🛑 高坚果拦截！起跳失败！', '#e74c3c', 20));
+                            soundEngine.playSplat();
+                        } else {
+                            // 成功起跳！越过植物落于其身后！
+                            this.state = 'jumping';
+                            this.jumpTimer = 0.85;
+                            this.jumpStartX = this.x;
+                            this.jumpTargetX = targetPlant.x - 48;
+                            this.setAnim(this.config.jumpAnim || 'assets/zombies/polevault_jump.gif');
+                            soundEngine.playGroan();
+                            return;
+                        }
+                    }
+
+                    if (this.state !== 'attack') {
+                        this.state = 'attack';
+                        this.setAnim(this.attackAnim);
+                    }
+                    this.biteTimer += dt;
+                    const biteRate = this.isSlowed ? this.biteInterval * 2 : this.biteInterval;
+                    if (this.biteTimer >= biteRate) {
+                        this.biteTimer = 0;
+                        targetPlant.takeDamage(this.biteDamage, this);
+                        soundEngine.playBite();
+                    }
+                } else {
+                    const desiredWalk = (this.type === 'dancing' && this.dancePhase === 'moonwalk')
+                        ? (this.config.moonwalkAnim || this.walkAnim)
+                        : this.walkAnim;
+                    if (this.state !== 'walk' || this.currentAnim !== desiredWalk) {
+                        this.state = 'walk';
+                        this.setAnim(desiredWalk);
+                    }
+                    const curSpeed = this.isSlowed ? this.speed * 0.5 : this.speed;
+                    this.x -= curSpeed * dt;
                 }
-                const curSpeed = this.isSlowed ? this.speed * 0.5 : this.speed;
-                this.x -= curSpeed * dt;
             }
         }
 

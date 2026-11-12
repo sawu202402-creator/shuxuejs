@@ -399,6 +399,65 @@ class SoundEngine {
         });
     }
 
+    // 2-5 木槌砸击音效
+    playMalletWhack() {
+        if (this.muted || !this.throttle('whack', 45)) return;
+        this.resume();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        // 低频木槌闷响
+        const osc1 = this.ctx.createOscillator();
+        const gain1 = this.ctx.createGain();
+        osc1.type = 'triangle';
+        osc1.frequency.setValueAtTime(190, now);
+        osc1.frequency.exponentialRampToValueAtTime(52, now + 0.14);
+        gain1.gain.setValueAtTime(0.55, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc1.connect(gain1);
+        gain1.connect(this.ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.16);
+
+        // 清脆敲头泛音
+        const osc2 = this.ctx.createOscillator();
+        const gain2 = this.ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(480, now);
+        osc2.frequency.exponentialRampToValueAtTime(180, now + 0.08);
+        gain2.gain.setValueAtTime(0.32, now);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+        osc2.connect(gain2);
+        gain2.connect(this.ctx.destination);
+        osc2.start(now);
+        osc2.stop(now + 0.1);
+    }
+
+    // 舞王僵尸迪斯科伴舞登场律动音
+    playDisco() {
+        if (this.muted || !this.throttle('disco', 300)) return;
+        this.resume();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const riff = [
+            { f: 329.63, t: 0, d: 0.12 },
+            { f: 392.00, t: 0.11, d: 0.12 },
+            { f: 493.88, t: 0.22, d: 0.14 },
+            { f: 659.25, t: 0.35, d: 0.28 }
+        ];
+        riff.forEach(n => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(n.f, now + n.t);
+            gain.gain.setValueAtTime(0.18, now + n.t);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + n.t + n.d);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + n.t);
+            osc.stop(now + n.t + n.d + 0.02);
+        });
+    }
+
     // 关卡失败温馨重试音
     playLose() {
         if (this.muted) return;

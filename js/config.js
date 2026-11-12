@@ -39,7 +39,6 @@ export const GAME_CONFIG = {
             hp: 300,
             damage: 20,
             attackInterval: 1.425,
-            isDiurnal: true,
             desc: '直线单发绿豌豆，基础火力防线',
             icon: 'assets/cards/card_peashooter.png',
             anim: 'assets/plants/peashooter.gif',
@@ -55,7 +54,6 @@ export const GAME_CONFIG = {
             hp: 300,
             firstSunTime: 7.0,
             sunInterval: 24.0,
-            isDiurnal: true,
             desc: '每隔24秒生产一颗25点阳光',
             icon: 'assets/cards/card_sunflower.png',
             anim: 'assets/plants/sunflower.gif',
@@ -138,7 +136,6 @@ export const GAME_CONFIG = {
             attackInterval: 1.425,
             slowRate: 0.5,
             slowDuration: 10.0,
-            isDiurnal: true,
             desc: '发射寒冰豌豆，伤害20并使僵尸减速50%',
             icon: 'assets/cards/card_snowpea.png',
             anim: 'assets/plants/snowpea.gif',
@@ -153,7 +150,6 @@ export const GAME_CONFIG = {
             hp: 300,
             swallowRange: 1.2,
             chewTime: 42.0,
-            isDiurnal: true,
             desc: '一口吞掉前方一整只僵尸，需咀嚼42秒',
             icon: 'assets/cards/card_chomper.png',
             anim: 'assets/plants/chomper.gif',
@@ -171,7 +167,6 @@ export const GAME_CONFIG = {
             bulletCount: 2,
             bulletDelay: 0.2,
             attackInterval: 1.425,
-            isDiurnal: true,
             desc: '一次连续射出两颗豌豆，双倍火力输出',
             icon: 'assets/cards/card_repeater.png',
             anim: 'assets/plants/repeater.gif',
@@ -202,11 +197,11 @@ export const GAME_CONFIG = {
             cost: 25,
             cooldown: 7.5,
             hp: 300,
-            growTime: 90.0,
+            growTime: 120.0,
             smallSunVal: 15,
             bigSunVal: 25,
             isNocturnal: true,
-            desc: '初生产出小阳光(15)，长大后产出正常阳光(25)',
+            desc: '初生产出小阳光(15)，120秒长大后产出正常阳光(25)',
             icon: 'assets/cards/card_sunshroom.png',
             anim: 'assets/plants/sunshroom.gif',
             sleepAnim: 'assets/plants/sunshroom_sleep.gif',
@@ -223,7 +218,7 @@ export const GAME_CONFIG = {
             attackInterval: 1.425,
             range: 340,
             isNocturnal: true,
-            desc: '喷射穿透性孢子云雾，同时攻击直线4格内所有僵尸(包括铁栅门)',
+            desc: '喷射穿透性孢子云雾，穿透铁栅门与报纸并攻击直线4格内所有僵尸',
             icon: 'assets/cards/card_fumeshroom.png',
             anim: 'assets/plants/fumeshroom.gif',
             sleepAnim: 'assets/plants/fumeshroom_sleep.gif',
@@ -238,8 +233,7 @@ export const GAME_CONFIG = {
             hp: 300,
             chewTime: 4.5,
             isTombOnly: true,
-            isNocturnal: true,
-            desc: '种在墓碑上吞噬墓碑，清除后掉落阳光',
+            desc: '种在墓碑上吞噬墓碑，阻止大波时墓碑钻出僵尸并掉落奖励',
             icon: 'assets/cards/card_gravebuster.png',
             anim: 'assets/plants/gravebuster.gif',
             unlockLevel: '2-4'
@@ -254,7 +248,8 @@ export const GAME_CONFIG = {
             desc: '被僵尸啃食后，使该僵尸倒戈反向攻击其他僵尸',
             icon: 'assets/cards/card_hypnoshroom.png',
             anim: 'assets/plants/hypnoshroom.gif',
-            unlockLevel: '2-5'
+            sleepAnim: 'assets/plants/hypnoshroom_sleep.gif',
+            unlockLevel: '2-6'
         },
         scaredyshroom: {
             id: 'scaredyshroom',
@@ -273,7 +268,7 @@ export const GAME_CONFIG = {
             hideAnim: 'assets/plants/scaredyshroom_hide.gif',
             bulletAnim: 'assets/projectiles/shroom_bullet.gif',
             splatAnim: 'assets/projectiles/shroom_splat.gif',
-            unlockLevel: '2-6'
+            unlockLevel: '2-7'
         },
         iceshroom: {
             id: 'iceshroom',
@@ -285,10 +280,11 @@ export const GAME_CONFIG = {
             freezeDuration: 4.0,
             slowDuration: 10.0,
             isNocturnal: true,
-            desc: '瞬间冻结全场所有僵尸4秒并造成减速',
+            desc: '瞬间冻结全场所有僵尸4秒并造成持续减速',
             icon: 'assets/cards/card_iceshroom.png',
             anim: 'assets/plants/iceshroom.gif',
-            unlockLevel: '2-7'
+            sleepAnim: 'assets/plants/iceshroom_sleep.gif',
+            unlockLevel: '2-8'
         },
         doomshroom: {
             id: 'doomshroom',
@@ -298,11 +294,12 @@ export const GAME_CONFIG = {
             hp: 300,
             damage: 1800,
             isNocturnal: true,
-            desc: '引发毁灭性核爆(1800伤害)，消灭巨幅范围内全部僵尸',
+            desc: '引发毁灭性核爆(1800伤害)，消灭巨幅范围内全部僵尸并留下弹坑',
             icon: 'assets/cards/card_doomshroom.png',
             anim: 'assets/plants/doomshroom.gif',
+            sleepAnim: 'assets/plants/doomshroom_sleep.gif',
             boomAnim: 'assets/projectiles/cherry_boom.gif',
-            unlockLevel: '2-8'
+            unlockLevel: '2-9'
         },
         coffeebean: {
             id: 'coffeebean',
@@ -310,12 +307,12 @@ export const GAME_CONFIG = {
             cost: 75,
             cooldown: 7.5,
             hp: 300,
-            desc: '种在睡觉的植物上，唤醒它们使其正常工作',
+            desc: '种在白天睡觉的蘑菇上，唤醒它们使其正常工作',
             icon: 'assets/cards/card_coffeebean.png',
             anim: 'assets/plants/coffeebean.gif',
             eatAnim: 'assets/plants/coffeebean_eat.gif',
             isWakeOnly: true,
-            unlockLevel: '2-1'
+            unlockLevel: '2-5'
         },
         lilypad: {
             id: 'lilypad',
@@ -350,7 +347,6 @@ export const GAME_CONFIG = {
             hp: 300,
             damage: 20,
             attackInterval: 1.425,
-            isDiurnal: true,
             desc: '一次射出三颗豌豆，覆盖自身及相邻两条航道',
             icon: 'assets/cards/card_threepeater.png',
             anim: 'assets/plants/threepeater.gif',
@@ -572,8 +568,8 @@ export const GAME_CONFIG = {
             biteInterval: 0.25,
             biteDamage: 25,
             score: 150,
-            walkAnims: ['assets/zombies/zombie_walk.gif'],
-            attackAnim: 'assets/zombies/zombie_attack.gif',
+            walkAnims: ['assets/zombies/flag_walk.gif'],
+            attackAnim: 'assets/zombies/flag_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
             dieAnim: 'assets/zombies/zombie_die.gif'
         },
@@ -616,23 +612,27 @@ export const GAME_CONFIG = {
         newspaper: {
             id: 'newspaper',
             name: '读报僵尸',
-            hp: 200,
+            hp: 270,
             armorHp: 150,
             headLossThreshold: 70,
             speed: 18,
-            rageSpeed: 48,
+            rageSpeed: 52,
             dps: 100,
-            rageDps: 150,
+            rageDps: 165,
+            rageBiteInterval: 0.15,
+            enragePauseDuration: 1.35,
             biteInterval: 0.25,
             biteDamage: 25,
             score: 300,
             hasShield: true,
             shieldType: 'newspaper',
-            walkAnims: ['assets/zombies/zombie_walk.gif'],
-            rageAnim: 'assets/zombies/newspaper_lost.gif',
-            attackAnim: 'assets/zombies/zombie_attack.gif',
+            walkAnims: ['assets/zombies/newspaper_walk.gif'],
+            attackAnim: 'assets/zombies/newspaper_attack.gif',
+            lostPaperAnim: 'assets/zombies/newspaper_lost.gif',
+            rageAnim: 'assets/zombies/newspaper_rage_walk.gif',
+            rageAttackAnim: 'assets/zombies/newspaper_rage_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_die.gif'
+            dieAnim: 'assets/zombies/newspaper_die.gif'
         },
         screendoor: {
             id: 'screendoor',
@@ -647,8 +647,8 @@ export const GAME_CONFIG = {
             score: 450,
             hasShield: true,
             shieldType: 'screendoor',
-            walkAnims: ['assets/zombies/buckethead_walk.gif'],
-            attackAnim: 'assets/zombies/buckethead_attack.gif',
+            walkAnims: ['assets/zombies/screendoor_walk.gif'],
+            attackAnim: 'assets/zombies/screendoor_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
             dieAnim: 'assets/zombies/zombie_die.gif'
         },
@@ -665,8 +665,45 @@ export const GAME_CONFIG = {
             score: 600,
             hasShield: true,
             shieldType: 'football',
-            walkAnims: ['assets/zombies/conehead_walk.gif'],
-            attackAnim: 'assets/zombies/conehead_attack.gif',
+            walkAnims: ['assets/zombies/football_walk.gif'],
+            attackAnim: 'assets/zombies/football_attack.gif',
+            noHelmetWalkAnim: 'assets/zombies/football_nohelmet_walk.gif',
+            noHelmetAttackAnim: 'assets/zombies/football_nohelmet_attack.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/football_die.gif'
+        },
+        dancing: {
+            id: 'dancing',
+            name: '舞王僵尸',
+            hp: 500,
+            armorHp: 0,
+            headLossThreshold: 160,
+            moonwalkSpeed: 48,
+            speed: 16,
+            dps: 100,
+            biteInterval: 0.25,
+            biteDamage: 25,
+            score: 550,
+            moonwalkAnim: 'assets/zombies/dancing_moonwalk.gif',
+            summonAnim: 'assets/zombies/dancing_summon.gif',
+            walkAnims: ['assets/zombies/dancing_walk.gif'],
+            attackAnim: 'assets/zombies/dancing_attack.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_die.gif'
+        },
+        backup_dancer: {
+            id: 'backup_dancer',
+            name: '伴舞僵尸',
+            hp: 270,
+            armorHp: 0,
+            headLossThreshold: 70,
+            speed: 16,
+            dps: 100,
+            biteInterval: 0.25,
+            biteDamage: 25,
+            score: 150,
+            walkAnims: ['assets/zombies/backup_walk.gif'],
+            attackAnim: 'assets/zombies/backup_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
             dieAnim: 'assets/zombies/zombie_die.gif'
         },
@@ -977,22 +1014,28 @@ export const GAME_CONFIG = {
         '2-1': {
             id: '2-1',
             world: 2,
-            title: '第 2-1 关：黑夜初临 (小喷菇与阳光菇)',
+            initialSun: 50,
+            title: '第 2-1 关：黑夜初临 (读报僵尸登场)',
             bg: 'assets/backgrounds/night_viewport.jpg',
             activeRows: [0, 1, 2, 3, 4],
-            tombstones: [{ row: 1, col: 7 }, { row: 3, col: 6 }],
-            allowedPlants: ['puffshroom', 'sunshroom', 'wallnut', 'potatomine', 'cherrybomb', 'coffeebean', 'peashooter', 'sunflower'],
-            rewardPlant: 'fumeshroom',
-            rewardText: '恭喜解锁：大喷菇！喷射穿透性孢子云雾，同时攻击直线4格内所有僵尸！',
+            tombstones: [
+                { row: 0, col: 7 }, { row: 1, col: 5 },
+                { row: 3, col: 6 }, { row: 4, col: 8 }
+            ],
+            allowedPlants: ['puffshroom', 'sunflower', 'peashooter', 'wallnut', 'potatomine', 'cherrybomb', 'snowpea', 'repeater'],
+            selectablePlants: ['puffshroom', 'sunflower', 'peashooter', 'cherrybomb', 'wallnut', 'potatomine', 'snowpea', 'chomper', 'repeater'],
+            rewardPlant: 'sunshroom',
+            rewardText: '恭喜解锁：阳光菇！只需25阳光，黑夜高性价比产日神器！',
             waves: [
-                { delay: 20, zombies: [{ type: 'normal', row: 2 }] },
+                { delay: 22, zombies: [{ type: 'normal', row: 2 }] },
+                { delay: 22, zombies: [{ type: 'normal', row: 1 }] },
                 { delay: 22, zombies: [{ type: 'newspaper', row: 3 }] },
-                { delay: 22, zombies: [{ type: 'normal', row: 1 }, { type: 'conehead', row: 4 }] },
-                { delay: 24, zombies: [{ type: 'newspaper', row: 0 }, { type: 'normal', row: 2 }] },
+                { delay: 24, zombies: [{ type: 'normal', row: 0 }, { type: 'normal', row: 4 }] },
+                { delay: 24, zombies: [{ type: 'newspaper', row: 2 }] },
                 { delay: 26, isFlag: true, zombies: [
                     { type: 'flag', row: 2 },
                     { type: 'newspaper', row: 1 },
-                    { type: 'conehead', row: 3 },
+                    { type: 'normal', row: 3 },
                     { type: 'normal', row: 0 },
                     { type: 'normal', row: 4 }
                 ]}
@@ -1001,37 +1044,53 @@ export const GAME_CONFIG = {
         '2-2': {
             id: '2-2',
             world: 2,
-            title: '第 2-2 关：穿透云雾 (大喷菇登场)',
+            initialSun: 50,
+            title: '第 2-2 关：微光蓄势 (阳光菇登场)',
             bg: 'assets/backgrounds/night_viewport.jpg',
             activeRows: [0, 1, 2, 3, 4],
-            tombstones: [{ row: 0, col: 6 }, { row: 2, col: 7 }, { row: 4, col: 6 }],
-            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'wallnut', 'potatomine', 'cherrybomb', 'coffeebean', 'peashooter', 'sunflower'],
-            rewardPlant: 'gravebuster',
-            rewardText: '恭喜解锁：墓碑吞噬者！种在墓碑上吞噬墓碑，清除后掉落阳光！',
+            tombstones: [
+                { row: 0, col: 6 }, { row: 1, col: 8 },
+                { row: 2, col: 5 }, { row: 3, col: 7 }, { row: 4, col: 6 }
+            ],
+            allowedPlants: ['puffshroom', 'sunshroom', 'peashooter', 'wallnut', 'potatomine', 'cherrybomb', 'snowpea', 'repeater'],
+            selectablePlants: ['puffshroom', 'sunshroom', 'sunflower', 'peashooter', 'cherrybomb', 'wallnut', 'potatomine', 'snowpea', 'chomper', 'repeater'],
+            rewardPlant: 'fumeshroom',
+            rewardText: '恭喜解锁：大喷菇！喷射穿透性孢子云雾，穿透铁栅门与报纸！',
             waves: [
                 { delay: 20, zombies: [{ type: 'normal', row: 1 }] },
                 { delay: 22, zombies: [{ type: 'conehead', row: 3 }] },
                 { delay: 22, zombies: [{ type: 'newspaper', row: 2 }, { type: 'normal', row: 0 }] },
                 { delay: 24, zombies: [{ type: 'conehead', row: 4 }, { type: 'newspaper', row: 1 }] },
+                { delay: 25, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'conehead', row: 0 },
+                    { type: 'newspaper', row: 3 },
+                    { type: 'normal', row: 1 }
+                ]},
                 { delay: 26, isFlag: true, zombies: [
                     { type: 'flag', row: 2 },
+                    { type: 'buckethead', row: 4 },
                     { type: 'newspaper', row: 0 },
                     { type: 'conehead', row: 2 },
-                    { type: 'conehead', row: 3 },
-                    { type: 'buckethead', row: 4 }
+                    { type: 'conehead', row: 3 }
                 ]}
             ]
         },
         '2-3': {
             id: '2-3',
             world: 2,
-            title: '第 2-3 关：墓碑净化 (墓碑吞噬者登场)',
+            initialSun: 50,
+            title: '第 2-3 关：穿透迷雾 (铁栅门僵尸登场)',
             bg: 'assets/backgrounds/night_viewport.jpg',
             activeRows: [0, 1, 2, 3, 4],
-            tombstones: [{ row: 1, col: 6 }, { row: 2, col: 8 }, { row: 3, col: 7 }],
-            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'wallnut', 'potatomine', 'cherrybomb', 'coffeebean', 'peashooter'],
-            rewardPlant: 'hypnoshroom',
-            rewardText: '恭喜解锁：魅惑菇！让僵尸啃食后反水倒戈，成为植物军团盟友！',
+            tombstones: [
+                { row: 0, col: 7 }, { row: 1, col: 5 }, { row: 2, col: 8 },
+                { row: 3, col: 6 }, { row: 4, col: 7 }, { row: 2, col: 5 }
+            ],
+            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'wallnut', 'potatomine', 'cherrybomb', 'snowpea', 'chomper'],
+            selectablePlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'sunflower', 'peashooter', 'cherrybomb', 'wallnut', 'potatomine', 'snowpea', 'chomper', 'repeater'],
+            rewardPlant: 'gravebuster',
+            rewardText: '恭喜解锁：墓碑吞噬者！种在墓碑上啃掉墓碑，防止大波僵尸破土突袭！',
             waves: [
                 { delay: 20, zombies: [{ type: 'normal', row: 3 }] },
                 { delay: 22, zombies: [{ type: 'screendoor', row: 2 }] },
@@ -1041,7 +1100,7 @@ export const GAME_CONFIG = {
                     { type: 'flag', row: 2 },
                     { type: 'screendoor', row: 1 },
                     { type: 'screendoor', row: 3 },
-                    { type: 'buckethead', row: 2 },
+                    { type: 'conehead', row: 2 },
                     { type: 'newspaper', row: 4 }
                 ]}
             ]
@@ -1049,22 +1108,34 @@ export const GAME_CONFIG = {
         '2-4': {
             id: '2-4',
             world: 2,
-            title: '第 2-4 关：心智魅惑 (魅惑菇登场)',
+            initialSun: 50,
+            title: '第 2-4 关：墓碑净化 (撑杆与铁栅门协攻)',
             bg: 'assets/backgrounds/night_viewport.jpg',
             activeRows: [0, 1, 2, 3, 4],
-            tombstones: [{ row: 0, col: 7 }, { row: 1, col: 6 }, { row: 3, col: 7 }, { row: 4, col: 8 }],
-            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'wallnut', 'potatomine', 'cherrybomb', 'coffeebean'],
-            rewardPlant: 'scaredyshroom',
-            rewardText: '恭喜解锁：胆小菇！超远距离射击，近身抱头缩地！',
+            tombstones: [
+                { row: 0, col: 6 }, { row: 0, col: 8 }, { row: 1, col: 5 },
+                { row: 2, col: 7 }, { row: 3, col: 6 }, { row: 4, col: 5 }, { row: 4, col: 8 }
+            ],
+            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'wallnut', 'potatomine', 'cherrybomb', 'chomper'],
+            selectablePlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'sunflower', 'peashooter', 'cherrybomb', 'wallnut', 'potatomine', 'snowpea', 'chomper', 'repeater'],
+            rewardPlant: 'coffeebean',
+            rewardText: '恭喜解锁：咖啡豆！可在白天关卡唤醒睡眠中的夜行蘑菇！',
             waves: [
                 { delay: 20, zombies: [{ type: 'normal', row: 0 }] },
-                { delay: 22, zombies: [{ type: 'newspaper', row: 4 }] },
-                { delay: 22, zombies: [{ type: 'screendoor', row: 2 }, { type: 'conehead', row: 1 }] },
-                { delay: 24, zombies: [{ type: 'screendoor', row: 3 }, { type: 'buckethead', row: 0 }] },
+                { delay: 22, zombies: [{ type: 'polevault', row: 2 }] },
+                { delay: 22, zombies: [{ type: 'screendoor', row: 3 }, { type: 'conehead', row: 1 }] },
+                { delay: 24, zombies: [{ type: 'polevault', row: 4 }, { type: 'newspaper', row: 0 }] },
+                { delay: 25, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'polevault', row: 1 },
+                    { type: 'screendoor', row: 3 },
+                    { type: 'conehead', row: 4 }
+                ]},
                 { delay: 26, isFlag: true, zombies: [
                     { type: 'flag', row: 2 },
                     { type: 'buckethead', row: 1 },
                     { type: 'screendoor', row: 4 },
+                    { type: 'polevault', row: 2 },
                     { type: 'newspaper', row: 3 },
                     { type: 'conehead', row: 0 }
                 ]}
@@ -1073,52 +1144,70 @@ export const GAME_CONFIG = {
         '2-5': {
             id: '2-5',
             world: 2,
-            title: '第 2-5 关：胆小菇的远距狙击',
+            initialSun: 75,
+            isWhackAZombie: true,
+            title: '第 2-5 关：锤僵尸特别试炼 (Whack a Zombie)',
             bg: 'assets/backgrounds/night_viewport.jpg',
             activeRows: [0, 1, 2, 3, 4],
-            tombstones: [{ row: 0, col: 8 }, { row: 1, col: 7 }, { row: 2, col: 6 }, { row: 3, col: 7 }, { row: 4, col: 8 }],
-            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'scaredyshroom', 'wallnut', 'potatomine', 'cherrybomb', 'coffeebean'],
-            rewardPlant: 'iceshroom',
-            rewardText: '恭喜解锁：寒冰菇！瞬间极冻全屏僵尸，深度冰冻与持续减速！',
+            tombstones: [
+                { row: 0, col: 5 }, { row: 0, col: 8 },
+                { row: 1, col: 6 }, { row: 2, col: 4 },
+                { row: 2, col: 7 }, { row: 3, col: 5 },
+                { row: 3, col: 8 }, { row: 4, col: 6 }
+            ],
+            allowedPlants: ['gravebuster', 'iceshroom', 'potatomine'],
+            rewardPlant: 'hypnoshroom',
+            rewardText: '恭喜通关锤僵尸试炼！解锁奇策植物：魅惑菇！让啃食它的僵尸倒戈反击！',
             waves: [
-                { delay: 18, zombies: [{ type: 'normal', row: 2 }] },
-                { delay: 20, zombies: [{ type: 'conehead', row: 1 }] },
-                { delay: 22, zombies: [{ type: 'screendoor', row: 3 }, { type: 'newspaper', row: 0 }] },
-                { delay: 24, isFlag: true, zombies: [
+                { delay: 4, isGraveWave: true, zombies: [{ type: 'normal', row: 2 }, { type: 'normal', row: 0 }] },
+                { delay: 7, isGraveWave: true, zombies: [{ type: 'normal', row: 1 }, { type: 'conehead', row: 3 }] },
+                { delay: 8, isGraveWave: true, zombies: [{ type: 'normal', row: 4 }, { type: 'conehead', row: 2 }, { type: 'normal', row: 0 }] },
+                { delay: 9, isGraveWave: true, zombies: [{ type: 'conehead', row: 1 }, { type: 'buckethead', row: 3 }, { type: 'normal', row: 2 }] },
+                { delay: 10, isFlag: true, isGraveWave: true, zombies: [
                     { type: 'flag', row: 2 },
-                    { type: 'screendoor', row: 1 },
-                    { type: 'buckethead', row: 4 },
-                    { type: 'conehead', row: 0 }
-                ]},
-                { delay: 26, isFlag: true, zombies: [
-                    { type: 'flag', row: 2 },
+                    { type: 'conehead', row: 0 },
                     { type: 'buckethead', row: 2 },
-                    { type: 'screendoor', row: 3 },
-                    { type: 'newspaper', row: 1 },
-                    { type: 'conehead', row: 4 }
+                    { type: 'conehead', row: 4 },
+                    { type: 'normal', row: 1 },
+                    { type: 'normal', row: 3 }
+                ]},
+                { delay: 11, isFlag: true, isGraveWave: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'buckethead', row: 1 },
+                    { type: 'buckethead', row: 3 },
+                    { type: 'conehead', row: 0 },
+                    { type: 'conehead', row: 2 },
+                    { type: 'conehead', row: 4 },
+                    { type: 'normal', row: 1 },
+                    { type: 'normal', row: 4 }
                 ]}
             ]
         },
         '2-6': {
             id: '2-6',
             world: 2,
-            title: '第 2-6 关：极冻深寒 (寒冰菇登场)',
+            initialSun: 50,
+            title: '第 2-6 关：心智魅惑 (橄榄球僵尸登场)',
             bg: 'assets/backgrounds/night_viewport.jpg',
             activeRows: [0, 1, 2, 3, 4],
-            tombstones: [{ row: 1, col: 7 }, { row: 2, col: 8 }, { row: 4, col: 7 }],
-            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'scaredyshroom', 'iceshroom', 'wallnut', 'potatomine', 'cherrybomb', 'coffeebean'],
-            rewardPlant: 'doomshroom',
-            rewardText: '恭喜解锁：毁灭菇！超巨幅范围终极核爆，扫荡一切！',
+            tombstones: [
+                { row: 0, col: 6 }, { row: 1, col: 7 }, { row: 2, col: 5 },
+                { row: 2, col: 8 }, { row: 3, col: 6 }, { row: 4, col: 7 }
+            ],
+            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'wallnut', 'potatomine', 'cherrybomb'],
+            selectablePlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'coffeebean', 'sunflower', 'peashooter', 'cherrybomb', 'wallnut', 'potatomine', 'snowpea', 'chomper', 'repeater'],
+            rewardPlant: 'scaredyshroom',
+            rewardText: '恭喜解锁：胆小菇！只需25阳光的超远距离狙击蘑菇！',
             waves: [
                 { delay: 20, zombies: [{ type: 'normal', row: 2 }] },
-                { delay: 22, zombies: [{ type: 'football', row: 1 }] },
-                { delay: 22, zombies: [{ type: 'screendoor', row: 3 }, { type: 'newspaper', row: 0 }] },
-                { delay: 24, zombies: [{ type: 'football', row: 4 }, { type: 'conehead', row: 2 }] },
+                { delay: 22, zombies: [{ type: 'conehead', row: 0 }] },
+                { delay: 24, zombies: [{ type: 'football', row: 1 }] },
+                { delay: 24, zombies: [{ type: 'newspaper', row: 3 }, { type: 'conehead', row: 4 }] },
                 { delay: 26, isFlag: true, zombies: [
                     { type: 'flag', row: 2 },
                     { type: 'football', row: 1 },
-                    { type: 'buckethead', row: 3 },
-                    { type: 'screendoor', row: 0 },
+                    { type: 'football', row: 3 },
+                    { type: 'conehead', row: 0 },
                     { type: 'newspaper', row: 4 }
                 ]}
             ]
@@ -1126,115 +1215,150 @@ export const GAME_CONFIG = {
         '2-7': {
             id: '2-7',
             world: 2,
-            title: '第 2-7 关：全场极冻 (寒冰菇冰封全场)',
+            initialSun: 50,
+            title: '第 2-7 关：暗夜狙击 (胆小菇远距防线)',
             bg: 'assets/backgrounds/night_viewport.jpg',
             activeRows: [0, 1, 2, 3, 4],
-            tombstones: [{ row: 0, col: 7 }, { row: 1, col: 6 }, { row: 3, col: 7 }, { row: 4, col: 6 }],
-            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'scaredyshroom', 'wallnut', 'potatomine', 'cherrybomb', 'repeater'],
+            tombstones: [
+                { row: 0, col: 7 }, { row: 1, col: 5 }, { row: 1, col: 8 },
+                { row: 2, col: 6 }, { row: 3, col: 7 }, { row: 4, col: 5 }, { row: 4, col: 8 }
+            ],
+            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'scaredyshroom', 'wallnut', 'cherrybomb'],
+            selectablePlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'scaredyshroom', 'coffeebean', 'sunflower', 'peashooter', 'cherrybomb', 'wallnut', 'potatomine', 'snowpea', 'chomper', 'repeater'],
             rewardPlant: 'iceshroom',
-            rewardText: '恭喜解锁：寒冰菇！瞬间极冻全屏僵尸，控场王炸！',
+            rewardText: '恭喜解锁：寒冰菇！瞬间极冻全屏所有僵尸4秒并持续减速！',
             waves: [
                 { delay: 20, zombies: [{ type: 'normal', row: 1 }] },
+                { delay: 22, zombies: [{ type: 'screendoor', row: 2 }] },
                 { delay: 22, zombies: [{ type: 'football', row: 3 }] },
-                { delay: 22, zombies: [{ type: 'buckethead', row: 2 }, { type: 'screendoor', row: 0 }] },
-                { delay: 24, zombies: [{ type: 'football', row: 4 }, { type: 'newspaper', row: 1 }] },
-                { delay: 26, isFlag: true, zombies: [
+                { delay: 24, zombies: [{ type: 'screendoor', row: 0 }, { type: 'conehead', row: 4 }] },
+                { delay: 25, isFlag: true, zombies: [
                     { type: 'flag', row: 2 },
                     { type: 'football', row: 0 },
+                    { type: 'screendoor', row: 2 },
+                    { type: 'conehead', row: 4 }
+                ]},
+                { delay: 26, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'football', row: 1 },
                     { type: 'football', row: 4 },
-                    { type: 'buckethead', row: 2 },
-                    { type: 'screendoor', row: 1 },
-                    { type: 'newspaper', row: 3 }
+                    { type: 'screendoor', row: 3 },
+                    { type: 'conehead', row: 0 },
+                    { type: 'normal', row: 2 }
                 ]}
             ]
         },
         '2-8': {
             id: '2-8',
             world: 2,
-            title: '第 2-8 关：终极核爆 (毁灭菇破阵)',
+            initialSun: 50,
+            title: '第 2-8 关：午夜迪斯科 (舞王僵尸登场)',
             bg: 'assets/backgrounds/night_viewport.jpg',
             activeRows: [0, 1, 2, 3, 4],
-            tombstones: [{ row: 0, col: 8 }, { row: 1, col: 7 }, { row: 2, col: 7 }, { row: 3, col: 8 }, { row: 4, col: 7 }],
-            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'scaredyshroom', 'iceshroom', 'wallnut', 'potatomine', 'cherrybomb'],
+            tombstones: [
+                { row: 0, col: 6 }, { row: 0, col: 8 }, { row: 1, col: 7 },
+                { row: 2, col: 5 }, { row: 3, col: 6 }, { row: 3, col: 8 }, { row: 4, col: 7 }
+            ],
+            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'scaredyshroom', 'iceshroom', 'wallnut'],
+            selectablePlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'scaredyshroom', 'iceshroom', 'coffeebean', 'sunflower', 'peashooter', 'cherrybomb', 'wallnut', 'potatomine', 'snowpea', 'chomper', 'repeater'],
             rewardPlant: 'doomshroom',
             rewardText: '恭喜解锁：毁灭菇！超巨幅范围毁灭核爆(1800伤害)，扫荡一切！',
             waves: [
                 { delay: 20, zombies: [{ type: 'normal', row: 4 }] },
-                { delay: 22, zombies: [{ type: 'screendoor', row: 2 }] },
-                { delay: 22, zombies: [{ type: 'football', row: 0 }, { type: 'newspaper', row: 3 }] },
-                { delay: 24, zombies: [{ type: 'buckethead', row: 1 }, { type: 'football', row: 4 }] },
+                { delay: 22, zombies: [{ type: 'conehead', row: 1 }] },
+                { delay: 24, zombies: [{ type: 'dancing', row: 2 }] },
+                { delay: 24, zombies: [{ type: 'newspaper', row: 0 }, { type: 'conehead', row: 3 }] },
                 { delay: 26, isFlag: true, zombies: [
                     { type: 'flag', row: 2 },
-                    { type: 'football', row: 2 },
+                    { type: 'dancing', row: 1 },
+                    { type: 'dancing', row: 3 },
                     { type: 'buckethead', row: 0 },
-                    { type: 'buckethead', row: 4 },
-                    { type: 'screendoor', row: 1 },
-                    { type: 'screendoor', row: 3 }
+                    { type: 'conehead', row: 4 }
                 ]}
             ]
         },
         '2-9': {
             id: '2-9',
             world: 2,
-            title: '第 2-9 关：墓地重重 (黑夜大防线)',
+            initialSun: 50,
+            title: '第 2-9 关：终极核爆 (黑夜全军压境)',
             bg: 'assets/backgrounds/night_viewport.jpg',
             activeRows: [0, 1, 2, 3, 4],
-            tombstones: [{ row: 0, col: 6 }, { row: 1, col: 7 }, { row: 2, col: 6 }, { row: 3, col: 8 }, { row: 4, col: 7 }],
-            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'scaredyshroom', 'iceshroom', 'doomshroom', 'wallnut', 'cherrybomb'],
+            tombstones: [
+                { row: 0, col: 5 }, { row: 0, col: 7 }, { row: 1, col: 6 }, { row: 1, col: 8 },
+                { row: 2, col: 5 }, { row: 2, col: 7 }, { row: 3, col: 6 }, { row: 4, col: 5 }, { row: 4, col: 8 }
+            ],
+            allowedPlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'scaredyshroom', 'iceshroom', 'doomshroom'],
+            selectablePlants: ['puffshroom', 'sunshroom', 'fumeshroom', 'gravebuster', 'hypnoshroom', 'scaredyshroom', 'iceshroom', 'doomshroom', 'coffeebean', 'sunflower', 'peashooter', 'cherrybomb', 'wallnut', 'potatomine', 'snowpea', 'chomper', 'repeater'],
             rewardPlant: 'note',
-            rewardText: '缴获僵尸遗落便签：【我们将从后院泳池发起进攻...】！',
+            rewardText: '缴获僵尸遗落便签：【喂，我们在你家后院泳池开派对，不见不散！——僵尸们】',
             waves: [
                 { delay: 18, zombies: [{ type: 'newspaper', row: 2 }] },
                 { delay: 20, zombies: [{ type: 'screendoor', row: 1 }] },
-                { delay: 22, zombies: [{ type: 'football', row: 3 }, { type: 'conehead', row: 0 }] },
-                { delay: 24, zombies: [{ type: 'buckethead', row: 4 }, { type: 'screendoor', row: 2 }] },
+                { delay: 22, zombies: [{ type: 'dancing', row: 3 }, { type: 'polevault', row: 0 }] },
+                { delay: 24, zombies: [{ type: 'football', row: 4 }, { type: 'screendoor', row: 2 }] },
+                { delay: 25, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'dancing', row: 2 },
+                    { type: 'screendoor', row: 0 },
+                    { type: 'football', row: 4 }
+                ]},
                 { delay: 26, isFlag: true, zombies: [
                     { type: 'flag', row: 2 },
-                    { type: 'football', row: 1 },
+                    { type: 'dancing', row: 1 },
                     { type: 'football', row: 3 },
                     { type: 'screendoor', row: 0 },
-                    { type: 'buckethead', row: 4 }
+                    { type: 'buckethead', row: 4 },
+                    { type: 'newspaper', row: 2 }
                 ]}
             ]
         },
         '2-10': {
             id: '2-10',
             world: 2,
-            title: '第 2-10 关：黑夜大决战 (传送带终极大试炼)',
+            title: '第 2-10 关：黑夜大决战 (墓地传送带总攻)',
             bg: 'assets/backgrounds/night_viewport.jpg',
             activeRows: [0, 1, 2, 3, 4],
-            tombstones: [{ row: 0, col: 7 }, { row: 1, col: 6 }, { row: 2, col: 8 }, { row: 3, col: 6 }, { row: 4, col: 7 }],
+            tombstones: [
+                { row: 0, col: 4 }, { row: 0, col: 7 },
+                { row: 1, col: 5 }, { row: 1, col: 8 },
+                { row: 2, col: 4 }, { row: 2, col: 6 }, { row: 2, col: 8 },
+                { row: 3, col: 5 }, { row: 3, col: 7 },
+                { row: 4, col: 4 }, { row: 4, col: 6 }
+            ],
             isConveyorBelt: true,
-            conveyorCards: ['puffshroom', 'fumeshroom', 'scaredyshroom', 'hypnoshroom', 'iceshroom', 'doomshroom', 'gravebuster', 'wallnut', 'cherrybomb'],
-            allowedPlants: ['puffshroom', 'fumeshroom', 'scaredyshroom', 'hypnoshroom', 'iceshroom', 'doomshroom', 'gravebuster', 'wallnut', 'cherrybomb'],
-            rewardPlant: 'trophy_night',
-            rewardText: '🎉 彻底击退黑夜大军！荣获第二大关荣誉勋章【黑夜银晶向日葵】！🏆',
+            conveyorCards: ['puffshroom', 'fumeshroom', 'scaredyshroom', 'hypnoshroom', 'iceshroom', 'doomshroom', 'gravebuster', 'puffshroom', 'fumeshroom'],
+            allowedPlants: ['puffshroom', 'fumeshroom', 'scaredyshroom', 'hypnoshroom', 'iceshroom', 'doomshroom', 'gravebuster'],
+            rewardPlant: 'lilypad',
+            rewardText: '🎉 彻底击退黑夜总攻！解锁水生植物：【睡莲】！后院泳池即将开启！🏆',
             waves: [
-                { delay: 15, zombies: [{ type: 'newspaper', row: 2 }] },
-                { delay: 18, zombies: [{ type: 'screendoor', row: 1 }] },
-                { delay: 20, zombies: [{ type: 'football', row: 3 }, { type: 'conehead', row: 4 }] },
+                { delay: 14, zombies: [{ type: 'normal', row: 2 }, { type: 'newspaper', row: 0 }] },
+                { delay: 17, zombies: [{ type: 'screendoor', row: 1 }, { type: 'conehead', row: 3 }] },
+                { delay: 19, zombies: [{ type: 'dancing', row: 2 }] },
+                { delay: 20, zombies: [{ type: 'football', row: 4 }, { type: 'polevault', row: 0 }] },
                 { delay: 22, isFlag: true, zombies: [
                     { type: 'flag', row: 2 },
-                    { type: 'football', row: 1 },
+                    { type: 'dancing', row: 1 },
                     { type: 'screendoor', row: 3 },
-                    { type: 'buckethead', row: 0 },
+                    { type: 'football', row: 0 },
                     { type: 'newspaper', row: 4 }
                 ]},
                 { delay: 25, isFlag: true, zombies: [
                     { type: 'flag', row: 2 },
+                    { type: 'dancing', row: 3 },
                     { type: 'football', row: 0 },
                     { type: 'football', row: 4 },
-                    { type: 'buckethead', row: 2 },
                     { type: 'screendoor', row: 1 },
-                    { type: 'screendoor', row: 3 }
+                    { type: 'buckethead', row: 2 }
                 ]},
                 { delay: 28, isFlag: true, zombies: [
                     { type: 'flag', row: 2 },
+                    { type: 'dancing', row: 1 },
+                    { type: 'dancing', row: 3 },
                     { type: 'football', row: 0 },
-                    { type: 'football', row: 1 },
                     { type: 'football', row: 2 },
-                    { type: 'football', row: 3 },
-                    { type: 'football', row: 4 }
+                    { type: 'screendoor', row: 4 },
+                    { type: 'polevault', row: 2 }
                 ]}
             ]
         },

@@ -76,8 +76,8 @@ import puppeteer from 'puppeteer-core';
             sunshroom.update(0.1, engine);
             const initialSun = engine.suns.length;
 
-            // 模拟 95 秒成长
-            sunshroom.growTimer = 91.0;
+            // 模拟 120 秒原版成长
+            sunshroom.growTimer = 121.0;
             sunshroom.update(0.1, engine);
             const isGrown = sunshroom.isGrown;
 

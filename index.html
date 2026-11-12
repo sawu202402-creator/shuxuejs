@@ -24,7 +24,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20261022_icon_v1">
+    <link rel="stylesheet" href="css/style.css?v=20261112_world2">
 </head>
 <body>
 
@@ -87,6 +87,18 @@
                     <div class="cards-list" id="cardsList">
                         <!-- 由 JS 动态渲染各关卡可用卡牌 -->
                     </div>
+
+                    <!-- 2-5 锤僵尸特别试炼提示徽章 -->
+                    <div class="whack-mode-badge" id="whackModeBadge" style="display:none;" title="点击草坪上的僵尸直接挥锤痛击！">
+                        <img src="assets/ui/mallet.png" alt="木槌" class="whack-badge-icon" />
+                        <span>点击挥锤!</span>
+                    </div>
+
+                    <!-- 战前选卡台快捷按钮 -->
+                    <button class="seed-chooser-trigger-btn" id="btnOpenSeedChooser" type="button" style="display:none;" title="自由更换本关出战植物卡组">
+                        <span>🎴</span>
+                        <span>选卡</span>
+                    </button>
 
                     <!-- 园艺铲子座 -->
                     <div class="shovel-bank-slot" id="shovelSlot" title="点击拿取铲子挖除植物">
@@ -181,6 +193,41 @@
                 <!-- 由 JS 渲染 1-1 至 1-10 关卡卡片 -->
             </div>
             <button class="btn-big-wood btn-close-modal" id="btnCloseLevelModal">返回战场 ↩️</button>
+        </div>
+    </div>
+
+    <!-- 原版战前选卡台 (Seed Chooser) -->
+    <div class="modal-overlay" id="seedChooserModal" style="display:none;">
+        <div class="wood-modal-card seed-chooser-card">
+            <div class="seed-chooser-header">
+                <div class="seed-chooser-title-col">
+                    <div class="modal-title" id="seedChooserTitle" style="text-align:left;">🌱 战前选卡台 — 挑选出战植物</div>
+                    <div class="seed-chooser-sub" id="seedChooserSub">最多挑选 8 张卡牌出战（点击上方已选卡牌可移除，点击下方图鉴添加）</div>
+                </div>
+                <div class="seed-chooser-zombie-box">
+                    <div class="zombie-preview-label">🧟 本关来袭僵尸情报</div>
+                    <div class="zombie-preview-list" id="seedChooserZombies"></div>
+                </div>
+            </div>
+
+            <!-- 顶部已选 8 卡槽预览 -->
+            <div class="seed-selected-bar">
+                <span class="seed-bar-label">出战卡槽 (<span id="seedSelectedCount">0</span>/8)</span>
+                <div class="seed-selected-slots" id="seedSelectedSlots"></div>
+            </div>
+
+            <!-- 夜行蘑菇白天休眠提醒 -->
+            <div class="seed-sleep-warning" id="seedSleepWarning" style="display:none;">
+                💤 提醒：白天关卡携带夜行蘑菇，记得同时带上【咖啡豆】唤醒它们哦！
+            </div>
+
+            <!-- 可选植物池 -->
+            <div class="seed-pool-grid" id="seedPoolGrid"></div>
+
+            <div class="modal-actions-row">
+                <button class="btn-big-wood" id="btnRecommendDeck" type="button" style="background: linear-gradient(135deg, #3498db, #2980b9); border-color: #1f618d; font-size:14px;">⭐ 推荐阵容</button>
+                <button class="btn-big-wood" id="btnConfirmSeedDeck" type="button" style="background: linear-gradient(135deg, #2ecc71, #27ae60); border-color: #1e8449;">摇滚出击！ 🚀</button>
+            </div>
         </div>
     </div>
 
@@ -383,6 +430,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20260929_v2"></script>
+    <script type="module" src="js/main.js?v=20261112_world2"></script>
 </body>
 </html>

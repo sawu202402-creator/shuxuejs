@@ -51,9 +51,16 @@ export class PvzEngine {
         this.fogClearTimer = 0;
 
         // 植物卡片槽与冷却表
+        this.activePlants = [];
         this.cardCooldowns = {};
         this.selectedCard = null;
         this.isShovelActive = false;
+
+        // 2-5 锤僵尸特别试炼状态
+        this.isWhackAZombie = false;
+        this.malletCursor = { x: -100, y: -100, swingTimer: 0 };
+        this.whackEffects = [];
+        this.graveSpawnTimer = 0;
 
         // 波次推进状态
         this.waveIndex = 0;
@@ -86,7 +93,7 @@ export class PvzEngine {
     loadLevel(levelId) {
         this.levelId = levelId;
         this.levelConfig = GAME_CONFIG.levels[levelId] || GAME_CONFIG.levels['1-1'];
-        this.sun = this.levelConfig.isConveyorBelt ? 0 : GAME_CONFIG.initialSun;
+        this.sun = this.levelConfig.isConveyorBelt ? 0 : (this.levelConfig.initialSun ?? GAME_CONFIG.initialSun);
         this.lives = GAME_CONFIG.maxLives;
 
         // 泳池关卡网格适配 (6行水陆系统)
@@ -145,11 +152,18 @@ export class PvzEngine {
             });
         });
 
-        // 重置冷却表
+        // 初始化本关出战卡组与冷却表
+        this.activePlants = [...(this.levelConfig.allowedPlants || ['peashooter'])];
         this.cardCooldowns = {};
-        (this.levelConfig.allowedPlants || []).forEach(pId => {
+        this.activePlants.forEach(pId => {
             this.cardCooldowns[pId] = 0;
         });
+
+        // 锤僵尸模式重置 (2-5 Whack a Zombie)
+        this.isWhackAZombie = !!this.levelConfig.isWhackAZombie;
+        this.malletCursor = { x: -100, y: -100, swingTimer: 0 };
+        this.whackEffects = [];
+        this.graveSpawnTimer = 0;
 
         this.waveIndex = 0;
         this.waveTimer = 0;
@@ -199,6 +213,19 @@ export class PvzEngine {
         }
     }
 
+    setCustomDeck(plantIds) {
+        if (!Array.isArray(plantIds) || plantIds.length === 0) return;
+        this.activePlants = [...plantIds];
+        this.cardCooldowns = {};
+        this.activePlants.forEach(pId => {
+            this.cardCooldowns[pId] = 0;
+        });
+        this.selectedCard = null;
+        if (this.onStateChange) {
+            this.onStateChange('deck_updated', { activePlants: this.activePlants });
+        }
+    }
+
     spawnConveyorCard(specificType = null) {
         if (!this.levelConfig.isConveyorBelt) return;
         if (!this.conveyorBelt) this.conveyorBelt = [];
@@ -237,6 +264,17 @@ export class PvzEngine {
     }
 
     bindEvents() {
+        const updatePointer = (e) => {
+            if (!this.isWhackAZombie) return;
+            const rect = this.canvas.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            this.malletCursor.x = (e.clientX - rect.left) * scaleX;
+            this.malletCursor.y = (e.clientY - rect.top) * scaleY;
+        };
+
+        this.canvas.addEventListener('mousemove', updatePointer);
         this.canvas.addEventListener('click', (e) => {
             if (this.isPaused || this.isGameOver || this.isVictory) return;
             const rect = this.canvas.getBoundingClientRect();
@@ -249,6 +287,7 @@ export class PvzEngine {
         });
 
         if (this.entityLayer) {
+            this.entityLayer.addEventListener('mousemove', updatePointer);
             this.entityLayer.addEventListener('click', (e) => {
                 if (this.isPaused || this.isGameOver || this.isVictory) return;
                 const rect = this.canvas.getBoundingClientRect();
@@ -262,6 +301,46 @@ export class PvzEngine {
         }
     }
 
+    whackAt(x, y, damage = 300) {
+        this.malletCursor.x = x;
+        this.malletCursor.y = y;
+        this.malletCursor.swingTimer = 0.22;
+        soundEngine.playMalletWhack();
+
+        const targets = this.zombies.filter(z =>
+            !z.isDead && !z.isDying && !z.isHypnotized && Math.hypot(z.x - x, z.y - y) <= 66
+        );
+        this.whackEffects.push({
+            x,
+            y,
+            age: 0,
+            lifespan: 0.28,
+            hit: targets.length > 0
+        });
+
+        targets.forEach((z, idx) => {
+            z.takeDamage(damage);
+            this.hitSplats.push(new HitSplat(z.x, z.y - 10, 'stone'));
+            if (idx === 0) {
+                this.floatingTexts.push(new FloatingText(z.x, z.y - 38, '🔨 重锤痛击!', '#f39c12', 20));
+            }
+            const needGuaranteedSun = this.sun < 50 && this.suns.length === 0;
+            if (needGuaranteedSun || Math.random() < 0.38) {
+                const dropSun = new SunEntity(
+                    z.x,
+                    Math.max(70, z.y - 28),
+                    Math.min(545, z.y + 18),
+                    25,
+                    false,
+                    this.sunLayer,
+                    this
+                );
+                this.suns.push(dropSun);
+            }
+        });
+        return targets.length;
+    }
+
     handleClick(x, y) {
         // 1. 优先检测点击拾取阳光
         for (let i = this.suns.length - 1; i >= 0; i--) {
@@ -270,6 +349,12 @@ export class PvzEngine {
                 this.collectSun(sun);
                 return;
             }
+        }
+
+        // 1.5 2-5 锤僵尸模式：未选中卡片或铲子时，点击草坪直接挥动木槌敲击僵尸
+        if (this.isWhackAZombie && !this.selectedCard && !this.isShovelActive) {
+            this.whackAt(x, y);
+            return;
         }
 
         // 2. 网格种植 / 铲除逻辑
@@ -569,6 +654,18 @@ export class PvzEngine {
                 }
             }
 
+            // 2-5 锤僵尸关卡口算联动奖励：触发口算神槌自动暴击场上僵尸！
+            if (this.isWhackAZombie) {
+                const liveTargets = this.zombies
+                    .filter(z => !z.isDead && !z.isDying && !z.isHypnotized)
+                    .sort((a, b) => a.x - b.x)
+                    .slice(0, 2);
+                liveTargets.forEach(z => this.whackAt(z.x, z.y, 350));
+                if (liveTargets.length > 0) {
+                    this.floatingTexts.push(new FloatingText(450, 165, '⚡ 口算神槌追击！', '#f39c12', 24));
+                }
+            }
+
             if (result.isShieldBreak) {
                 this.breakAllShields(result.shieldType);
             }
@@ -681,6 +778,38 @@ export class PvzEngine {
             }
         }
 
+        // 2-5 锤僵尸木槌动画与定期增生墓碑机制
+        if (this.malletCursor && this.malletCursor.swingTimer > 0) {
+            this.malletCursor.swingTimer = Math.max(0, this.malletCursor.swingTimer - dt);
+        }
+        if (this.whackEffects && this.whackEffects.length > 0) {
+            this.whackEffects.forEach(ef => { ef.age += dt; });
+            this.whackEffects = this.whackEffects.filter(ef => ef.age < ef.lifespan);
+        }
+        if (this.isWhackAZombie && this.waveIndex < this.totalWaves && this.tombstones.length < 10) {
+            this.graveSpawnTimer += dt;
+            if (this.graveSpawnTimer >= 14.0) {
+                this.graveSpawnTimer = 0;
+                const candidates = [];
+                for (let r of this.levelConfig.activeRows) {
+                    for (let c = 4; c <= 8; c++) {
+                        const hasTomb = this.tombstones.some(t => t.row === r && t.col === c);
+                        const hasPlant = this.plants.some(p => p.row === r && p.col === c && !p.isDead);
+                        const hasCrater = this.craters.some(cr => cr.row === r && cr.col === c && cr.lifespan > 0);
+                        if (!hasTomb && !hasPlant && !hasCrater) {
+                            candidates.push({ row: r, col: c });
+                        }
+                    }
+                }
+                if (candidates.length > 0) {
+                    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+                    const pos = this.getGridCoords(pick.col, pick.row);
+                    this.tombstones.push({ row: pick.row, col: pick.col, x: pos.x, y: pos.y });
+                    this.floatingTexts.push(new FloatingText(pos.x, pos.y - 26, '🪦 新墓碑隆起!', '#9b59b6', 17));
+                }
+            }
+        }
+
         // 保龄球物理模拟与碰撞更新
         if (this.bowlingNuts && this.bowlingNuts.length > 0) {
             this.bowlingNuts.forEach(bn => bn.update(dt, this));
@@ -712,6 +841,26 @@ export class PvzEngine {
         this.checkVictoryCondition();
     }
 
+    spawnWaveZombies(currentWave) {
+        if (currentWave.isGraveWave && this.tombstones && this.tombstones.length > 0) {
+            currentWave.zombies.forEach((zData, idx) => {
+                const sameRowTomb = this.tombstones.find(t => t.row === zData.row);
+                const tomb = sameRowTomb || this.tombstones[(idx + Math.floor(Math.random() * this.tombstones.length)) % this.tombstones.length];
+                const spawnX = tomb.x + (Math.random() - 0.5) * 18;
+                const zombie = new Zombie(zData.type, tomb.row, spawnX, this.entityLayer);
+                this.zombies.push(zombie);
+                if (idx < 3) {
+                    this.floatingTexts.push(new FloatingText(tomb.x, tomb.y - 30, '🪦 钻出!', '#9b59b6', 17));
+                }
+            });
+            return;
+        }
+        currentWave.zombies.forEach(zData => {
+            const zombie = new Zombie(zData.type, zData.row, 900 + Math.random() * 40, this.entityLayer);
+            this.zombies.push(zombie);
+        });
+    }
+
     updateWaves(dt) {
         const waves = this.levelConfig.waves || [];
         if (this.waveIndex >= waves.length) return;
@@ -723,13 +872,10 @@ export class PvzEngine {
             this.flagWarningTimer -= dt;
             if (this.flagWarningTimer <= 0) {
                 this.isFlagWarning = false;
-                currentWave.zombies.forEach(zData => {
-                    const zombie = new Zombie(zData.type, zData.row, 900 + Math.random() * 40, this.entityLayer);
-                    this.zombies.push(zombie);
-                });
+                this.spawnWaveZombies(currentWave);
 
                 // 黑夜关卡墓碑突袭：从每个尚未清除的墓碑中钻出一只僵尸！
-                if (this.isNight && this.tombstones && this.tombstones.length > 0) {
+                if (!currentWave.isGraveWave && this.isNight && this.tombstones && this.tombstones.length > 0) {
                     this.tombstones.forEach(tomb => {
                         const ambushType = Math.random() < 0.4 ? 'conehead' : 'normal';
                         const ambushZ = new Zombie(ambushType, tomb.row, tomb.x, this.entityLayer);
@@ -763,7 +909,7 @@ export class PvzEngine {
         // 第2波及之后：若玩家提前全歼场上僵尸，则给 5 秒舒适休整期(捡阳光/思考)后刷下一波；若僵尸仍在慢走，则等待完整delay倒计时
         if (this.waveIndex > 0 && !hasActiveZombies) {
             if (this.clearedGraceTimer < 0) {
-                this.clearedGraceTimer = 5.0; // 5秒休整倒计时
+                this.clearedGraceTimer = this.isWhackAZombie ? 2.2 : 5.0; // 锤僵尸紧凑休整期
             } else {
                 this.clearedGraceTimer -= dt;
                 if (this.clearedGraceTimer <= 0) {
@@ -790,10 +936,7 @@ export class PvzEngine {
                 soundEngine.playHugeWave();
             } else {
                 // 普通波次正常出击
-                currentWave.zombies.forEach(zData => {
-                    const zombie = new Zombie(zData.type, zData.row, 900 + Math.random() * 40, this.entityLayer);
-                    this.zombies.push(zombie);
-                });
+                this.spawnWaveZombies(currentWave);
 
                 this.waveIndex++;
                 this.waveTimer = 0;
@@ -1028,6 +1171,34 @@ export class PvzEngine {
         this.explosions.forEach(ex => ex.render(ctx));
         this.suns.forEach(s => s.render(ctx));
         this.floatingTexts.forEach(ft => ft.render(ctx));
+
+        // 4.2 2-5 锤僵尸木槌震波与挥锤准星渲染
+        if (this.whackEffects && this.whackEffects.length > 0) {
+            this.whackEffects.forEach(ef => {
+                const p = ef.age / ef.lifespan;
+                const alpha = Math.max(0, 1 - p);
+                ctx.save();
+                ctx.strokeStyle = ef.hit ? `rgba(241, 196, 15, ${alpha})` : `rgba(189, 195, 199, ${alpha * 0.7})`;
+                ctx.lineWidth = ef.hit ? 5 : 3;
+                ctx.beginPath();
+                ctx.ellipse(ef.x, ef.y + 8, 18 + p * 38, 10 + p * 20, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            });
+        }
+        if (this.isWhackAZombie && !this.selectedCard && !this.isShovelActive && this.malletCursor && this.malletCursor.x >= 0) {
+            const malletImg = assetsLoader.getImage('assets/ui/mallet.png');
+            if (malletImg && malletImg.complete) {
+                ctx.save();
+                ctx.translate(this.malletCursor.x + 22, this.malletCursor.y - 6);
+                const swingAngle = this.malletCursor.swingTimer > 0
+                    ? -0.75 * Math.sin((this.malletCursor.swingTimer / 0.22) * Math.PI)
+                    : 0.28;
+                ctx.rotate(swingAngle);
+                ctx.drawImage(malletImg, -46, -68, 76, 76);
+                ctx.restore();
+            }
+        }
 
         // 4.5. 浓雾层渲染 (World 4 迷雾系统，第4-8列被夜雾笼罩)
         if (this.isFog && this.fogClearTimer <= 0) {

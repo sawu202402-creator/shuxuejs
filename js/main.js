@@ -59,7 +59,21 @@ class GameApp {
 
             // 卡牌栏与铲子
             cardsList: document.getElementById('cardsList'),
+            whackModeBadge: document.getElementById('whackModeBadge'),
+            btnOpenSeedChooser: document.getElementById('btnOpenSeedChooser'),
             shovelSlot: document.getElementById('shovelSlot'),
+
+            // 战前选卡台 (Seed Chooser)
+            seedChooserModal: document.getElementById('seedChooserModal'),
+            seedChooserTitle: document.getElementById('seedChooserTitle'),
+            seedChooserSub: document.getElementById('seedChooserSub'),
+            seedChooserZombies: document.getElementById('seedChooserZombies'),
+            seedSelectedCount: document.getElementById('seedSelectedCount'),
+            seedSelectedSlots: document.getElementById('seedSelectedSlots'),
+            seedSleepWarning: document.getElementById('seedSleepWarning'),
+            seedPoolGrid: document.getElementById('seedPoolGrid'),
+            btnRecommendDeck: document.getElementById('btnRecommendDeck'),
+            btnConfirmSeedDeck: document.getElementById('btnConfirmSeedDeck'),
 
             // 小黑板
             mascotEmoji: document.getElementById('mascotEmoji'),
@@ -182,9 +196,24 @@ class GameApp {
             'assets/projectiles/fire_pea.gif',
             'assets/projectiles/jalapeno_fire.gif',
             'assets/ui/lawnmower.png',
+            'assets/ui/mallet.png',
             'assets/ui/shovel.png',
-            'assets/ui/sun.gif'
+            'assets/ui/sun.gif',
+            'assets/zombies/cone_drop.png',
+            'assets/zombies/bucket_drop.png',
+            'assets/zombies/screendoor_drop.png',
+            'assets/zombies/football_drop.png'
         ];
+
+        // 加入所有僵尸动画及状态变体 (含第二大关原版僵尸精灵)
+        Object.values(GAME_CONFIG.zombies).forEach(z => {
+            if (Array.isArray(z.walkAnims)) z.walkAnims.forEach(a => a && assetPaths.push(a));
+            ['attackAnim', 'headAnim', 'dieAnim', 'lostPaperAnim', 'rageAnim', 'rageAttackAnim',
+             'noHelmetWalkAnim', 'noHelmetAttackAnim', 'moonwalkAnim', 'summonAnim',
+             'runAnim', 'jumpAnim', 'walkAnim', 'lostHeadWalkAnim', 'lostHeadAttackAnim'].forEach(k => {
+                if (z[k]) assetPaths.push(z[k]);
+            });
+        });
 
         // 加入所有植物卡牌与动画及状态变体
         Object.values(GAME_CONFIG.plants).forEach(p => {
@@ -203,8 +232,9 @@ class GameApp {
             if (p.cloudAnim) assetPaths.push(p.cloudAnim);
         });
 
-        // 预加载资产
-        await assetsLoader.preloadAll(assetPaths, (loaded, total, pct) => {
+        // 预加载资产 (去重)
+        const uniqueAssetPaths = Array.from(new Set(assetPaths));
+        await assetsLoader.preloadAll(uniqueAssetPaths, (loaded, total, pct) => {
             if (this.dom.loadingBarFill) this.dom.loadingBarFill.style.width = `${pct}%`;
             if (this.dom.loadingHintText) this.dom.loadingHintText.innerText = `资源加载中 ${pct}% (${loaded}/${total})`;
         });
@@ -306,11 +336,40 @@ class GameApp {
         });
     }
 
+    getSelectablePool(levelConf) {
+        if (!levelConf || levelConf.isConveyorBelt || levelConf.isWhackAZombie) return [];
+        if (Array.isArray(levelConf.selectablePlants) && levelConf.selectablePlants.length > 0) {
+            return levelConf.selectablePlants;
+        }
+        if (levelConf.world >= 3) {
+            const levelIds = Object.keys(GAME_CONFIG.levels);
+            const curIdx = levelIds.indexOf(levelConf.id);
+            const pool = new Set(['peashooter', 'sunflower', 'cherrybomb', 'wallnut', 'potatomine', 'snowpea', 'chomper', 'repeater']);
+            (levelConf.allowedPlants || []).forEach(p => pool.add(p));
+            levelIds.slice(0, curIdx >= 0 ? curIdx : levelIds.length).forEach(id => {
+                const rew = GAME_CONFIG.levels[id] && GAME_CONFIG.levels[id].rewardPlant;
+                if (rew && GAME_CONFIG.plants[rew] && !['bowling_nut', 'bowling_rednut'].includes(rew)) {
+                    pool.add(rew);
+                }
+            });
+            return Array.from(pool);
+        }
+        return [];
+    }
+
     renderCardsList() {
         if (!this.pvzEngine) return;
         this.dom.cardsList.innerHTML = '';
 
-        // 传送带关卡 (如 1-5 坚果保龄球、1-10 决战)：展示动态输送的传送带卡片队列
+        const pool = this.getSelectablePool(this.pvzEngine.levelConfig);
+        if (this.dom.whackModeBadge) {
+            this.dom.whackModeBadge.style.display = this.pvzEngine.isWhackAZombie ? 'flex' : 'none';
+        }
+        if (this.dom.btnOpenSeedChooser) {
+            this.dom.btnOpenSeedChooser.style.display = pool.length > 8 ? 'flex' : 'none';
+        }
+
+        // 传送带关卡 (如 1-5 坚果保龄球、1-10/2-10 决战)：展示动态输送的传送带卡片队列
         if (this.pvzEngine.levelConfig.isConveyorBelt) {
             const beltCards = this.pvzEngine.conveyorBelt || [];
             beltCards.forEach((pId, idx) => {
@@ -349,23 +408,25 @@ class GameApp {
             return;
         }
 
-        const allowed = this.pvzEngine.levelConfig.allowedPlants || ['peashooter'];
+        const allowed = (this.pvzEngine.activePlants && this.pvzEngine.activePlants.length > 0)
+            ? this.pvzEngine.activePlants
+            : (this.pvzEngine.levelConfig.allowedPlants || ['peashooter']);
         const isNight = !!this.pvzEngine.isNight;
 
         allowed.forEach(pId => {
             const conf = GAME_CONFIG.plants[pId];
             if (!conf) return;
 
-            const isAsleepInLevel = (isNight && conf.isDiurnal) || (!isNight && conf.isNocturnal);
+            const isAsleepInLevel = !isNight && !!conf.isNocturnal;
 
             const card = document.createElement('div');
             card.className = `plant-card ${isAsleepInLevel ? 'plant-card-sleep' : ''}`;
             card.setAttribute('data-id', pId);
-            card.setAttribute('title', isAsleepInLevel ? `${conf.name} (在此关卡处于睡眠状态，种下后需咖啡豆唤醒)` : conf.name);
+            card.setAttribute('title', isAsleepInLevel ? `${conf.name} (白天处于睡眠状态，种下后需咖啡豆唤醒)` : conf.name);
             card.innerHTML = `
                 <div class="card-cooldown-overlay"></div>
                 <img src="${conf.icon}" alt="${conf.name}" class="card-seed-img" />
-                ${isAsleepInLevel ? '<span class="card-sleep-badge" title="休眠状态">💤 睡</span>' : ''}
+                ${isAsleepInLevel ? '<span class="card-sleep-badge" title="白天休眠需咖啡豆">💤 睡</span>' : ''}
                 ${this.pvzEngine.levelConfig.isConveyorBelt ? '<span class="card-conveyor-tag">FREE</span>' : ''}
             `;
 
@@ -496,6 +557,26 @@ class GameApp {
             this.renderScoreRecords(cur);
         });
 
+        // 选卡台按钮事件
+        if (this.dom.btnOpenSeedChooser) {
+            this.dom.btnOpenSeedChooser.addEventListener('click', () => {
+                this.openSeedChooserModal();
+            });
+        }
+        if (this.dom.btnRecommendDeck) {
+            this.dom.btnRecommendDeck.addEventListener('click', () => {
+                const rec = (this.pvzEngine.levelConfig.allowedPlants || []).slice(0, 8);
+                this.pendingDeck = [...rec];
+                soundEngine.playPlant();
+                this.renderSeedChooserModal();
+            });
+        }
+        if (this.dom.btnConfirmSeedDeck) {
+            this.dom.btnConfirmSeedDeck.addEventListener('click', () => {
+                this.confirmSeedDeck();
+            });
+        }
+
         // 胜利与失败结算按钮
         this.dom.btnNextLevel.addEventListener('click', () => {
             this.dom.victoryModal.style.display = 'none';
@@ -508,7 +589,7 @@ class GameApp {
             } else if (curWorld < 5) {
                 nextLevel = `${curWorld + 1}-1`;
             }
-            this.loadNewLevel(nextLevel);
+            this.loadNewLevel(nextLevel, { openChooser: true });
         });
 
         this.dom.btnReplayVictory.addEventListener('click', () => {
@@ -1017,7 +1098,7 @@ class GameApp {
                 `;
                 card.addEventListener('click', () => {
                     this.dom.levelModal.style.display = 'none';
-                    this.loadNewLevel(lvlId);
+                    this.loadNewLevel(lvlId, { openChooser: true });
                 });
                 this.dom.levelGrid.appendChild(card);
             });
@@ -1025,17 +1106,168 @@ class GameApp {
         this.dom.levelModal.style.display = 'flex';
     }
 
-    loadNewLevel(lvlId) {
+    openSeedChooserModal() {
+        if (!this.pvzEngine || !this.dom.seedChooserModal) return;
+        const conf = this.pvzEngine.levelConfig;
+        const pool = this.getSelectablePool(conf);
+        if (pool.length === 0) return;
+
+        this.pvzEngine.isPaused = true;
+        if (this.dom.btnPause) this.dom.btnPause.innerText = '▶️';
+
+        const curActive = (this.pvzEngine.activePlants && this.pvzEngine.activePlants.length > 0)
+            ? this.pvzEngine.activePlants
+            : (conf.allowedPlants || []);
+        this.pendingDeck = curActive.filter(id => pool.includes(id)).slice(0, 8);
+        if (this.pendingDeck.length === 0) {
+            this.pendingDeck = pool.slice(0, Math.min(8, pool.length));
+        }
+
+        if (this.dom.seedChooserTitle) {
+            this.dom.seedChooserTitle.innerText = `🌱 战前选卡台 — ${conf.title}`;
+        }
+
+        // 渲染来袭僵尸预览
+        if (this.dom.seedChooserZombies) {
+            this.dom.seedChooserZombies.innerHTML = '';
+            const zTypes = new Set();
+            (conf.waves || []).forEach(w => {
+                (w.zombies || []).forEach(z => {
+                    if (z.type !== 'flag') zTypes.add(z.type);
+                });
+            });
+            if (zTypes.has('dancing')) zTypes.add('backup_dancer');
+            Array.from(zTypes).forEach(zt => {
+                const zConf = GAME_CONFIG.zombies[zt];
+                if (!zConf) return;
+                const previewAnim = zConf.moonwalkAnim || (zConf.walkAnims && zConf.walkAnims[0]) || 'assets/zombies/zombie_walk.gif';
+                const chip = document.createElement('div');
+                chip.className = 'zombie-preview-chip';
+                chip.innerHTML = `<img src="${previewAnim}" alt="${zConf.name}" /><span>${zConf.name}</span>`;
+                this.dom.seedChooserZombies.appendChild(chip);
+            });
+        }
+
+        this.renderSeedChooserModal();
+        this.dom.seedChooserModal.style.display = 'flex';
+    }
+
+    renderSeedChooserModal() {
         if (!this.pvzEngine) return;
+        const conf = this.pvzEngine.levelConfig;
+        const pool = this.getSelectablePool(conf);
+        const isNight = !!this.pvzEngine.isNight;
+        const maxSlots = 8;
+
+        if (this.dom.seedSelectedCount) {
+            this.dom.seedSelectedCount.innerText = String(this.pendingDeck.length);
+        }
+
+        // 1. 渲染顶部 8 个卡槽
+        if (this.dom.seedSelectedSlots) {
+            this.dom.seedSelectedSlots.innerHTML = '';
+            for (let i = 0; i < maxSlots; i++) {
+                const slot = document.createElement('div');
+                const pId = this.pendingDeck[i];
+                if (pId && GAME_CONFIG.plants[pId]) {
+                    const pConf = GAME_CONFIG.plants[pId];
+                    slot.className = 'seed-slot-item filled';
+                    slot.setAttribute('data-slot-id', pId);
+                    slot.setAttribute('title', `点击移除 ${pConf.name}`);
+                    slot.innerHTML = `<img src="${pConf.icon}" alt="${pConf.name}" />`;
+                    slot.addEventListener('click', () => {
+                        this.pendingDeck.splice(i, 1);
+                        soundEngine.playPlant();
+                        this.renderSeedChooserModal();
+                    });
+                } else {
+                    slot.className = 'seed-slot-item';
+                    slot.innerText = `${i + 1}`;
+                }
+                this.dom.seedSelectedSlots.appendChild(slot);
+            }
+        }
+
+        // 2. 检测白天携带夜行蘑菇但未带咖啡豆
+        if (this.dom.seedSleepWarning) {
+            const hasSleepingShroom = !isNight && this.pendingDeck.some(id => GAME_CONFIG.plants[id] && GAME_CONFIG.plants[id].isNocturnal);
+            const hasCoffee = this.pendingDeck.includes('coffeebean');
+            this.dom.seedSleepWarning.style.display = (hasSleepingShroom && !hasCoffee) ? 'block' : 'none';
+        }
+
+        // 3. 渲染植物池
+        if (this.dom.seedPoolGrid) {
+            this.dom.seedPoolGrid.innerHTML = '';
+            pool.forEach(pId => {
+                const pConf = GAME_CONFIG.plants[pId];
+                if (!pConf) return;
+                const picked = this.pendingDeck.includes(pId);
+                const sleepInDay = !isNight && !!pConf.isNocturnal;
+
+                const item = document.createElement('div');
+                item.className = `seed-pool-card ${picked ? 'picked' : ''}`;
+                item.setAttribute('data-pool-id', pId);
+                item.innerHTML = `
+                    <img src="${pConf.icon}" alt="${pConf.name}" />
+                    ${sleepInDay ? '<span class="card-sleep-badge">💤 睡</span>' : ''}
+                    <span class="seed-pool-name">${pConf.name}</span>
+                `;
+                item.addEventListener('click', () => {
+                    const idx = this.pendingDeck.indexOf(pId);
+                    if (idx !== -1) {
+                        this.pendingDeck.splice(idx, 1);
+                        soundEngine.playPlant();
+                    } else if (this.pendingDeck.length < maxSlots) {
+                        this.pendingDeck.push(pId);
+                        soundEngine.playPlant();
+                    } else {
+                        soundEngine.playMathWrong();
+                    }
+                    this.renderSeedChooserModal();
+                });
+                this.dom.seedPoolGrid.appendChild(item);
+            });
+        }
+
+        if (this.dom.btnConfirmSeedDeck) {
+            this.dom.btnConfirmSeedDeck.disabled = this.pendingDeck.length === 0;
+            this.dom.btnConfirmSeedDeck.style.opacity = this.pendingDeck.length === 0 ? '0.5' : '1';
+        }
+    }
+
+    confirmSeedDeck() {
+        if (!this.pvzEngine || !this.pendingDeck || this.pendingDeck.length === 0) return;
+        this.pvzEngine.setCustomDeck(this.pendingDeck);
+        if (this.dom.seedChooserModal) {
+            this.dom.seedChooserModal.style.display = 'none';
+        }
+        this.pvzEngine.isPaused = false;
+        if (this.dom.btnPause) this.dom.btnPause.innerText = '⏸️';
+        soundEngine.playPlant();
+    }
+
+    loadNewLevel(lvlId, options = {}) {
+        if (!this.pvzEngine) return;
+        if (this.dom.seedChooserModal) {
+            this.dom.seedChooserModal.style.display = 'none';
+        }
         this.pvzEngine.loadLevel(lvlId);
+        if (this.dom.btnPause) this.dom.btnPause.innerText = '⏸️';
         this.renderCardsList();
         this.dom.btnSelectLevel.innerText = `🗺️ 第 ${lvlId} 关 ▾`;
         mathEngine.resetRoundStats();
         this.syncQuestionToBlackboard();
+
+        if (options && options.openChooser) {
+            const pool = this.getSelectablePool(this.pvzEngine.levelConfig);
+            if (pool.length > 8) {
+                this.openSeedChooserModal();
+            }
+        }
     }
 
     handleEngineState(evt, data) {
-        if (evt === 'conveyor_updated') {
+        if (evt === 'conveyor_updated' || evt === 'deck_updated') {
             this.renderCardsList();
             return;
         }

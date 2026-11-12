@@ -629,18 +629,19 @@ export class GraveBusterPlant extends Plant {
     }
 }
 
-// 魅惑菇 (被啃食后使僵尸倒戈)
+// 魅惑菇 (被啃食后使僵尸倒戈；睡眠状态下被啃食不触发魅惑)
 export class HypnoshroomPlant extends Plant {
     constructor(row, col, x, y, entityLayer) {
         super('hypnoshroom', row, col, x, y, entityLayer);
     }
 
     takeDamage(amount, attacker = null) {
-        super.takeDamage(amount, attacker);
-        if (attacker && typeof attacker.hypnotize === 'function') {
+        if (!this.isAsleep && attacker && typeof attacker.hypnotize === 'function') {
             attacker.hypnotize();
             this.destroy();
+            return;
         }
+        super.takeDamage(amount, attacker);
     }
 }
 
@@ -753,15 +754,15 @@ export class DoomshroomPlant extends Plant {
         soundEngine.playThunder();
         engine.explosions.push(new ExplosionEffect(this.x, this.y, 'doom'));
 
-        // 留下毁灭菇弹坑 (阻碍该格子种植约45秒)
+        // 留下毁灭菇弹坑 (原版阻碍该格子种植 180 秒)
         if (!engine.craters) engine.craters = [];
         engine.craters.push({
             row: this.row,
             col: this.col,
             x: this.x,
             y: this.y,
-            maxLifespan: 45.0,
-            lifespan: 45.0
+            maxLifespan: 180.0,
+            lifespan: 180.0
         });
 
         const dmg = this.config.damage || 1800;
@@ -1414,9 +1415,7 @@ export function createPlant(type, row, col, x, y, entityLayer, isNight = false, 
         default: p = new PeashooterPlant(row, col, x, y, entityLayer); break;
     }
 
-    if (isNight && p.isDiurnal) {
-        p.putToSleep();
-    } else if (!isNight && p.isNocturnal) {
+    if (!isNight && p.isNocturnal) {
         p.putToSleep();
     }
     return p;
