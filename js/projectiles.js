@@ -1,8 +1,8 @@
 /**
  * projectiles.js - 子弹、投掷物、爆炸粒子、飘字与阳光飞行动画系统
  */
-import { assetsLoader } from './assetsLoader.js?v=20261112_v7';
-import { soundEngine } from './audio.js?v=20261112_v7';
+import { assetsLoader } from './assetsLoader.js?v=20261112_v8';
+import { soundEngine } from './audio.js?v=20261112_v8';
 
 export class Projectile {
     constructor(row, x, y, type = 'pea', damage = 20, isSlow = false, maxRange = 960, customSpeed = null) {
@@ -82,14 +82,14 @@ export class Projectile {
     }
 }
 
-// 命中击碎火花 / 豌豆飞溅 / 孢子碎裂效果
+// 命中击碎火花 / 豌豆飞溅 / 孢子碎裂 / 西瓜爆浆 / 黄油飞溅效果
 export class HitSplat {
     constructor(x, y, type = 'pea') {
         this.x = x;
         this.y = y;
         this.type = type;
         this.age = 0;
-        this.lifespan = 0.18; // 持续0.18秒
+        this.lifespan = type === 'melon' ? 0.34 : (type === 'butter' ? 0.28 : 0.2);
         this.isDead = false;
         this.anim = type === 'shroom' ? 'assets/projectiles/shroom_splat.gif' : 'assets/projectiles/pea_splat.gif';
     }
@@ -102,14 +102,77 @@ export class HitSplat {
     }
 
     render(ctx) {
-        const img = assetsLoader.getImage(this.anim);
-        if (img && img.complete) {
-            ctx.drawImage(img, this.x - 20, this.y - 20, 40, 40);
-        } else {
+        const p = Math.min(1, this.age / this.lifespan);
+        const alpha = Math.max(0, 1 - p);
+
+        if (this.type === 'melon') {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            // 3x3 西瓜汁扩散冲击环
+            ctx.strokeStyle = 'rgba(231, 76, 60, 0.72)';
+            ctx.lineWidth = 3.5;
             ctx.beginPath();
-            ctx.arc(this.x, this.y, 16 * (1 - this.age / this.lifespan), 0, Math.PI * 2);
-            ctx.fillStyle = this.type === 'snow' ? 'rgba(74, 189, 255, 0.8)' : (this.type === 'shroom' ? 'rgba(155, 89, 182, 0.8)' : 'rgba(46, 204, 113, 0.8)');
+            ctx.ellipse(this.x, this.y + 8, 22 + p * 54, 12 + p * 26, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 飞溅的翠绿瓜皮与鲜红瓜瓤碎块
+            for (let i = 0; i < 8; i++) {
+                const ang = (i / 8) * Math.PI * 2 + 0.3;
+                const dist = 8 + p * 42;
+                const sx = this.x + Math.cos(ang) * dist;
+                const sy = this.y + Math.sin(ang) * dist * 0.75 + p * p * 14;
+                ctx.fillStyle = i % 2 === 0 ? '#e74c3c' : '#27ae60';
+                ctx.beginPath();
+                ctx.arc(sx, sy, (1 - p * 0.45) * (i % 2 === 0 ? 6.5 : 5.5), 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+            return;
+        }
+
+        if (this.type === 'butter' || this.type === 'corn' || this.type === 'basketball') {
+            const mainColor = this.type === 'basketball' ? '#e67e22' : (this.type === 'butter' ? '#f1c40f' : '#f9ca24');
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            for (let i = 0; i < 6; i++) {
+                const ang = (i / 6) * Math.PI * 2 + 0.4;
+                const dist = 6 + p * (this.type === 'butter' ? 28 : 20);
+                ctx.fillStyle = mainColor;
+                ctx.beginPath();
+                ctx.arc(
+                    this.x + Math.cos(ang) * dist,
+                    this.y + Math.sin(ang) * dist * 0.8,
+                    (1 - p * 0.4) * (this.type === 'butter' ? 5.5 : 4),
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+            ctx.restore();
+            return;
+        }
+
+        const img = assetsLoader.getImage(this.anim);
+        if (img && img.complete && this.type !== 'dirt' && this.type !== 'nut' && this.type !== 'stone') {
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, alpha * 1.25);
+            const sz = this.type === 'cabbage' ? 46 : 40;
+            ctx.drawImage(img, this.x - sz / 2, this.y - sz / 2, sz, sz);
+            ctx.restore();
+        } else {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 16 * (1 - p * 0.6), 0, Math.PI * 2);
+            ctx.fillStyle = this.type === 'snow'
+                ? 'rgba(74, 189, 255, 0.85)'
+                : (this.type === 'shroom'
+                    ? 'rgba(155, 89, 182, 0.85)'
+                    : (this.type === 'dirt' || this.type === 'nut'
+                        ? 'rgba(189, 155, 118, 0.7)'
+                        : 'rgba(46, 204, 113, 0.85)'));
             ctx.fill();
+            ctx.restore();
         }
     }
 }
@@ -574,7 +637,7 @@ export class StarProjectile {
     }
 }
 
-// 抛物线投掷物 (卷心菜、玉米粒、黄油、西瓜、投石车篮球)
+// 抛物线投掷物 (卷心菜、玉米粒、黄油、西瓜、投石车篮球 —— 真实高抛弧线弹道、屋脊贴地投影与残影轨迹)
 export class LobbedProjectile {
     constructor(row, startX, startY, targetEntity, type = 'cabbage', damage = 40) {
         this.row = row;
@@ -588,11 +651,17 @@ export class LobbedProjectile {
         this.targetZombie = this.isEnemyBasketball ? null : targetEntity;
         this.targetPlant = this.isEnemyBasketball ? targetEntity : null;
         this.targetX = targetEntity ? targetEntity.x : (this.isEnemyBasketball ? startX - 320 : startX + 320);
-        this.targetY = targetEntity ? (targetEntity.y - 12) : startY;
+        this.targetY = targetEntity ? (targetEntity.y - 16) : startY;
+        this.groundY = startY + 28;
         this.t = 0;
-        this.duration = this.isEnemyBasketball ? 1.05 : 0.92; // 高抛物线飞行时长
-        this.arcHeight = this.isEnemyBasketball ? 145 : 135;
+        const initSpan = Math.abs(this.targetX - startX);
+        this.duration = this.isEnemyBasketball
+            ? 1.02
+            : Math.max(0.76, Math.min(1.04, 0.68 + initSpan / 1650));
+        this.arcHeight = Math.max(92, Math.min(142, 74 + initSpan * 0.12));
         this.rotation = 0;
+        this.spinSpeed = this.isEnemyBasketball ? -8.5 : (type === 'melon' ? 6.8 : 9.2);
+        this.trail = [{ x: startX, y: startY, rot: 0 }];
         this.isDead = false;
         this.isLobbed = true;
 
@@ -611,24 +680,63 @@ export class LobbedProjectile {
 
     update(dt, engine) {
         this.t += dt / this.duration;
-        this.rotation += dt * 7;
-        if (this.targetZombie && !this.targetZombie.isDead) {
-            this.targetX = this.targetZombie.x;
-            this.targetY = this.targetZombie.y - 12;
+        this.rotation += dt * this.spinSpeed;
+        if (this.targetZombie && !this.targetZombie.isDead && !this.targetZombie.isDying) {
+            this.targetX = this.targetZombie.x - 4;
+            this.targetY = this.targetZombie.y - 18;
         } else if (this.targetPlant && !this.targetPlant.isDead) {
             this.targetX = this.targetPlant.x;
-            this.targetY = this.targetPlant.y - 8;
+            this.targetY = this.targetPlant.y - 12;
         }
 
         const t = Math.min(1.0, this.t);
         this.x = this.startX + (this.targetX - this.startX) * t;
         const linearY = this.startY + (this.targetY - this.startY) * t;
-        const parabola = 4 * this.arcHeight * t * (1 - t);
+
+        // 动态适配高抛拱高：既保证在屋顶关完美越过最高屋脊，又防止第 0 行投掷物飞出 900x600 画面顶端消失
+        const midLinearY = (this.startY + this.targetY) * 0.5;
+        let effectiveArc = this.arcHeight;
+        if (engine && engine.isRoof) {
+            const ridgeSurfaceY = (engine.gridStartY || 82) + this.row * (engine.cellH || 85) + (engine.cellH || 85) * 0.5;
+            const minClearanceArc = Math.max(0, midLinearY - (ridgeSurfaceY - 46));
+            effectiveArc = Math.max(effectiveArc, minClearanceArc);
+        }
+        const maxViewportArc = Math.max(52, midLinearY - 18);
+        effectiveArc = Math.min(effectiveArc, maxViewportArc);
+
+        const parabola = 4 * effectiveArc * t * (1 - t);
         this.y = linearY - parabola;
+
+        // 计算真实贴地/贴瓦面投影纵坐标 (让玩家在 2.5D 斜坡与草坪上一眼看清高抛高度差)
+        if (engine && typeof engine.getSurfaceOffsetY === 'function') {
+            const baseSurfaceY = (engine.gridStartY || 80) + this.row * (engine.cellH || 98) + (engine.cellH || 98) * 0.5;
+            this.groundY = baseSurfaceY + engine.getSurfaceOffsetY(this.x) + 14;
+        } else {
+            this.groundY = linearY + 26;
+        }
+
+        // 记录高帧率弹道残影采样点
+        const lastPt = this.trail[this.trail.length - 1];
+        if (!lastPt || Math.hypot(this.x - lastPt.x, this.y - lastPt.y) >= 10) {
+            this.trail.push({ x: this.x, y: this.y, rot: this.rotation });
+            if (this.trail.length > 8) {
+                this.trail.shift();
+            }
+        }
 
         if (this.t >= 1.0) {
             this.isDead = true;
             this.onImpact(engine);
+        }
+    }
+
+    applyLobbedHit(zombie, dmg) {
+        if (!zombie || zombie.isDead || zombie.isDying) return;
+        // 原版 PVZ1 机制：抛投植物从头顶越过前向护盾（铁栅门/扶梯僵尸金属梯/报纸），直接打击僵尸本体（头顶防具如路障/铁桶/橄榄球头盔仍正常承伤）
+        if (typeof zombie.takeFumeDamage === 'function') {
+            zombie.takeFumeDamage(dmg);
+        } else {
+            zombie.takeDamage(dmg);
         }
     }
 
@@ -640,7 +748,7 @@ export class LobbedProjectile {
             if (this.targetPlant && !this.targetPlant.isDead) {
                 // 若该格套有南瓜头，优先砸伤南瓜头
                 const pumpkin = engine.plants ? engine.plants.find(
-                    p => !p.isDead && p.col === this.targetPlant.col && p.row === this.targetPlant.row && p.isPumpkinShell
+                    p => !p.isDead && p.col === this.targetPlant.col && p.row === this.targetPlant.row && (p.isPumpkin || p.isPumpkinShell || p.type === 'pumpkin')
                 ) : null;
                 if (pumpkin) {
                     pumpkin.takeDamage(this.damage);
@@ -648,53 +756,118 @@ export class LobbedProjectile {
                     this.targetPlant.takeDamage(this.damage);
                 }
             }
-            engine.hitSplats.push(new HitSplat(this.x, this.y, 'pea'));
+            engine.hitSplats.push(new HitSplat(this.x, this.y, 'basketball'));
             return;
+        }
+
+        // 若锁定的僵尸在半空中已倒下，自动命中落点处同行的相邻存活僵尸
+        let directTarget = (this.targetZombie && !this.targetZombie.isDead && !this.targetZombie.isDying)
+            ? this.targetZombie
+            : null;
+        if (!directTarget && engine.zombies) {
+            directTarget = engine.zombies.find(z =>
+                z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized &&
+                !z.isFlying && z.type !== 'bungee' && Math.abs(z.x - this.x) <= 40
+            ) || null;
         }
 
         if (this.type === 'melon') {
             soundEngine.playBoom();
-            // 西瓜造成 80 直接伤害 + 周围 3x3 溅射 26 伤害
+            // 西瓜造成 80 直接伤害 + 周围 3x3 范围 26 溅射伤害
+            if (directTarget) {
+                this.applyLobbedHit(directTarget, this.damage);
+            }
             engine.zombies.forEach(z => {
-                if (!z.isDead && !z.isHypnotized && Math.abs(z.row - this.row) <= 1 && Math.abs(z.x - this.targetX) <= 85) {
-                    const dmg = (z.row === this.row && Math.abs(z.x - this.targetX) <= 35) ? this.damage : 26;
-                    z.takeDamage(dmg);
+                if (z === directTarget || z.isDead || z.isDying || z.isHypnotized || z.isFlying || z.type === 'bungee') return;
+                if (Math.abs(z.row - this.row) <= 1 && Math.abs(z.x - this.x) <= 92) {
+                    this.applyLobbedHit(z, 26);
                 }
             });
-            engine.hitSplats.push(new HitSplat(this.x, this.y, 'pea'));
+            engine.hitSplats.push(new HitSplat(this.x, this.y, 'melon'));
         } else if (this.type === 'butter') {
             soundEngine.playSplat();
-            if (this.targetZombie && !this.targetZombie.isDead) {
-                this.targetZombie.takeDamage(this.damage);
-                if (typeof this.targetZombie.applyButter === 'function') {
-                    this.targetZombie.applyButter(4.0);
-                } else {
-                    this.targetZombie.freezeTimer = 4.0;
+            if (directTarget) {
+                this.applyLobbedHit(directTarget, this.damage);
+                if (!directTarget.isDead && !directTarget.isDying) {
+                    if (typeof directTarget.applyButter === 'function') {
+                        directTarget.applyButter(4.0);
+                    } else {
+                        directTarget.freezeTimer = 4.0;
+                    }
+                    engine.floatingTexts.push(new FloatingText(directTarget.x, directTarget.y - 44, '🧈 黄油定身!', '#f39c12', 19));
                 }
-                engine.floatingTexts.push(new FloatingText(this.targetZombie.x, this.targetZombie.y - 40, '🧈 黄油定身!', '#f39c12', 19));
             }
+            engine.hitSplats.push(new HitSplat(this.x, this.y, 'butter'));
         } else {
             soundEngine.playSplat();
-            if (this.targetZombie && !this.targetZombie.isDead) {
-                this.targetZombie.takeDamage(this.damage);
+            if (directTarget) {
+                this.applyLobbedHit(directTarget, this.damage);
             }
-            engine.hitSplats.push(new HitSplat(this.x, this.y, 'pea'));
+            engine.hitSplats.push(new HitSplat(this.x, this.y, this.type === 'corn' ? 'corn' : 'cabbage'));
         }
+    }
+
+    renderShadow(ctx) {
+        if (this.isDead) return;
+        const height = Math.max(0, this.groundY - this.y);
+        const heightFactor = Math.max(0.42, 1 - height / 260);
+        const rx = (this.type === 'melon' ? 18 : 13) * heightFactor;
+        const ry = (this.type === 'melon' ? 7 : 5) * heightFactor;
+        ctx.save();
+        ctx.fillStyle = `rgba(0, 0, 0, ${(0.34 * heightFactor).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.groundY, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
     }
 
     render(ctx) {
         const img = assetsLoader.getImage(this.anim);
-        const size = this.type === 'melon' ? 36 : (this.type === 'butter' ? 32 : (this.type === 'basketball' ? 30 : 28));
+        const drawW = this.type === 'melon' ? 42 : (this.type === 'cabbage' ? 35 : (this.type === 'butter' ? 34 : (this.type === 'basketball' ? 34 : 28)));
+        const drawH = this.type === 'melon' ? 32 : (this.type === 'cabbage' ? 32 : (this.type === 'butter' ? 35 : (this.type === 'basketball' ? 34 : 29)));
+
+        // 1. 绘制柔和抛物线运动流线与渐隐残影，让高抛弹道弧线清晰醒目
+        if (this.trail.length >= 2) {
+            const trailColor = this.type === 'butter'
+                ? '255, 226, 89'
+                : (this.type === 'corn'
+                    ? '250, 211, 58'
+                    : (this.type === 'basketball'
+                        ? '243, 156, 18'
+                        : (this.type === 'melon' ? '46, 204, 113' : '120, 224, 90')));
+            ctx.save();
+            ctx.lineCap = 'round';
+            for (let i = 1; i < this.trail.length; i++) {
+                const p0 = this.trail[i - 1];
+                const p1 = this.trail[i];
+                const ratio = i / this.trail.length;
+                ctx.strokeStyle = `rgba(${trailColor}, ${(ratio * 0.42).toFixed(3)})`;
+                ctx.lineWidth = (this.type === 'melon' ? 7 : 5) * ratio;
+                ctx.beginPath();
+                ctx.moveTo(p0.x, p0.y);
+                ctx.lineTo(p1.x, p1.y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // 2. 绘制旋转飞行的投掷物实体
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.rotation);
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.42)';
+        ctx.shadowBlur = 5;
+        ctx.shadowOffsetY = 2;
         if (img && img.complete) {
-            ctx.drawImage(img, -size / 2, -size / 2, size, size);
+            ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
         } else {
             ctx.beginPath();
-            ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            ctx.arc(0, 0, drawW * 0.42, 0, Math.PI * 2);
             ctx.fillStyle = this.type === 'butter' ? '#f1c40f' : (this.type === 'basketball' ? '#e67e22' : (this.type === 'melon' ? '#27ae60' : '#2ecc71'));
             ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#1e272e';
+            ctx.stroke();
         }
         ctx.restore();
     }

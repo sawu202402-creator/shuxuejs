@@ -1,9 +1,9 @@
 /**
  * plants.js - 原版 1:1 植物实体系统与 DOM 60fps 动态 GIF 动画层
  */
-import { GAME_CONFIG } from './config.js?v=20261112_v7';
-import { Projectile, ExplosionEffect, SunEntity, FumeCloud, HitSplat, FloatingText, JalapenoFireLine, StarProjectile, LobbedProjectile } from './projectiles.js?v=20261112_v7';
-import { soundEngine } from './audio.js?v=20261112_v7';
+import { GAME_CONFIG } from './config.js?v=20261112_v8';
+import { Projectile, ExplosionEffect, SunEntity, FumeCloud, HitSplat, FloatingText, JalapenoFireLine, StarProjectile, LobbedProjectile } from './projectiles.js?v=20261112_v8';
+import { soundEngine } from './audio.js?v=20261112_v8';
 
 export class Plant {
     constructor(type, row, col, x, y, entityLayer = null) {
@@ -1517,35 +1517,101 @@ export class SplitPeaPlant extends Plant {
     }
 }
 
-// 卷心菜投手 (抛物线越过屋顶与潜水限制)
-export class CabbagePultPlant extends Plant {
-    constructor(row, col, x, y, entityLayer) {
-        super('cabbagepult', row, col, x, y, entityLayer);
-        this.attackTimer = 0;
+// 抛投类植物通用基类 (还原原版投篮臂蓄力甩出动作、花盆抬升发射点与无视死亡尸体的精准索敌)
+class CatapultBasePlant extends Plant {
+    constructor(type, row, col, x, y, entityLayer) {
+        super(type, row, col, x, y, entityLayer);
         this.attackInterval = this.config.attackInterval || 2.85;
+        this.attackTimer = this.attackInterval * 0.62; // 落地后约 1.1s 即可完成首轮投射，告别漫长空等
+        this.windupTimer = 0;
+        this.animResetTimer = 0;
+        this.pendingTarget = null;
+        this.pendingType = 'cabbage';
+        this.pendingDamage = this.config.damage || 40;
+    }
+
+    findLobTarget(engine) {
+        const candidates = engine.zombies.filter(z =>
+            z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized && !z.isFlying &&
+            !(z.type === 'digger' && z.diggerPhase === 'digging') && z.type !== 'bungee' &&
+            z.x > this.x - 14 && z.x < 915
+        );
+        if (candidates.length === 0) return null;
+        candidates.sort((a, b) => a.x - b.x);
+        return candidates[0];
+    }
+
+    chooseShotSpec() {
+        return { pType: 'cabbage', pDmg: this.config.damage || 40 };
+    }
+
+    triggerAttackAnim() {
+        if (this.config.attackAnim) {
+            this.currentAnim = this.config.attackAnim;
+            if (this.domImg) {
+                this.domImg.src = this.config.attackAnim;
+            }
+            this.animResetTimer = 0.78;
+        }
     }
 
     update(dt, engine) {
         super.update(dt, engine);
         if (this.isDead || this.isAsleep) return;
+
+        if (this.animResetTimer > 0) {
+            this.animResetTimer -= dt;
+            if (this.animResetTimer <= 0) {
+                this.setAnim(this.config.anim);
+            }
+        }
+
+        // 投臂蓄力甩出瞬间释放高抛投掷物 (与 *_attack.gif 甩臂帧严丝合缝同步)
+        if (this.windupTimer > 0) {
+            this.windupTimer -= dt;
+            if (this.windupTimer <= 0) {
+                let target = this.pendingTarget;
+                if (!target || target.isDead || target.isDying) {
+                    target = this.findLobTarget(engine);
+                }
+                if (target) {
+                    const liftY = (this.hostPot || this.hostLilypad) ? 44 : 30;
+                    const offsetX = this.type === 'melonpult' ? 18 : 14;
+                    soundEngine.playShoot();
+                    engine.projectiles.push(
+                        new LobbedProjectile(this.row, this.x + offsetX, this.y - liftY, target, this.pendingType, this.pendingDamage)
+                    );
+                }
+                this.pendingTarget = null;
+            }
+            return;
+        }
+
         this.attackTimer += dt;
         const currentInterval = (engine.isSuperCharge || this.isSuperGatling) ? this.attackInterval * 0.5 : this.attackInterval;
         if (this.attackTimer >= currentInterval) {
-            const candidates = engine.zombies.filter(z =>
-                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying &&
-                !(z.type === 'digger' && z.diggerPhase === 'digging') && z.type !== 'bungee' &&
-                z.x > this.x - 10 && z.x < 920
-            );
-            if (candidates.length > 0) {
-                candidates.sort((a, b) => a.x - b.x);
-                const enemy = candidates[0];
+            const enemy = this.findLobTarget(engine);
+            if (enemy) {
                 this.attackTimer = 0;
-                soundEngine.playShoot();
-                engine.projectiles.push(
-                    new LobbedProjectile(this.row, this.x + 18, this.y - 20, enemy, 'cabbage', this.config.damage || 40)
-                );
+                const spec = this.chooseShotSpec();
+                this.pendingTarget = enemy;
+                this.pendingType = spec.pType;
+                this.pendingDamage = spec.pDmg;
+                this.windupTimer = 0.22;
+                this.triggerAttackAnim();
             }
         }
+    }
+}
+
+// 卷心菜投手 (抛物线越过屋顶与潜水限制)
+export class CabbagePultPlant extends CatapultBasePlant {
+    constructor(row, col, x, y, entityLayer) {
+        super('cabbagepult', row, col, x, y, entityLayer);
+    }
+
+    chooseShotSpec() {
+        return { pType: 'cabbage', pDmg: this.config.damage || 40 };
     }
 }
 
@@ -1578,37 +1644,17 @@ export class FlowerPotPlant extends Plant {
 }
 
 // 玉米投手 (玉米+黄油定身)
-export class KernelPultPlant extends Plant {
+export class KernelPultPlant extends CatapultBasePlant {
     constructor(row, col, x, y, entityLayer) {
         super('kernelpult', row, col, x, y, entityLayer);
-        this.attackTimer = 0;
-        this.attackInterval = this.config.attackInterval || 2.85;
     }
 
-    update(dt, engine) {
-        super.update(dt, engine);
-        if (this.isDead || this.isAsleep) return;
-        this.attackTimer += dt;
-        const currentInterval = (engine.isSuperCharge || this.isSuperGatling) ? this.attackInterval * 0.5 : this.attackInterval;
-        if (this.attackTimer >= currentInterval) {
-            const candidates = engine.zombies.filter(z =>
-                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying &&
-                !(z.type === 'digger' && z.diggerPhase === 'digging') && z.type !== 'bungee' &&
-                z.x > this.x - 10 && z.x < 920
-            );
-            if (candidates.length > 0) {
-                candidates.sort((a, b) => a.x - b.x);
-                const enemy = candidates[0];
-                this.attackTimer = 0;
-                soundEngine.playShoot();
-                const isButter = Math.random() < 0.28;
-                const pType = isButter ? 'butter' : 'corn';
-                const pDmg = isButter ? 40 : 20;
-                engine.projectiles.push(
-                    new LobbedProjectile(this.row, this.x + 18, this.y - 20, enemy, pType, pDmg)
-                );
-            }
-        }
+    chooseShotSpec() {
+        const isButter = Math.random() < 0.28;
+        return {
+            pType: isButter ? 'butter' : 'corn',
+            pDmg: isButter ? 40 : (this.config.damage || 20)
+        };
     }
 }
 
@@ -1640,34 +1686,13 @@ export class GarlicPlant extends Plant {
 }
 
 // 西瓜投手 (重击与3x3群伤溅射)
-export class MelonPultPlant extends Plant {
+export class MelonPultPlant extends CatapultBasePlant {
     constructor(row, col, x, y, entityLayer) {
         super('melonpult', row, col, x, y, entityLayer);
-        this.attackTimer = 0;
-        this.attackInterval = this.config.attackInterval || 2.85;
     }
 
-    update(dt, engine) {
-        super.update(dt, engine);
-        if (this.isDead || this.isAsleep) return;
-        this.attackTimer += dt;
-        const currentInterval = (engine.isSuperCharge || this.isSuperGatling) ? this.attackInterval * 0.5 : this.attackInterval;
-        if (this.attackTimer >= currentInterval) {
-            const candidates = engine.zombies.filter(z =>
-                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying &&
-                !(z.type === 'digger' && z.diggerPhase === 'digging') && z.type !== 'bungee' &&
-                z.x > this.x - 10 && z.x < 920
-            );
-            if (candidates.length > 0) {
-                candidates.sort((a, b) => a.x - b.x);
-                const enemy = candidates[0];
-                this.attackTimer = 0;
-                soundEngine.playShoot();
-                engine.projectiles.push(
-                    new LobbedProjectile(this.row, this.x + 22, this.y - 24, enemy, 'melon', this.config.damage || 80)
-                );
-            }
-        }
+    chooseShotSpec() {
+        return { pType: 'melon', pDmg: this.config.damage || 80 };
     }
 }
 
@@ -1807,13 +1832,13 @@ export class GloomShroomPlant extends Plant {
                     this.domImg.src = this.config.attackAnim;
                 }
                 soundEngine.playFume();
-                if (engine.fumeClouds) {
-                    engine.fumeClouds.push(new FumeCloud(this.x - 95, this.y, 190));
+                if (engine.projectiles) {
+                    engine.projectiles.push(new FumeCloud(this.row, this.x - 95, this.y, 190, 0));
                 }
                 const dmg = this.config.damage || 80;
                 targets.forEach(z => {
-                    if (z.shieldType === 'screendoor' && typeof z.takeBypassArmorDamage === 'function') {
-                        z.takeBypassArmorDamage(dmg);
+                    if (typeof z.takeFumeDamage === 'function') {
+                        z.takeFumeDamage(dmg);
                     } else {
                         z.takeDamage(dmg);
                     }

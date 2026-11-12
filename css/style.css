@@ -589,6 +589,17 @@ body {
     pointer-events: none;
 }
 
+/* 空中弹道与打击特效画布层 (高于植物/僵尸 z-index: 10~30，低于浓雾层 z-index: 45) */
+.fx-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 35;
+    pointer-events: none;
+}
+
 /* 前景浓雾与波次横幅层 (高于实体层 z-index: 10，低于阳光层 z-index: 60) */
 .fog-layer {
     position: absolute;

@@ -1,12 +1,12 @@
 /**
  * pvzEngine.js - 核心战场循环、波次推进、除草机与 DOM 实体混合架构
  */
-import { GAME_CONFIG } from './config.js?v=20261112_v7';
-import { assetsLoader } from './assetsLoader.js?v=20261112_v7';
-import { soundEngine } from './audio.js?v=20261112_v7';
-import { createPlant } from './plants.js?v=20261112_v7';
-import { Zombie } from './zombies.js?v=20261112_v7';
-import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261112_v7';
+import { GAME_CONFIG } from './config.js?v=20261112_v8';
+import { assetsLoader } from './assetsLoader.js?v=20261112_v8';
+import { soundEngine } from './audio.js?v=20261112_v8';
+import { createPlant } from './plants.js?v=20261112_v8';
+import { Zombie } from './zombies.js?v=20261112_v8';
+import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261112_v8';
 
 export class PvzEngine {
     constructor(canvas, entityLayer, onStateChange = null) {
@@ -14,6 +14,8 @@ export class PvzEngine {
         this.ctx = canvas.getContext('2d');
         this.entityLayer = entityLayer;
         this.sunLayer = (typeof document !== 'undefined') ? document.getElementById('sunLayer') : null;
+        this.fxCanvas = (typeof document !== 'undefined') ? document.getElementById('fxCanvas') : null;
+        this.fxCtx = this.fxCanvas ? this.fxCanvas.getContext('2d') : null;
         this.fogCanvas = (typeof document !== 'undefined') ? document.getElementById('fogCanvas') : null;
         this.fogCtx = this.fogCanvas ? this.fogCanvas.getContext('2d') : null;
         this.onStateChange = onStateChange;
@@ -160,6 +162,9 @@ export class PvzEngine {
         }
         if (this.sunLayer) {
             this.sunLayer.innerHTML = '';
+        }
+        if (this.fxCtx && this.fxCanvas) {
+            this.fxCtx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);
         }
         if (this.fogCtx && this.fogCanvas) {
             this.fogCtx.clearRect(0, 0, this.fogCanvas.width, this.fogCanvas.height);
@@ -1555,42 +1560,53 @@ export class PvzEngine {
             });
         }
 
-        // 4. 画布层仅绘制植物、保龄球、投掷物、命中飞溅、爆炸与浮动文字
+        // 4. 底层画布绘制植物血条、保龄坚果以及高空抛投物的贴地/贴瓦面真实投影
         this.plants.forEach(p => p.render(ctx));
         if (this.bowlingNuts && this.bowlingNuts.length > 0) {
             this.bowlingNuts.forEach(bn => bn.render(ctx));
         }
-        this.projectiles.forEach(pr => pr.render(ctx));
-        this.hitSplats.forEach(hs => hs.render(ctx));
-        this.explosions.forEach(ex => ex.render(ctx));
+        this.projectiles.forEach(pr => {
+            if (typeof pr.renderShadow === 'function') {
+                pr.renderShadow(ctx);
+            }
+        });
         this.suns.forEach(s => s.render(ctx));
-        this.floatingTexts.forEach(ft => ft.render(ctx));
 
-        // 4.2 2-5 锤僵尸木槌震波与挥锤准星渲染
+        // 4.1 空中弹道与打击特效画布 (#fxCanvas, z-index: 35)：绘制在所有花盆/植物/僵尸 DOM 上方、浓雾层下方，保证抛投弧线与击中飞溅清晰可见且绝不遮挡穿模
+        const fxCtx = this.fxCtx || ctx;
+        if (this.fxCtx && this.fxCanvas) {
+            this.fxCtx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);
+        }
+        this.projectiles.forEach(pr => pr.render(fxCtx));
+        this.hitSplats.forEach(hs => hs.render(fxCtx));
+        this.explosions.forEach(ex => ex.render(fxCtx));
+        this.floatingTexts.forEach(ft => ft.render(fxCtx));
+
+        // 4.2 2-5 锤僵尸木槌震波与挥锤准星渲染 (同样位于前景特效层)
         if (this.whackEffects && this.whackEffects.length > 0) {
             this.whackEffects.forEach(ef => {
                 const p = ef.age / ef.lifespan;
                 const alpha = Math.max(0, 1 - p);
-                ctx.save();
-                ctx.strokeStyle = ef.hit ? `rgba(241, 196, 15, ${alpha})` : `rgba(189, 195, 199, ${alpha * 0.7})`;
-                ctx.lineWidth = ef.hit ? 5 : 3;
-                ctx.beginPath();
-                ctx.ellipse(ef.x, ef.y + 8, 18 + p * 38, 10 + p * 20, 0, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.restore();
+                fxCtx.save();
+                fxCtx.strokeStyle = ef.hit ? `rgba(241, 196, 15, ${alpha})` : `rgba(189, 195, 199, ${alpha * 0.7})`;
+                fxCtx.lineWidth = ef.hit ? 5 : 3;
+                fxCtx.beginPath();
+                fxCtx.ellipse(ef.x, ef.y + 8, 18 + p * 38, 10 + p * 20, 0, 0, Math.PI * 2);
+                fxCtx.stroke();
+                fxCtx.restore();
             });
         }
         if (this.isWhackAZombie && !this.selectedCard && !this.isShovelActive && this.malletCursor && this.malletCursor.x >= 0) {
             const malletImg = assetsLoader.getImage('assets/ui/mallet.png');
             if (malletImg && malletImg.complete) {
-                ctx.save();
-                ctx.translate(this.malletCursor.x + 22, this.malletCursor.y - 6);
+                fxCtx.save();
+                fxCtx.translate(this.malletCursor.x + 22, this.malletCursor.y - 6);
                 const swingAngle = this.malletCursor.swingTimer > 0
                     ? -0.75 * Math.sin((this.malletCursor.swingTimer / 0.22) * Math.PI)
                     : 0.28;
-                ctx.rotate(swingAngle);
-                ctx.drawImage(malletImg, -46, -68, 76, 76);
-                ctx.restore();
+                fxCtx.rotate(swingAngle);
+                fxCtx.drawImage(malletImg, -46, -68, 76, 76);
+                fxCtx.restore();
             }
         }
 
