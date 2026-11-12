@@ -1,12 +1,12 @@
 /**
  * pvzEngine.js - 核心战场循环、波次推进、除草机与 DOM 实体混合架构
  */
-import { GAME_CONFIG } from './config.js?v=20261112_v5';
-import { assetsLoader } from './assetsLoader.js?v=20261112_v5';
-import { soundEngine } from './audio.js?v=20261112_v5';
-import { createPlant } from './plants.js?v=20261112_v5';
-import { Zombie } from './zombies.js?v=20261112_v5';
-import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261112_v5';
+import { GAME_CONFIG } from './config.js?v=20261112_v6';
+import { assetsLoader } from './assetsLoader.js?v=20261112_v6';
+import { soundEngine } from './audio.js?v=20261112_v6';
+import { createPlant } from './plants.js?v=20261112_v6';
+import { Zombie } from './zombies.js?v=20261112_v6';
+import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261112_v6';
 
 export class PvzEngine {
     constructor(canvas, entityLayer, onStateChange = null) {
@@ -260,7 +260,8 @@ export class PvzEngine {
         this.conveyorUidSeq = 0;
         this.conveyorTrackOffset = 0;
         this.conveyorTimer = 0;
-        this.conveyorInterval = this.isBowling ? 2.5 : 3.5;
+        this.conveyorInterval = this.isBowling ? 2.05 : 3.4;
+        this.lastWaveInitialHp = 0;
 
         // 初始装载传送带卡片 (从右侧入口缓缓滑入)
         if (this.levelConfig.isConveyorBelt) {
@@ -303,7 +304,7 @@ export class PvzEngine {
         let type = specificType;
         if (!type) {
             if (this.isBowling) {
-                type = Math.random() < 0.28 ? 'bowling_rednut' : 'bowling_nut';
+                type = Math.random() < 0.24 ? 'bowling_rednut' : 'bowling_nut';
             } else {
                 const pool = this.levelConfig.conveyorCards || this.levelConfig.allowedPlants || ['peashooter'];
                 type = pool[Math.floor(Math.random() * pool.length)];
@@ -1038,17 +1039,21 @@ export class PvzEngine {
     }
 
     spawnWaveZombies(currentWave) {
+        let waveHpSum = 0;
         if (currentWave.isGraveWave && this.tombstones && this.tombstones.length > 0) {
             currentWave.zombies.forEach((zData, idx) => {
                 const sameRowTomb = this.tombstones.find(t => t.row === zData.row);
                 const tomb = sameRowTomb || this.tombstones[(idx + Math.floor(Math.random() * this.tombstones.length)) % this.tombstones.length];
                 const spawnX = tomb.x + (Math.random() - 0.5) * 18;
                 const zombie = new Zombie(zData.type, tomb.row, spawnX, this.entityLayer);
+                zombie.waveBornIndex = this.waveIndex;
+                waveHpSum += (zombie.hp + (zombie.armorHp || 0));
                 this.zombies.push(zombie);
                 if (idx < 3) {
                     this.floatingTexts.push(new FloatingText(tomb.x, tomb.y - 30, '🪦 钻出!', '#9b59b6', 17));
                 }
             });
+            this.lastWaveInitialHp = waveHpSum;
             return;
         }
         const activeRows = this.levelConfig.activeRows || [0, 1, 2, 3, 4];
@@ -1077,8 +1082,11 @@ export class PvzEngine {
             }
             const startX = zType === 'bungee' ? 500 : (900 + Math.random() * 50 + Math.min(70, idx * 12));
             const zombie = new Zombie(zType, spawnRow, startX, this.entityLayer);
+            zombie.waveBornIndex = this.waveIndex;
+            waveHpSum += (zombie.hp + (zombie.armorHp || 0));
             this.zombies.push(zombie);
         });
+        this.lastWaveInitialHp = waveHpSum;
     }
 
     updateWaves(dt) {
@@ -1141,24 +1149,54 @@ export class PvzEngine {
 
         let shouldTriggerWave = false;
 
-        // 原版官方节奏核心：
-        // 第1波绝对不早产，必须等待完整的开局备战期(22~25s)，供玩家收集阳光和种植
-        // 第2波及之后：若玩家提前全歼场上僵尸，则给 4.2 秒舒适休整期(捡阳光/思考)后刷下一波；若僵尸仍在慢走，则等待完整delay倒计时
-        if (this.waveIndex > 0 && !hasActiveZombies) {
-            if (this.clearedGraceTimer < 0) {
-                this.clearedGraceTimer = this.isWhackAZombie ? 2.2 : 4.2;
+        // 原版官方节奏核心 (对标 Board.cpp 压血线与红字前清场机制)：
+        // 1) 第 1 波绝对不早产，必须等待完整开局备战期 (22~25s)
+        // 2) 若下一波是旗帜大波 (currentWave.isFlag)：必须将场上存活僵尸全部清光 (或达到 42s 最大超时) 才吹响大波号角！
+        // 3) 常规波次：当场上僵尸全灭，或上一波僵尸剩余总血量被打至 55% 以下 (压血线机制) 时，经 2.4~2.8s 缓冲即推进下一波！
+        if (this.waveIndex > 0) {
+            if (currentWave.isFlag) {
+                if (!hasActiveZombies) {
+                    if (this.clearedGraceTimer < 0) {
+                        this.clearedGraceTimer = 3.0;
+                    } else {
+                        this.clearedGraceTimer -= dt;
+                        if (this.clearedGraceTimer <= 0) {
+                            shouldTriggerWave = true;
+                            this.clearedGraceTimer = -1;
+                        }
+                    }
+                } else {
+                    this.clearedGraceTimer = -1;
+                    if (this.waveTimer >= 42.0) {
+                        shouldTriggerWave = true;
+                    }
+                }
             } else {
-                this.clearedGraceTimer -= dt;
-                if (this.clearedGraceTimer <= 0) {
-                    shouldTriggerWave = true;
+                let prevWaveRemHp = 0;
+                this.zombies.forEach(z => {
+                    if (!z.isDead && !z.isDying && !z.hasLostHead && z.waveBornIndex === this.waveIndex - 1) {
+                        prevWaveRemHp += (z.hp + (z.armorHp || 0));
+                    }
+                });
+                const hpThresholdMet = this.waveTimer >= 5.0 && this.lastWaveInitialHp > 0 && prevWaveRemHp <= this.lastWaveInitialHp * 0.55;
+                if (!hasActiveZombies || hpThresholdMet) {
+                    if (this.clearedGraceTimer < 0) {
+                        this.clearedGraceTimer = (this.isWhackAZombie || this.isBowling) ? 2.0 : 2.8;
+                    } else {
+                        this.clearedGraceTimer -= dt;
+                        if (this.clearedGraceTimer <= 0) {
+                            shouldTriggerWave = true;
+                            this.clearedGraceTimer = -1;
+                        }
+                    }
+                } else {
                     this.clearedGraceTimer = -1;
                 }
+                if (!shouldTriggerWave && this.waveTimer >= currentWave.delay) {
+                    shouldTriggerWave = true;
+                }
             }
-        } else {
-            this.clearedGraceTimer = -1;
-        }
-
-        if (!shouldTriggerWave && this.waveTimer >= currentWave.delay) {
+        } else if (this.waveTimer >= currentWave.delay) {
             shouldTriggerWave = true;
         }
 

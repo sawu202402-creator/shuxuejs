@@ -1,9 +1,9 @@
 /**
  * zombies.js - 原版 1:1 僵尸实体系统与 DOM 60fps 动态 GIF 动画层 (完整支持第 1~5 大关全兵种与屋顶斜坡)
  */
-import { GAME_CONFIG } from './config.js?v=20261112_v5';
-import { soundEngine } from './audio.js?v=20261112_v5';
-import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261112_v5';
+import { GAME_CONFIG } from './config.js?v=20261112_v6';
+import { soundEngine } from './audio.js?v=20261112_v6';
+import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261112_v6';
 
 export class Zombie {
     constructor(type = 'normal', row = 2, startX = 900, entityLayer = null) {
@@ -111,6 +111,7 @@ export class Zombie {
         this.attackAnim = this.config.attackAnim || this.walkAnim;
         this.headAnim = this.config.headAnim || 'assets/zombies/zombie_head.gif';
         this.dieAnim = this.config.dieAnim || 'assets/zombies/zombie_die.gif';
+        this.charredAnim = this.config.charredAnim || 'assets/zombies/zombie_charred.gif';
         this.currentAnim = this.type === 'dancing' ? (this.config.moonwalkAnim || this.walkAnim) : this.walkAnim;
 
         // 防具与铁器标记
@@ -287,9 +288,15 @@ export class Zombie {
             if (this.armorHp <= 0) {
                 const overflow = -this.armorHp;
                 const prevShield = this.shieldType;
+                // 原版 PVZ1 护甲分类法则：
+                // 一类头戴防具（路障/铁桶/橄榄球头盔）碎裂时溢出伤害继续扣减本体 HP；
+                // 二类手持前盾（报纸/铁栅门/金属梯）碎裂时吸收当次冲击，不向本体溢出（如坚果撞碎报纸后触发读报狂暴，需第2颗坚果击杀）
+                const isFrontShield = (prevShield === 'newspaper' || prevShield === 'screendoor' || prevShield === 'ladder');
                 soundEngine.playSplat();
                 this.onArmorBroken(prevShield);
-                this.hp -= overflow;
+                if (!isFrontShield) {
+                    this.hp -= overflow;
+                }
             }
         } else {
             this.hp -= amount;
@@ -441,18 +448,23 @@ export class Zombie {
 
         if (this.isVehicle) {
             soundEngine.playBoom();
-            this.dyingDuration = 0.45;
-            if (this.domElement) {
-                this.domElement.style.opacity = '0.35';
-                this.domElement.style.transform = 'scale(0.9)';
+            if (this.type === 'zomboni' && this.dieAnim) {
+                this.dyingDuration = 1.9;
+                this.setAnim(this.dieAnim);
+                setTimeout(() => this.destroy(), 1900);
+            } else {
+                this.dyingDuration = 0.55;
+                if (this.domElement) {
+                    this.domElement.style.opacity = '0.4';
+                }
+                setTimeout(() => this.destroy(), 550);
             }
-            setTimeout(() => this.destroy(), 450);
             return;
         }
 
         if (isCharred) {
             this.dyingDuration = 2.4;
-            this.setAnim('assets/zombies/zombie_charred.gif');
+            this.setAnim(this.charredAnim);
             if (this.domElement) {
                 this.domElement.classList.add('charred-die');
             }
@@ -465,8 +477,15 @@ export class Zombie {
         }, this.dyingDuration * 1000);
     }
 
-    blastDie() {
+    blastDie(damage = 1800) {
+        if (this.isDying || this.isDead) return;
+        const totalHp = this.hp + (this.armorHp || 0);
+        if (totalHp > damage) {
+            this.takeDamage(damage);
+            return;
+        }
         this.hp = 0;
+        this.armorHp = 0;
         this.die(true);
     }
 

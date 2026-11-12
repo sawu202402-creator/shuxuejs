@@ -116,6 +116,41 @@ def import_zombie_gif(src_path, dst_path, canvas_size=(166, 144), anchor_cx=105,
     print(f'  [Zombie] {os.path.basename(dst_path):26s} <- {src_path} ({len(out_frames)}f, scale={scale:.2f})')
 
 
+def import_charred_gif(src_path, dst_path, canvas_size=(166, 144), anchor_cx=105, anchor_bottom=142, target_h=120):
+    im = Image.open(src_path)
+    nf = getattr(im, 'n_frames', 1)
+    raw = []
+    ux0, uy0, ux1, uy1 = 9999, 9999, 0, 0
+    for i in range(nf):
+        im.seek(i)
+        cl = strict_clean_frame(im)
+        bb = cl.getbbox()
+        if bb:
+            ux0, uy0 = min(ux0, bb[0]), min(uy0, bb[1])
+            ux1, uy1 = max(ux1, bb[2]), max(uy1, bb[3])
+        raw.append(cl)
+    if not raw or not raw[0].getbbox():
+        return
+    f0_bb = raw[0].getbbox()
+    scale = target_h / float(max(1, f0_bb[3] - f0_bb[1]))
+    cw, ch = canvas_size
+    out = []
+    for fr in raw:
+        sub = fr.crop((ux0, uy0, ux1, uy1))
+        if abs(scale - 1.0) > 0.01:
+            nw = max(1, int(round(sub.width * scale)))
+            nh = max(1, int(round(sub.height * scale)))
+            sub = strict_clean_frame(sub.resize((nw, nh), Image.LANCZOS))
+        canvas = Image.new('RGBA', (cw, ch), (0, 0, 0, 0))
+        ox = max(0, min(cw - sub.width, int(round(anchor_cx - sub.width / 2.0))))
+        oy = max(0, min(ch - sub.height, int(round(anchor_bottom - sub.height))))
+        canvas.alpha_composite(sub, (ox, oy))
+        out.append(canvas)
+    durs = [115] * (len(out) - 1) + [1200]
+    save_gif(out, dst_path, duration=durs)
+    print(f'  [Charred] {os.path.basename(dst_path):25s} <- {src_path} ({len(out)}f, scale={scale:.2f})')
+
+
 def import_plant_gif(src_path, dst_path, max_size=None):
     im = Image.open(src_path)
     nf = getattr(im, 'n_frames', 1)
@@ -239,6 +274,8 @@ def main():
     import_zombie_gif(f'{z_base}/Imp/1.gif', 'assets/zombies/imp_walk.gif', max_h=86)
     import_zombie_gif(f'{z_base}/Imp/Attack.gif', 'assets/zombies/imp_attack.gif', max_h=84)
     import_zombie_gif(f'{z_base}/Imp/Die.gif', 'assets/zombies/imp_die.gif', max_h=86)
+    import_charred_gif(f'{z_base}/Zombie/BoomDie.gif', 'assets/zombies/zombie_charred.gif', target_h=120)
+    import_charred_gif(f'{z_base}/Imp/BoomDie.gif', 'assets/zombies/imp_charred.gif', target_h=80)
 
     print('=== 2. Importing Original PVZ1 Plants & Effects ===')
     import_plant_gif(f'{p_base}/GraveBuster/GraveBuster.gif', 'assets/plants/gravebuster.gif', max_size=(96, 98))

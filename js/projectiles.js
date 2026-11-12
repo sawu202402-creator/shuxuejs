@@ -1,8 +1,8 @@
 /**
  * projectiles.js - 子弹、投掷物、爆炸粒子、飘字与阳光飞行动画系统
  */
-import { assetsLoader } from './assetsLoader.js?v=20261112_v5';
-import { soundEngine } from './audio.js?v=20261112_v5';
+import { assetsLoader } from './assetsLoader.js?v=20261112_v6';
+import { soundEngine } from './audio.js?v=20261112_v6';
 
 export class Projectile {
     constructor(row, x, y, type = 'pea', damage = 20, isSlow = false, maxRange = 960, customSpeed = null) {
@@ -714,7 +714,7 @@ export class BowlingNutEntity {
         this.vy = 0;   // 斜向反弹纵向速率
         this.rotation = 0;
         this.radius = 34;
-        this.damage = type === 'bowling_rednut' ? 1800 : 400;
+        this.damage = type === 'bowling_rednut' ? 1800 : 500;
         this.isDead = false;
         this.hitZombies = new Set();
         this.dustTimer = 0;
@@ -757,26 +757,43 @@ export class BowlingNutEntity {
             this.vy = -180;
         }
 
-        // 僵尸碰撞检测
+        // 僵尸碰撞检测 (严格对齐原版 PVZ1 保龄球碰撞与防具血量层级)
         engine.zombies.forEach(z => {
-            if (z.isDead || this.hitZombies.has(z.id)) return;
+            if (this.isDead || z.isDead || z.isDying || z.state === 'jumping' || this.hitZombies.has(z.id)) return;
+
+            // 原版细节：手持撑杆的撑杆跳僵尸遇到迎面滚来的普通保龄坚果时，会撑杆腾空跃过第一颗坚果！
+            if (this.type === 'bowling_nut' && z.type === 'polevault' && z.hasPole && !z.hasLostHead &&
+                z.x >= this.x - 8 && z.x - this.x <= 66 && Math.abs(z.y - this.y) <= 34) {
+                this.hitZombies.add(z.id);
+                z.state = 'jumping';
+                z.jumpTimer = 0.85;
+                z.jumpStartX = z.x;
+                z.jumpTargetX = z.x - 56;
+                z.setAnim(z.config.jumpAnim || 'assets/zombies/polevault_jump.gif');
+                soundEngine.playGroan();
+                if (engine.floatingTexts) {
+                    engine.floatingTexts.push(new FloatingText(z.x, z.y - 45, '🏃 撑杆跃过坚果!', '#f39c12', 18));
+                }
+                return;
+            }
+
             // 距离小于坚果半径 + 僵尸躯干半径
             const dist = Math.hypot(z.x - this.x, z.y - this.y);
             if (dist <= 48) {
                 this.hitZombies.add(z.id);
 
                 if (this.type === 'bowling_rednut') {
-                    // 赤红爆炸坚果：撞击首个目标触发 3x3 剧烈烈火爆破
+                    // 赤红爆炸坚果：撞击首个目标触发 3x3 剧烈烈火爆破 (1800 灰烬伤害)
                     this.isDead = true;
                     soundEngine.playBoom();
                     soundEngine.playThunder();
                     engine.explosions.push(new ExplosionEffect(this.x, this.y, 'cherry'));
                     engine.zombies.forEach(targetZ => {
-                        if (!targetZ.isDead) {
+                        if (!targetZ.isDead && !targetZ.isDying) {
                             const rDiff = Math.abs(targetZ.row - this.row);
                             const cDiff = Math.abs(targetZ.x - this.x) / engine.cellW;
                             if (rDiff <= 1.2 && cDiff <= 1.5) {
-                                if (targetZ.blastDie) targetZ.blastDie();
+                                if (targetZ.blastDie) targetZ.blastDie(1800);
                                 else targetZ.takeDamage(1800);
                             }
                         }
@@ -784,17 +801,12 @@ export class BowlingNutEntity {
                     return;
                 }
 
-                // 普通保龄坚果：造成 400 重击伤害，并触发原版经典斜向折射！
+                // 普通保龄坚果：造成 500 物理撞击伤害（普通僵尸1下、路障/读报2下、铁桶3下、铁栅门/橄榄球4下），并触发斜向折射！
                 soundEngine.playBowlingStrike();
                 if (engine.hitSplats) {
                     engine.hitSplats.push(new HitSplat(z.x, z.y - 18, 'nut'));
                 }
-
-                if (z.hp <= 400 && z.blastDie) {
-                    z.blastDie();
-                } else {
-                    z.takeDamage(400);
-                }
+                z.takeDamage(this.damage);
 
                 // 核心斜向反弹逻辑 (Ricochet)
                 if (this.vy === 0) {

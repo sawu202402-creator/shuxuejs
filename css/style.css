@@ -870,9 +870,22 @@ body {
     z-index: 25 !important;
 }
 
+.zombie-entity.zombie-balloon.charred-die,
+.zombie-entity.zombie-pogo.charred-die,
+.zombie-entity.zombie-bungee.charred-die {
+    height: 144px;
+    margin-top: 0;
+}
+
+.zombie-entity.zombie-balloon.charred-die .zombie-gif,
+.zombie-entity.zombie-pogo.charred-die .zombie-gif,
+.zombie-entity.zombie-bungee.charred-die .zombie-gif {
+    height: 144px;
+}
+
 .zombie-entity.charred-die .zombie-gif {
-    filter: drop-shadow(0 0 12px rgba(0, 0, 0, 0.85));
-    animation: ash-disintegrate 2.4s forwards ease-in-out;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.75));
+    animation: ash-disintegrate 2.4s forwards ease-out;
 }
 
 .zombie-entity.mower-die {
@@ -892,9 +905,9 @@ body {
 }
 
 @keyframes ash-disintegrate {
-    0% { opacity: 1; transform: scale(1); filter: brightness(1); }
-    85% { opacity: 0.95; transform: scale(1); filter: brightness(0.8); }
-    100% { opacity: 0; transform: scale(0.96) translateY(6px); filter: brightness(0.2); }
+    0% { opacity: 1; transform: scale(1); }
+    88% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1); }
 }
 
 .shield-badge {

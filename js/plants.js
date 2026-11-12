@@ -1,9 +1,9 @@
 /**
  * plants.js - 原版 1:1 植物实体系统与 DOM 60fps 动态 GIF 动画层
  */
-import { GAME_CONFIG } from './config.js?v=20261112_v5';
-import { Projectile, ExplosionEffect, SunEntity, FumeCloud, HitSplat, FloatingText, JalapenoFireLine, StarProjectile, LobbedProjectile } from './projectiles.js?v=20261112_v5';
-import { soundEngine } from './audio.js?v=20261112_v5';
+import { GAME_CONFIG } from './config.js?v=20261112_v6';
+import { Projectile, ExplosionEffect, SunEntity, FumeCloud, HitSplat, FloatingText, JalapenoFireLine, StarProjectile, LobbedProjectile } from './projectiles.js?v=20261112_v6';
+import { soundEngine } from './audio.js?v=20261112_v6';
 
 export class Plant {
     constructor(type, row, col, x, y, entityLayer = null) {

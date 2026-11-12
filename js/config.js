@@ -95,8 +95,8 @@ export const GAME_CONFIG = {
             cost: 0,
             cooldown: 0,
             hp: 9999,
-            damage: 400,
-            desc: '在红线左侧发射！沿直线高速滚出，撞击僵尸折射弹跳 (400伤害)',
+            damage: 500,
+            desc: '在红线左侧发射！沿直线高速滚出，撞击僵尸折射弹跳 (500伤害：普通1下/路障2下/铁桶3下)',
             icon: 'assets/cards/card_bowling_nut.png',
             anim: 'assets/plants/wallnut.gif'
         },
@@ -1093,7 +1093,8 @@ export const GAME_CONFIG = {
             walkAnims: ['assets/zombies/imp_walk.gif'],
             attackAnim: 'assets/zombies/imp_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/imp_die.gif'
+            dieAnim: 'assets/zombies/imp_die.gif',
+            charredAnim: 'assets/zombies/imp_charred.gif'
         }
     },
 
@@ -1199,7 +1200,7 @@ export const GAME_CONFIG = {
             waves: [
                 { delay: 10, zombies: [{ type: 'normal', row: 2 }] },
                 { delay: 12, zombies: [{ type: 'conehead', row: 1 }] },
-                { delay: 14, zombies: [{ type: 'normal', row: 3 }, { type: 'normal', row: 4 }] },
+                { delay: 14, zombies: [{ type: 'normal', row: 3 }, { type: 'polevault', row: 4 }] },
                 { delay: 15, zombies: [{ type: 'conehead', row: 0 }, { type: 'buckethead', row: 2 }] },
                 { delay: 16, zombies: [{ type: 'buckethead', row: 1 }, { type: 'conehead', row: 4 }] },
                 { delay: 20, isFlag: true, zombies: [
@@ -2603,174 +2604,269 @@ export const GAME_CONFIG = {
 };
 
 // ============================================================================
-// 原版 PVZ1 关卡波次长度标准化引擎：
-// 还原原版 1 面旗帜 (10 波) 与 2 面旗帜 (20 波) 节奏，前 3 波平稳发育攒阳光，中期渐进施压，旗帜波高潮总攻
+// 原版 PVZ1 官方出怪点数与旗帜波生成引擎 (对标 Board::PickZombieWaves & gZombieDefs)：
+// 1. 严格还原原版冒险模式 50 关旗帜/波数表：
+//    - 1-1 教学关：5 波无旗帜 (共 5 只普通僵尸)
+//    - 1 旗关卡 (10 波)：1-2, 1-3, 1-4, 1-6, 1-8 | 2-1, 2-3, 2-6, 2-8 | 3-1 | 4-1, 4-3, 4-5, 4-6, 4-8 | 5-1
+//    - 2-5 锤僵尸特别试炼：12 波 1 旗快节奏墓地突袭
+//    - 2 旗关卡 (20 波)：1-5(坚果保龄球), 1-7, 1-9, 1-10 | 2-2, 2-4, 2-7, 2-9, 2-10 | 3-2~3-8 | 4-2, 4-4, 4-7, 4-9, 4-10 | 5-2~5-8
+//    - 3 旗压轴大战 (30 波)：3-9, 3-10, 5-9, 5-10
+// 2. 严格还原原版 gZombieDefs 出怪点数权重 (mZombieValue) 与最早登场波次 (minWave)：
+//    每波预算按 floor((w-1)/3)+1 递增，旗帜大波 2.5 倍点数爆发并赠送领头旗帜僵尸，精英巨怪高点数不无脑扎堆，基础小怪后期成群压境。
 // ============================================================================
 (function normalizeAdventureLevelWaves(cfg) {
+    const ZOMBIE_DEFS = {
+        normal:       { pts: 1,  minWave: 1 },
+        ducky:        { pts: 1,  minWave: 1 },
+        conehead:     { pts: 2,  minWave: 3 },
+        newspaper:    { pts: 2,  minWave: 4 },
+        polevault:    { pts: 2,  minWave: 5 },
+        balloon:      { pts: 2,  minWave: 5 },
+        snorkel:      { pts: 3,  minWave: 5 },
+        jackinthebox: { pts: 3,  minWave: 6 },
+        bungee:       { pts: 3,  minWave: 6 },
+        screendoor:   { pts: 4,  minWave: 6 },
+        buckethead:   { pts: 4,  minWave: 7 },
+        digger:       { pts: 4,  minWave: 6 },
+        pogo:         { pts: 4,  minWave: 6 },
+        ladder:       { pts: 4,  minWave: 6 },
+        dancing:      { pts: 5,  minWave: 6 },
+        dolphin:      { pts: 5,  minWave: 6 },
+        zomboni:      { pts: 7,  minWave: 7 },
+        football:     { pts: 7,  minWave: 7 },
+        catapult:     { pts: 8,  minWave: 7 },
+        gargantuar:   { pts: 10, minWave: 8 }
+    };
+
     const ONE_FLAG_LEVELS = new Set([
-        '1-4', '1-5', '1-6', '1-8',
-        '2-1', '2-3', '2-5',
-        '3-1', '3-5',
-        '4-1', '4-5',
-        '5-1', '5-5'
+        '1-2', '1-3', '1-4', '1-6', '1-8',
+        '2-1', '2-3', '2-6', '2-8',
+        '3-1',
+        '4-1', '4-3', '4-5', '4-6', '4-8',
+        '5-1'
     ]);
+
+    const THREE_FLAG_LEVELS = new Set(['3-9', '3-10', '5-9', '5-10']);
+
+    const LEVEL_DEBUT_ZOMBIE = {
+        '1-3': 'conehead',
+        '1-6': 'polevault',
+        '1-7': 'buckethead',
+        '2-1': 'newspaper',
+        '2-3': 'screendoor',
+        '2-6': 'football',
+        '2-8': 'dancing',
+        '3-1': 'ducky',
+        '3-3': 'snorkel',
+        '3-6': 'zomboni',
+        '3-8': 'dolphin',
+        '4-2': 'jackinthebox',
+        '4-3': 'balloon',
+        '4-5': 'digger',
+        '4-7': 'pogo',
+        '5-1': 'bungee',
+        '5-3': 'ladder',
+        '5-4': 'catapult',
+        '5-8': 'gargantuar'
+    };
+
+    // 固定随机发生器（保证同一关卡每次游玩兵种组合均衡稳定）
+    const makeRng = (lvlId) => {
+        let h = 2166136261;
+        for (let i = 0; i < lvlId.length; i++) {
+            h ^= lvlId.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+        }
+        let state = (h >>> 0) || 1234567;
+        return () => {
+            state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+            return state / 4294967296;
+        };
+    };
 
     Object.keys(cfg.levels).forEach(lvlId => {
         const lvl = cfg.levels[lvlId];
-        if (!lvl || lvl.isEndless || lvlId === '1-1' || lvlId === '1-2' || lvlId === '1-3') {
+        if (!lvl || lvl.isEndless) return;
+
+        // 1-1 教学关：原版标准 5 波单轨无旗帜 (共 5 只普通僵尸)
+        if (lvlId === '1-1') {
+            lvl.waves = [
+                { delay: 22, zombies: [{ type: 'normal', row: 2 }] },
+                { delay: 20, zombies: [{ type: 'normal', row: 2 }] },
+                { delay: 20, zombies: [{ type: 'normal', row: 2 }] },
+                { delay: 20, zombies: [{ type: 'normal', row: 2 }] },
+                { delay: 22, zombies: [{ type: 'normal', row: 2 }] }
+            ];
             return;
         }
+
         const origWaves = Array.isArray(lvl.waves) ? lvl.waves : [];
         if (origWaves.length === 0) return;
 
-        const targetTotal = ONE_FLAG_LEVELS.has(lvlId) ? 10 : 20;
-        if (origWaves.length >= targetTotal) return;
+        const targetTotal = lvl.isWhackAZombie
+            ? 12
+            : (THREE_FLAG_LEVELS.has(lvlId) ? 30 : (ONE_FLAG_LEVELS.has(lvlId) ? 10 : 20));
 
         const activeRows = lvl.activeRows || [0, 1, 2, 3, 4];
         const waterRows = lvl.waterRows || [];
         const landRows = activeRows.filter(r => !waterRows.includes(r));
+        const hasWater = waterRows.length > 0;
+        const rng = makeRng(lvlId);
 
-        const seenTypes = [];
+        // 提取本关允许出场的僵尸池（始终保留 normal，水池关卡始终保留 ducky 以填充 1 点预算）
+        const allowedSet = new Set(['normal']);
+        if (hasWater) allowedSet.add('ducky');
         origWaves.forEach(w => {
             (w.zombies || []).forEach(z => {
-                if (z && z.type && z.type !== 'flag' && !seenTypes.includes(z.type)) {
-                    seenTypes.push(z.type);
+                if (z && z.type && z.type !== 'flag') {
+                    allowedSet.add(z.type);
                 }
             });
         });
-        if (seenTypes.length === 0) seenTypes.push('normal');
+        if (lvl.world >= 2 || lvlId !== '1-2') {
+            allowedSet.add('conehead');
+        }
+        const allowedTypes = Array.from(allowedSet);
+        const debutType = LEVEL_DEBUT_ZOMBIE[lvlId] || null;
+        const featuredElites = allowedTypes.filter(t => t !== 'normal' && t !== 'ducky' && t !== 'conehead');
 
-        const waterTypes = seenTypes.filter(t => cfg.zombies[t] && (cfg.zombies[t].isAquatic || cfg.zombies[t].isWaterOnly));
-        const landTypes = seenTypes.filter(t => !(cfg.zombies[t] && (cfg.zombies[t].isAquatic || cfg.zombies[t].isWaterOnly)));
-        const specialLand = landTypes.filter(t => t !== 'normal' && t !== 'conehead' && t !== 'buckethead');
-        const specialAll = seenTypes.filter(t => t !== 'normal' && t !== 'conehead');
-        const hasCone = seenTypes.includes('conehead') || lvl.world >= 2;
-        const hasBucket = seenTypes.includes('buckethead');
-
-        const pickRowFor = (type, seed) => {
+        const pickRowFor = (type) => {
             const zc = cfg.zombies[type] || cfg.zombies.normal;
             if (zc.isAquatic || zc.isWaterOnly) {
-                return waterRows.length > 0 ? waterRows[seed % waterRows.length] : activeRows[seed % activeRows.length];
+                return hasWater ? waterRows[Math.floor(rng() * waterRows.length)] : activeRows[Math.floor(rng() * activeRows.length)];
             }
             if (zc.isFlying || type === 'bungee') {
-                return activeRows[seed % activeRows.length];
+                return activeRows[Math.floor(rng() * activeRows.length)];
             }
             const pool = landRows.length > 0 ? landRows : activeRows;
-            return pool[seed % pool.length];
+            return pool[Math.floor(rng() * pool.length)];
         };
 
-        const sanitizeZombieList = (list) => list.map((z, idx) => ({
-            type: z.type,
-            row: pickRowFor(z.type, (typeof z.row === 'number' ? z.row : idx))
-        }));
+        const getPointVal = (t) => (ZOMBIE_DEFS[t] ? ZOMBIE_DEFS[t].pts : 2);
+        const getMinWave = (t) => (ZOMBIE_DEFS[t] ? ZOMBIE_DEFS[t].minWave : 4);
 
-        const origFlagWaves = origWaves.filter(w => w.isFlag);
-        const finalOrigFlag = origFlagWaves.length > 0 ? origFlagWaves[origFlagWaves.length - 1] : origWaves[origWaves.length - 1];
-        const midOrigFlag = origFlagWaves.length > 1 ? origFlagWaves[0] : finalOrigFlag;
-
-        const baseDelay = lvl.isWhackAZombie ? 9 : (lvl.isBowling ? 13 : (lvl.isConveyorBelt ? 16 : 23));
+        const baseDelay = lvl.isWhackAZombie ? 9 : (lvl.isBowling ? 12 : (lvl.isConveyorBelt ? 16 : 26));
         const newWaves = [];
+        let debutSpawnedMid = false;
 
         for (let w = 1; w <= targetTotal; w++) {
-            const isMidFlag = (targetTotal === 20 && w === 10);
-            const isFinalFlag = (w === targetTotal);
+            const isFlag = lvl.isWhackAZombie ? (w === targetTotal) : (w % 10 === 0);
             const waveObj = {
-                delay: w <= 2 ? baseDelay + 2 : baseDelay,
+                delay: w === 1 ? (lvl.isBowling ? 10 : (lvl.isConveyorBelt ? 14 : 23)) : (isFlag ? baseDelay + 3 : baseDelay),
                 zombies: []
             };
             if (lvl.isWhackAZombie) {
                 waveObj.isGraveWave = true;
             }
+            if (isFlag) {
+                waveObj.isFlag = true;
+            }
 
-            if (isFinalFlag) {
-                waveObj.isFlag = true;
-                waveObj.delay = baseDelay + 4;
-                const baseZ = sanitizeZombieList(finalOrigFlag.zombies || []);
-                if (!baseZ.some(z => z.type === 'flag')) {
-                    baseZ.unshift({ type: 'flag', row: pickRowFor('flag', w) });
-                }
-                // 终极波次补足原版压迫感密度
-                const minFinalCount = targetTotal === 20 ? 8 : 6;
-                let extraSeed = w * 3;
-                while (baseZ.length < minFinalCount) {
-                    const pickPool = specialAll.length > 0 ? specialAll : seenTypes;
-                    const t = pickPool[extraSeed % pickPool.length];
-                    baseZ.push({ type: t, row: pickRowFor(t, extraSeed + 1) });
-                    extraSeed++;
-                }
-                waveObj.zombies = baseZ;
-            } else if (isMidFlag) {
-                waveObj.isFlag = true;
-                waveObj.delay = baseDelay + 3;
-                const baseZ = sanitizeZombieList(midOrigFlag.zombies || []).slice(0, 6);
-                if (!baseZ.some(z => z.type === 'flag')) {
-                    baseZ.unshift({ type: 'flag', row: pickRowFor('flag', w) });
-                }
-                while (baseZ.length < 6) {
-                    const pickPool = specialAll.length > 0 ? specialAll : seenTypes;
-                    const t = pickPool[(w + baseZ.length) % pickPool.length];
-                    baseZ.push({ type: t, row: pickRowFor(t, w + baseZ.length) });
-                }
-                waveObj.zombies = baseZ;
-            } else if (w <= 2) {
-                // 前 2 波：单只普通僵尸探路，留给玩家充足时间种向日葵/阳光菇与答题攒阳光
-                waveObj.zombies.push({ type: 'normal', row: pickRowFor('normal', w + 1) });
-                if (lvl.isConveyorBelt && w === 2) {
-                    const t2 = hasCone ? 'conehead' : 'normal';
-                    waveObj.zombies.push({ type: t2, row: pickRowFor(t2, w + 3) });
-                }
-            } else if (w === 3) {
-                if (waterTypes.length > 0 && seenTypes.includes('ducky')) {
-                    waveObj.zombies.push({ type: 'ducky', row: pickRowFor('ducky', w) });
-                } else {
-                    const t = hasCone ? 'conehead' : 'normal';
-                    waveObj.zombies.push({ type: t, row: pickRowFor(t, w + 2) });
-                }
-            } else if (w <= 6) {
-                // 第 4~6 波：路障与本关特色兵种初次亮相 (1~2 只)
-                const primary = specialAll.length > 0 && w >= 5
-                    ? specialAll[(w - 5) % specialAll.length]
-                    : (hasCone ? 'conehead' : 'normal');
-                waveObj.zombies.push({ type: primary, row: pickRowFor(primary, w * 2) });
-                if (w >= 5) {
-                    const sec = (waterTypes.length > 0 && w % 2 === 0)
-                        ? waterTypes[w % waterTypes.length]
-                        : 'normal';
-                    waveObj.zombies.push({ type: sec, row: pickRowFor(sec, w * 2 + 1) });
-                }
-            } else if (w <= 9) {
-                // 第 7~9 波：第一面旗帜前的中期推进 (2~3 只)
-                const count = w === 9 ? 3 : 2;
-                for (let k = 0; k < count; k++) {
-                    let t = 'normal';
-                    if (k === 0 && specialAll.length > 0) {
-                        t = specialAll[(w + k) % specialAll.length];
-                    } else if (k === 1 && waterTypes.length > 0 && w % 2 === 1) {
-                        t = waterTypes[(w + k) % waterTypes.length];
-                    } else if (hasBucket && k === 1 && w >= 8) {
-                        t = 'buckethead';
-                    } else if (hasCone) {
-                        t = 'conehead';
-                    }
-                    waveObj.zombies.push({ type: t, row: pickRowFor(t, w * 3 + k) });
+            // 计算本波官方出怪点数预算 (aZombiePoints)
+            let budget = 1;
+            if (lvl.isBowling) {
+                if (w === 1) budget = 1;
+                else if (w === 2) budget = 2;
+                else budget = Math.floor(w / 2) + 2;
+                if (isFlag) budget = (w === 10 ? 14 : 24);
+            } else if (lvl.isWhackAZombie) {
+                budget = isFlag ? 15 : Math.min(8, 1 + Math.ceil(w / 2));
+            } else if (lvl.isConveyorBelt) {
+                if (w <= 2) budget = 2;
+                else budget = Math.floor((w - 1) / 3) + 2 + (lvl.world >= 3 && w >= 8 ? 1 : 0);
+                if (isFlag) {
+                    const baseF = Math.floor((w - 1) / 3) + 2;
+                    budget = Math.round(baseF * 2.5) + 3;
                 }
             } else {
-                // 第 11~19 波 (双旗帜关卡下半场)：火力全开攻防战 (3~5 只)
-                const count = w >= 17 ? 4 : (w >= 14 ? 3 : 2);
-                for (let k = 0; k < count; k++) {
-                    let t = 'normal';
-                    if (k === 0 && specialAll.length > 0) {
-                        t = specialAll[(w + k) % specialAll.length];
-                    } else if (k === 1 && waterTypes.length > 0) {
-                        t = waterTypes[(w + k) % waterTypes.length];
-                    } else if (k === 2 && specialLand.length > 0) {
-                        t = specialLand[(w + k) % specialLand.length];
-                    } else if (hasBucket && (w + k) % 2 === 0) {
-                        t = 'buckethead';
-                    } else if (hasCone) {
-                        t = 'conehead';
+                // 标准选卡种植关卡：前 3 波严格 1 点（单只普通僵尸），留足种向日葵与口算发育期！
+                if (w <= 3) {
+                    budget = 1;
+                } else {
+                    budget = Math.floor((w - 1) / 3) + 1 + (lvl.world >= 3 && w >= 8 ? 1 : 0);
+                }
+                if (isFlag) {
+                    const baseF = Math.floor((w - 1) / 3) + 1;
+                    budget = Math.round(baseF * 2.5) + (lvl.world >= 3 ? 2 : 0);
+                }
+            }
+
+            // 旗帜波必带 1 只领头旗帜僵尸（不占常规预算，与原版一致）
+            if (isFlag) {
+                waveObj.zombies.push({ type: 'flag', row: pickRowFor('flag') });
+            }
+
+            // 新僵尸首秀关卡：保证在第 5 波（重装精英第 7 波）完成标志性初登场，且在旗帜波必定压阵！
+            const debutTriggerWave = (debutType && getPointVal(debutType) >= 5) ? 7 : 5;
+            if (debutType && !debutSpawnedMid && w === debutTriggerWave) {
+                debutSpawnedMid = true;
+                waveObj.zombies.push({ type: debutType, row: pickRowFor(debutType) });
+                budget = Math.max(0, budget - getPointVal(debutType));
+            } else if (isFlag && featuredElites.length > 0) {
+                // 旗帜大波保底编入本关特色兵种
+                const mustPick = debutType || featuredElites[Math.floor(rng() * featuredElites.length)];
+                if (budget >= Math.min(4, getPointVal(mustPick))) {
+                    waveObj.zombies.push({ type: mustPick, row: pickRowFor(mustPick) });
+                    budget = Math.max(0, budget - getPointVal(mustPick));
+                }
+            }
+
+            // 按点数预算循环挑选合规兵种，直至耗尽全部点数 (完全复刻 PickZombieWaves 分配器)
+            let guard = 0;
+            while (budget > 0 && guard < 40) {
+                guard++;
+                const candidates = allowedTypes.filter(t => {
+                    const pv = getPointVal(t);
+                    const mw = lvl.isConveyorBelt ? Math.max(1, getMinWave(t) - 2) : getMinWave(t);
+                    if (w <= 2 && t !== 'normal') return false;
+                    if (!isFlag && w < mw) return false;
+                    if (pv > budget) return false;
+                    // 泳池/浓雾关（2水路+4陆路）：控制水路僵尸占比约 33%，避免水路拥挤而陆路空旷
+                    const isWaterCand = !!(cfg.zombies[t] && (cfg.zombies[t].isAquatic || cfg.zombies[t].isWaterOnly));
+                    if (hasWater && isWaterCand) {
+                        const curWaterCnt = waveObj.zombies.filter(z => cfg.zombies[z.type] && cfg.zombies[z.type].isAquatic).length;
+                        const maxWaterInWave = isFlag ? Math.max(2, Math.ceil(budget / 3) + 2) : Math.max(1, Math.ceil((waveObj.zombies.length + 1) * 0.4));
+                        if (curWaterCnt >= maxWaterInWave) return false;
                     }
-                    waveObj.zombies.push({ type: t, row: pickRowFor(t, w * 5 + k * 2) });
+                    // 单波蹦极数量限制，避免一整波全是空降偷菜无地面推进
+                    if (t === 'bungee' && waveObj.zombies.filter(z => z.type === 'bungee').length >= (isFlag ? 3 : 1)) {
+                        return false;
+                    }
+                    return true;
+                });
+
+                if (candidates.length === 0) {
+                    waveObj.zombies.push({ type: 'normal', row: pickRowFor('normal') });
+                    budget -= 1;
+                    continue;
+                }
+
+                // 权重倾向：中后期适当提高进阶与特色兵种权重，泳池关保持 ~30% 水路压力
+                const weighted = [];
+                candidates.forEach(t => {
+                    const pv = getPointVal(t);
+                    const isWaterT = !!(cfg.zombies[t] && (cfg.zombies[t].isAquatic || cfg.zombies[t].isWaterOnly));
+                    let copies = 2;
+                    if (pv >= 2 && w >= 6) copies = 3;
+                    if (t === debutType && !isWaterT) copies = 4;
+                    if (hasWater && isWaterT) {
+                        const curWaterCnt = waveObj.zombies.filter(z => cfg.zombies[z.type] && cfg.zombies[z.type].isAquatic).length;
+                        copies = curWaterCnt === 0 && w >= 3 ? 3 : 1;
+                    }
+                    for (let c = 0; c < copies; c++) weighted.push(t);
+                });
+
+                const chosen = weighted[Math.floor(rng() * weighted.length)];
+                waveObj.zombies.push({ type: chosen, row: pickRowFor(chosen) });
+                budget -= getPointVal(chosen);
+            }
+
+            // 原版大波视觉保底：若重装巨怪吃光点数导致大波人数偏少，补充普通/路障随行步兵，确保红字大波气势十足
+            if (isFlag) {
+                const minHordeSize = w >= 30 ? 10 : (w >= 20 ? 8 : 6);
+                while (waveObj.zombies.length < minHordeSize) {
+                    const escort = (hasWater && rng() < 0.25) ? 'ducky' : (allowedSet.has('conehead') && rng() < 0.35 ? 'conehead' : 'normal');
+                    waveObj.zombies.push({ type: escort, row: pickRowFor(escort) });
                 }
             }
 
