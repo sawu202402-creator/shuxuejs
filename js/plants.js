@@ -122,6 +122,10 @@ export class Plant {
             this.hostLilypad.carriedPlant = null;
             this.hostLilypad = null;
         }
+        if (this.hostPot) {
+            this.hostPot.carriedPlant = null;
+            this.hostPot = null;
+        }
         if (this.zzzElement && this.zzzElement.parentNode) {
             this.zzzElement.parentNode.removeChild(this.zzzElement);
             this.zzzElement = null;
@@ -134,6 +138,7 @@ export class Plant {
 
     update(dt, engine) {
         if (this.isDead) return;
+        this.engine = engine;
         this.age += dt;
         if (this.isSuperGatling) {
             this.gatlingTimer -= dt;
@@ -440,13 +445,24 @@ export class ChomperPlant extends Plant {
                 this.setAnim(this.config.anim);
             }
         } else if (this.state === 'idle') {
-            const cellW = GAME_CONFIG.canvas.cellWidth;
-            // 索敌：前方1.5格内未死活体僵尸
-            const target = engine.zombies.find(z => 
-                z.row === this.row && !z.isDead && !z.isDying && (z.x - this.x) > 0 && (z.x - this.x) <= cellW * 1.5
+            const cellW = engine.cellW || GAME_CONFIG.canvas.cellWidth;
+            // 索敌：前方1.5格内未死活体地面僵尸（不可直接吞食飞行气球/蹦极/地下矿工）
+            const target = engine.zombies.find(z =>
+                z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized &&
+                !z.isFlying && z.type !== 'bungee' && !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+                (z.x - this.x) > -10 && (z.x - this.x) <= cellW * 1.5
             );
             if (target) {
-                this.swallow(target);
+                if (target.isVehicle || target.type === 'gargantuar') {
+                    // 原版机制：对巨人与载具无法一口吞下，改为啃咬造成 40 伤害
+                    target.takeDamage(40);
+                    this.state = 'chewing';
+                    this.chewTimer = 1.4;
+                    this.setAnim(this.config.attackAnim);
+                    soundEngine.playBite();
+                } else {
+                    this.swallow(target);
+                }
             }
         }
     }
@@ -529,7 +545,7 @@ export class PuffshroomPlant extends Plant {
             if (hasZombieAhead) {
                 this.shootTimer = 0;
                 engine.projectiles.push(
-                    new Projectile(this.row, this.x + 18, this.y + 12, 'shroom', this.config.damage, false, this.range)
+                    new Projectile(this.row, this.x + 14, this.y + 23, 'shroom', this.config.damage, false, this.range)
                 );
                 soundEngine.playShoot();
             }
@@ -747,7 +763,7 @@ export class ScaredyshroomPlant extends Plant {
             if (hasZombieAhead) {
                 this.shootTimer = 0;
                 engine.projectiles.push(
-                    new Projectile(this.row, this.x + 22, this.y - 12, 'shroom', this.config.damage, false, 960)
+                    new Projectile(this.row, this.x + 22, this.y + 4, 'shroom', this.config.damage, false, 960)
                 );
                 soundEngine.playShoot();
             }
@@ -958,10 +974,14 @@ export class SquashPlant extends Plant {
         soundEngine.playGroan();
         engine.floatingTexts.push(new FloatingText(impactX, this.y - 40, '💥 泰山压顶!', '#27ae60', 26));
 
-        // 压扁周围 65px 范围内的所有僵尸
+        // 压扁周围 65px 范围内的所有僵尸 (原版碾压倒地，不触发焦黑灰烬动画)
         engine.zombies.forEach(z => {
-            if (z.row === this.row && !z.isDead && Math.abs(z.x - impactX) <= 65) {
-                z.takeDamage(this.config.damage || 1800);
+            if (z.row === this.row && !z.isDead && !z.isDying && Math.abs(z.x - impactX) <= 65) {
+                if (typeof z.mowerDie === 'function') {
+                    z.mowerDie();
+                } else {
+                    z.die();
+                }
             }
         });
 
@@ -1003,7 +1023,8 @@ export class ThreepeaterPlant extends Plant {
     shootPeas(engine, targetRows) {
         soundEngine.playShoot();
         targetRows.forEach(r => {
-            const bulletY = engine.gridStartY + r * engine.cellH + engine.cellH / 2 - 8;
+            const slopeY = (engine && typeof engine.getSurfaceOffsetY === 'function') ? engine.getSurfaceOffsetY(this.x) : 0;
+            const bulletY = engine.gridStartY + r * engine.cellH + engine.cellH / 2 + slopeY - 8;
             engine.projectiles.push(
                 new Projectile(r, this.x + 28, bulletY, 'pea', this.config.damage || 20)
             );
@@ -1198,6 +1219,7 @@ export class PumpkinPlant extends Plant {
     constructor(row, col, x, y, entityLayer) {
         super('pumpkin', row, col, x, y, entityLayer);
         this.isPumpkin = true;
+        this.isPumpkinShell = true;
         this.protectedPlant = null;
     }
 
@@ -1237,7 +1259,7 @@ export class PumpkinPlant extends Plant {
     }
 }
 
-// 磁力菇 (吸走铁质防具)
+// 磁力菇 (吸走铁质防具：铁桶、铁门、橄榄球盔、小丑盒、矿工镐、跳跳杆、金属梯)
 export class MagnetShroomPlant extends Plant {
     constructor(row, col, x, y, entityLayer) {
         super('magnetshroom', row, col, x, y, entityLayer);
@@ -1250,11 +1272,18 @@ export class MagnetShroomPlant extends Plant {
         if (this.isDead || this.isAsleep) return;
         if (this.coolDownTimer > 0) {
             this.coolDownTimer -= dt;
+            if (this.coolDownTimer <= 0) {
+                this.coolDownTimer = 0;
+                this.setAnim(this.config.anim);
+            }
             return;
         }
 
-        const metalZombies = engine.zombies.filter(z => 
-            !z.isDead && !z.isHypnotized && z.hasShield && ['bucket', 'screendoor', 'football'].includes(z.shieldType)
+        const metalShieldTypes = ['bucket', 'screendoor', 'football', 'jackbox', 'pickaxe', 'pogo', 'ladder'];
+        const metalZombies = engine.zombies.filter(z =>
+            !z.isDead && !z.isHypnotized && z.hasShield &&
+            metalShieldTypes.includes(z.shieldType) &&
+            Math.hypot(z.x - this.x, z.y - this.y) <= 360
         );
 
         if (metalZombies.length > 0) {
@@ -1262,14 +1291,17 @@ export class MagnetShroomPlant extends Plant {
             const target = metalZombies[0];
             target.breakShieldInstantly(engine);
             this.coolDownTimer = this.attractInterval;
+            if (this.config.cooldownAnim) {
+                this.setAnim(this.config.cooldownAnim);
+            }
             soundEngine.playSplat();
             soundEngine.playThunder();
-            engine.floatingTexts.push(new FloatingText(this.x, this.y - 35, '🧲 磁力吸取金属防具!', '#e74c3c', 20));
+            engine.floatingTexts.push(new FloatingText(this.x, this.y - 35, '🧲 磁力吸走金属装备!', '#e74c3c', 19));
         }
     }
 }
 
-// 三叶草 (吹散浓雾)
+// 三叶草 (吹散浓雾 + 吹飞全场气球僵尸)
 export class BloverPlant extends Plant {
     constructor(row, col, x, y, entityLayer) {
         super('blover', row, col, x, y, entityLayer);
@@ -1281,19 +1313,207 @@ export class BloverPlant extends Plant {
         super.update(dt, engine);
         if (this.isDead) return;
         this.timer += dt;
-        if (this.timer >= 0.4 && !this.blown) {
+        if (this.timer >= 0.35 && !this.blown) {
             this.blown = true;
             engine.fogClearTimer = 18.0;
+            let blownCount = 0;
+            engine.zombies.forEach(z => {
+                if (!z.isDead && z.isFlying && typeof z.blowAway === 'function') {
+                    z.blowAway(engine);
+                    blownCount++;
+                }
+            });
             soundEngine.playShoot();
-            engine.floatingTexts.push(new FloatingText(this.x, this.y - 35, '💨 狂风大作！浓雾消散！', '#2ecc71', 24));
+            const msg = blownCount > 0
+                ? `💨 狂风吹飞 ${blownCount} 只气球僵尸！`
+                : '💨 狂风大作！浓雾消散！';
+            engine.floatingTexts.push(new FloatingText(this.x, this.y - 35, msg, '#2ecc71', 22));
         }
-        if (this.timer >= 1.6) {
+        if (this.timer >= 1.5) {
             this.destroy();
         }
     }
 }
 
-// 卷心菜投手 (抛物线越过屋顶)
+// 地刺 (平铺地面刺伤经过的僵尸，一击扎爆冰车与投石车轮胎)
+export class SpikeweedPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('spikeweed', row, col, x, y, entityLayer);
+        this.isFlat = true;
+        this.attackTimer = 0.5;
+        this.attackInterval = this.config.attackInterval || 0.7;
+    }
+
+    createDOM(container) {
+        super.createDOM(container);
+        if (this.domElement) {
+            this.domElement.style.width = '82px';
+            this.domElement.style.height = '36px';
+            this.domElement.style.left = `${this.x - 41}px`;
+            this.domElement.style.top = `${this.y + 4}px`;
+            this.domElement.style.zIndex = '5';
+        }
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead) return;
+
+        // 检测是否有冰车或投石车碾过：立即扎爆轮胎并同归于尽
+        const vehicle = engine.zombies.find(z =>
+            z.row === this.row && !z.isDead && !z.isDying && z.isVehicle && Math.abs(z.x - this.x) <= 44
+        );
+        if (vehicle) {
+            soundEngine.playBoom();
+            engine.explosions.push(new ExplosionEffect(vehicle.x, vehicle.y - 10, 'cherry'));
+            engine.floatingTexts.push(new FloatingText(this.x, this.y - 32, '🛞 地刺扎爆轮胎!', '#e67e22', 22));
+            vehicle.takeDamage(9999);
+            this.destroy();
+            return;
+        }
+
+        this.attackTimer += dt;
+        if (this.attackTimer >= this.attackInterval) {
+            let hitAny = false;
+            engine.zombies.forEach(z => {
+                if (
+                    z.row === this.row && !z.isDead && !z.isHypnotized &&
+                    !z.isFlying && !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+                    z.type !== 'bungee' &&
+                    Math.abs(z.x - this.x) <= 38
+                ) {
+                    z.takeDamage(this.config.damage || 20);
+                    hitAny = true;
+                }
+            });
+            if (hitAny) {
+                this.attackTimer = 0;
+                soundEngine.playSplat();
+            }
+        }
+    }
+}
+
+// 路灯花 (照亮浓雾视野，揭开右侧迷雾)
+export class PlanternPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('plantern', row, col, x, y, entityLayer);
+        this.isLightSource = true;
+        this.lightRadius = this.config.lightRadius || 205;
+    }
+}
+
+// 仙人掌 (发射尖刺，遇到气球僵尸时伸长身躯一刺击破气球)
+export class CactusPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('cactus', row, col, x, y, entityLayer);
+        this.shootTimer = 0.5;
+        this.isStretched = false;
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead || this.isAsleep) return;
+
+        const balloonAhead = engine.zombies.find(z =>
+            z.row === this.row && !z.isDead && !z.isHypnotized && z.isFlying && z.x >= this.x - 10 && z.x <= 910
+        );
+        if (balloonAhead && !this.isStretched) {
+            this.isStretched = true;
+            if (this.domElement) {
+                this.domElement.style.transformOrigin = 'bottom center';
+                this.domElement.style.transform = 'scaleY(1.24)';
+            }
+        } else if (!balloonAhead && this.isStretched) {
+            this.isStretched = false;
+            if (this.domElement) {
+                this.domElement.style.transform = '';
+            }
+        }
+
+        this.shootTimer += dt;
+        let interval = this.config.attackInterval || 1.425;
+        if (engine.isSuperCharge || this.isSuperGatling) interval *= 0.6;
+
+        if (this.shootTimer >= interval) {
+            const hasEnemyAhead = balloonAhead || engine.zombies.some(z =>
+                z.row === this.row && !z.isDead && !z.isHypnotized &&
+                !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+                z.x >= this.x && z.x <= 900
+            );
+            if (hasEnemyAhead) {
+                this.shootTimer = 0;
+                const bulletY = balloonAhead ? (this.y - 36) : (this.y - 14);
+                const p = new Projectile(this.row, this.x + 28, bulletY, 'thorn', this.config.damage || 20, false);
+                p.canHitFlying = true;
+                engine.projectiles.push(p);
+                soundEngine.playShoot();
+            }
+        }
+    }
+}
+
+// 裂荚射手 (前向单发豌豆 + 后向双连发豌豆，矿工僵尸克星)
+export class SplitPeaPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('splitpea', row, col, x, y, entityLayer);
+        this.shootTimer = 0.5;
+        this.rearSubShotPending = false;
+        this.rearSubShotDelay = 0;
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead || this.isAsleep) return;
+
+        if (this.rearSubShotPending) {
+            this.rearSubShotDelay -= dt;
+            if (this.rearSubShotDelay <= 0) {
+                this.rearSubShotPending = false;
+                engine.projectiles.push(
+                    new Projectile(this.row, this.x - 26, this.y - 14, 'pea', this.config.damage || 20, false, 960, -360)
+                );
+                soundEngine.playShoot();
+            }
+        }
+
+        this.shootTimer += dt;
+        let interval = this.config.attackInterval || 1.425;
+        if (engine.isSuperCharge || this.isSuperGatling) interval *= 0.6;
+
+        if (this.shootTimer >= interval) {
+            const hasFront = engine.zombies.some(z =>
+                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying &&
+                !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+                z.x >= this.x && z.x <= 900
+            );
+            const hasRear = engine.zombies.some(z =>
+                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying &&
+                !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+                z.x < this.x && z.x >= 0
+            );
+
+            if (hasFront || hasRear) {
+                this.shootTimer = 0;
+                if (hasFront) {
+                    engine.projectiles.push(
+                        new Projectile(this.row, this.x + 28, this.y - 14, 'pea', this.config.damage || 20, false, 960, 360)
+                    );
+                }
+                if (hasRear) {
+                    engine.projectiles.push(
+                        new Projectile(this.row, this.x - 26, this.y - 14, 'pea', this.config.damage || 20, false, 960, -360)
+                    );
+                    this.rearSubShotPending = true;
+                    this.rearSubShotDelay = 0.18;
+                }
+                soundEngine.playShoot();
+            }
+        }
+    }
+}
+
+// 卷心菜投手 (抛物线越过屋顶与潜水限制)
 export class CabbagePultPlant extends Plant {
     constructor(row, col, x, y, entityLayer) {
         super('cabbagepult', row, col, x, y, entityLayer);
@@ -1307,14 +1527,18 @@ export class CabbagePultPlant extends Plant {
         this.attackTimer += dt;
         const currentInterval = (engine.isSuperCharge || this.isSuperGatling) ? this.attackInterval * 0.5 : this.attackInterval;
         if (this.attackTimer >= currentInterval) {
-            const enemy = engine.zombies.find(z => 
-                z.row === this.row && !z.isDead && !z.isHypnotized && z.x > this.x && z.x < 960
+            const candidates = engine.zombies.filter(z =>
+                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying &&
+                !(z.type === 'digger' && z.diggerPhase === 'digging') && z.type !== 'bungee' &&
+                z.x > this.x - 10 && z.x < 920
             );
-            if (enemy) {
+            if (candidates.length > 0) {
+                candidates.sort((a, b) => a.x - b.x);
+                const enemy = candidates[0];
                 this.attackTimer = 0;
                 soundEngine.playShoot();
                 engine.projectiles.push(
-                    new LobbedProjectile(this.row, this.x + 20, this.y - 15, enemy, 'cabbage', this.config.damage || 40)
+                    new LobbedProjectile(this.row, this.x + 18, this.y - 20, enemy, 'cabbage', this.config.damage || 40)
                 );
             }
         }
@@ -1335,7 +1559,7 @@ export class FlowerPotPlant extends Plant {
             this.domElement.style.width = '82px';
             this.domElement.style.height = '62px';
             this.domElement.style.left = `${this.x - 41}px`;
-            this.domElement.style.top = `${this.y - 18}px`;
+            this.domElement.style.top = `${this.y - 22}px`;
             this.domElement.style.zIndex = '5';
         }
     }
@@ -1363,17 +1587,21 @@ export class KernelPultPlant extends Plant {
         this.attackTimer += dt;
         const currentInterval = (engine.isSuperCharge || this.isSuperGatling) ? this.attackInterval * 0.5 : this.attackInterval;
         if (this.attackTimer >= currentInterval) {
-            const enemy = engine.zombies.find(z => 
-                z.row === this.row && !z.isDead && !z.isHypnotized && z.x > this.x && z.x < 960
+            const candidates = engine.zombies.filter(z =>
+                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying &&
+                !(z.type === 'digger' && z.diggerPhase === 'digging') && z.type !== 'bungee' &&
+                z.x > this.x - 10 && z.x < 920
             );
-            if (enemy) {
+            if (candidates.length > 0) {
+                candidates.sort((a, b) => a.x - b.x);
+                const enemy = candidates[0];
                 this.attackTimer = 0;
                 soundEngine.playShoot();
                 const isButter = Math.random() < 0.28;
                 const pType = isButter ? 'butter' : 'corn';
                 const pDmg = isButter ? 40 : 20;
                 engine.projectiles.push(
-                    new LobbedProjectile(this.row, this.x + 20, this.y - 15, enemy, pType, pDmg)
+                    new LobbedProjectile(this.row, this.x + 18, this.y - 20, enemy, pType, pDmg)
                 );
             }
         }
@@ -1388,13 +1616,18 @@ export class GarlicPlant extends Plant {
 
     takeDamage(amount, attacker) {
         super.takeDamage(amount, attacker);
-        if (attacker && !attacker.isDead && !attacker.isDying) {
+        if (attacker && !attacker.isDead && !attacker.isDying && !attacker.isVehicle) {
             attacker.biteTimer = 0;
-            const maxRow = 4;
-            const possibleRows = [attacker.row - 1, attacker.row + 1].filter(r => r >= 0 && r <= maxRow);
+            const engine = this.engine;
+            const maxRow = engine ? (engine.rows - 1) : 4;
+            const waterRows = (engine && engine.waterRows) ? engine.waterRows : [];
+            const possibleRows = [attacker.row - 1, attacker.row + 1].filter(
+                r => r >= 0 && r <= maxRow && !waterRows.includes(r)
+            );
             if (possibleRows.length > 0) {
                 attacker.row = possibleRows[Math.floor(Math.random() * possibleRows.length)];
-                attacker.y = attacker.gridStartY + attacker.row * attacker.cellH + attacker.cellH / 2;
+                const slopeY = (engine && typeof engine.getSurfaceOffsetY === 'function') ? engine.getSurfaceOffsetY(attacker.x) : 0;
+                attacker.y = attacker.gridStartY + attacker.row * attacker.cellH + attacker.cellH / 2 + slopeY;
                 attacker.state = 'walk';
                 soundEngine.playGroan();
             }
@@ -1416,14 +1649,18 @@ export class MelonPultPlant extends Plant {
         this.attackTimer += dt;
         const currentInterval = (engine.isSuperCharge || this.isSuperGatling) ? this.attackInterval * 0.5 : this.attackInterval;
         if (this.attackTimer >= currentInterval) {
-            const enemy = engine.zombies.find(z => 
-                z.row === this.row && !z.isDead && !z.isHypnotized && z.x > this.x && z.x < 960
+            const candidates = engine.zombies.filter(z =>
+                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying &&
+                !(z.type === 'digger' && z.diggerPhase === 'digging') && z.type !== 'bungee' &&
+                z.x > this.x - 10 && z.x < 920
             );
-            if (enemy) {
+            if (candidates.length > 0) {
+                candidates.sort((a, b) => a.x - b.x);
+                const enemy = candidates[0];
                 this.attackTimer = 0;
                 soundEngine.playShoot();
                 engine.projectiles.push(
-                    new LobbedProjectile(this.row, this.x + 25, this.y - 20, enemy, 'melon', this.config.damage || 80)
+                    new LobbedProjectile(this.row, this.x + 22, this.y - 24, enemy, 'melon', this.config.damage || 80)
                 );
             }
         }
@@ -1461,6 +1698,10 @@ export function createPlant(type, row, col, x, y, entityLayer, isNight = false, 
         case 'torchwood': p = new TorchwoodPlant(row, col, x, y, entityLayer); break;
         case 'tallnut': p = new TallnutPlant(row, col, x, y, entityLayer); break;
         case 'seashroom': p = new SeaShroomPlant(row, col, x, y, entityLayer); break;
+        case 'spikeweed': p = new SpikeweedPlant(row, col, x, y, entityLayer); break;
+        case 'plantern': p = new PlanternPlant(row, col, x, y, entityLayer); break;
+        case 'cactus': p = new CactusPlant(row, col, x, y, entityLayer); break;
+        case 'splitpea': p = new SplitPeaPlant(row, col, x, y, entityLayer); break;
         case 'starfruit': p = new StarfruitPlant(row, col, x, y, entityLayer); break;
         case 'pumpkin': p = new PumpkinPlant(row, col, x, y, entityLayer); break;
         case 'magnetshroom': p = new MagnetShroomPlant(row, col, x, y, entityLayer); break;

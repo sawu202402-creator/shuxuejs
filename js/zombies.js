@@ -1,9 +1,9 @@
 /**
- * zombies.js - 原版 1:1 僵尸实体系统与 DOM 60fps 动态 GIF 动画层
+ * zombies.js - 原版 1:1 僵尸实体系统与 DOM 60fps 动态 GIF 动画层 (完整支持第 1~5 大关全兵种与屋顶斜坡)
  */
 import { GAME_CONFIG } from './config.js';
 import { soundEngine } from './audio.js';
-import { FloatingText } from './projectiles.js';
+import { FloatingText, LobbedProjectile, ExplosionEffect } from './projectiles.js';
 
 export class Zombie {
     constructor(type = 'normal', row = 2, startX = 900, entityLayer = null) {
@@ -25,6 +25,7 @@ export class Zombie {
         this.biteDamage = this.config.biteDamage || 25;
         this.biteInterval = this.config.biteInterval || 0.25;
         this.biteTimer = 0;
+        this.age = 0;
 
         this.state = 'walk';
         this.isDead = false;
@@ -36,9 +37,20 @@ export class Zombie {
         this.slowTimer = 0;
         this.isSlowed = false;
         this.hitFlashTimer = 0;
+        this.freezeTimer = 0;
+        this.butterTimer = 0;
+        this.isHypnotized = false;
 
-        // 撑杆跳机制
-        this.hasPole = this.type === 'polevault';
+        // 兵种专属状态属性
+        this.isAquatic = !!this.config.isAquatic;
+        this.isVehicle = !!this.config.isVehicle;
+        this.isFlying = !!this.config.isFlying;
+        this.isBlownAway = false;
+        this.isSubmerged = (this.type === 'snorkel');
+
+        // 撑杆跳 / 海豚骑手跳跃机制
+        this.hasPole = (this.type === 'polevault');
+        this.hasDolphin = (this.type === 'dolphin');
         this.jumpTimer = 0;
         this.jumpStartX = 0;
         this.jumpTargetX = 0;
@@ -57,24 +69,54 @@ export class Zombie {
             this.speed = this.config.moonwalkSpeed || 48;
         }
 
-        // 动画资产
-        this.walkAnim = this.type === 'polevault' ? (this.config.runAnim || 'assets/zombies/polevault_run.gif') : this.config.walkAnims[Math.floor(Math.random() * this.config.walkAnims.length)];
-        this.attackAnim = this.config.attackAnim;
-        this.headAnim = this.config.headAnim;
-        this.dieAnim = this.config.dieAnim;
+        // 小丑僵尸炸弹引信
+        this.jackFuse = 7.0 + Math.random() * 4.0;
+
+        // 矿工僵尸掘地绕后状态 ('digging' | 'dizzy' | 'backwards')
+        this.diggerPhase = this.type === 'digger' ? 'digging' : null;
+        this.diggerDizzyTimer = 0;
+        if (this.type === 'digger') {
+            this.speed = this.config.digSpeed || 54;
+        }
+
+        // 蹦极僵尸从天而降状态 ('init' | 'descending' | 'grabbing' | 'ascending')
+        this.bungeePhase = this.type === 'bungee' ? 'init' : null;
+        this.bungeeTimer = 0;
+        this.bungeeOffsetY = this.type === 'bungee' ? -280 : 0;
+        this.bungeeTargetPlant = null;
+
+        // 投石车僵尸篮球弹药
+        this.basketballs = this.config.basketballs || 8;
+        this.catapultTimer = 1.4;
+
+        // 伽刚特尔巨人重锤蓄力与投掷小鬼
+        this.smashTimer = 0;
+        this.smashTarget = null;
+        this.hasThrownImp = false;
+
+        // 动画资产初始化
+        if (this.type === 'polevault') {
+            this.walkAnim = this.config.runAnim || 'assets/zombies/polevault_run.gif';
+        } else if (this.type === 'dolphin') {
+            this.walkAnim = this.config.rideAnim || 'assets/zombies/dolphin_ride.gif';
+        } else if (this.type === 'digger') {
+            this.walkAnim = this.config.digAnim || 'assets/zombies/digger_dig.gif';
+        } else {
+            this.walkAnim = this.config.walkAnims[Math.floor(Math.random() * this.config.walkAnims.length)];
+        }
+        this.attackAnim = this.config.attackAnim || this.walkAnim;
+        this.headAnim = this.config.headAnim || 'assets/zombies/zombie_head.gif';
+        this.dieAnim = this.config.dieAnim || 'assets/zombies/zombie_die.gif';
         this.currentAnim = this.type === 'dancing' ? (this.config.moonwalkAnim || this.walkAnim) : this.walkAnim;
 
-        // 数理破盾徽章
+        // 防具与铁器标记
         this.hasShield = !!this.config.hasShield && this.armorHp > 0;
         this.shieldType = this.config.shieldType || null;
-        this.shieldMathSymbol = this.type === 'conehead' ? '🔺' : (this.type === 'buckethead' ? '🪣' : (this.type === 'newspaper' ? '📰' : (this.type === 'football' ? '🏈' : '🚪')));
-
-        this.freezeTimer = 0;
-        this.isHypnotized = false;
 
         this.domElement = null;
         this.domImg = null;
         this.domShield = null;
+        this.domButter = null;
         this.entityLayer = entityLayer;
 
         if (entityLayer) {
@@ -89,7 +131,7 @@ export class Zombie {
         this.domElement.setAttribute('data-id', this.id);
         const baseTop = this.gridStartY + this.row * this.cellH - 46;
         this.domElement.style.left = `${this.x - 105}px`;
-        this.domElement.style.top = `${baseTop}px`;
+        this.domElement.style.top = `${baseTop + this.bungeeOffsetY}px`;
 
         this.domImg = document.createElement('img');
         this.domImg.className = 'zombie-gif';
@@ -99,8 +141,22 @@ export class Zombie {
         container.appendChild(this.domElement);
     }
 
+    updateDOMPosition(engine, extraOffsetY = 0) {
+        if (!this.domElement) return;
+        const slopeY = (engine && typeof engine.getSurfaceOffsetY === 'function') ? engine.getSurfaceOffsetY(this.x) : 0;
+        const isWaterLane = !!(engine && engine.waterRows && engine.waterRows.includes(this.row));
+        const waterDip = (isWaterLane && this.isAquatic) ? 8 : 0;
+        if (isWaterLane && !this.isAquatic && !this.isFlying && this.type !== 'bungee') {
+            this.domElement.classList.add('in-water');
+        } else {
+            this.domElement.classList.remove('in-water');
+        }
+        this.domElement.style.left = `${this.x - 105}px`;
+        this.domElement.style.top = `${this.gridStartY + this.row * this.cellH - 46 + slopeY + waterDip + extraOffsetY}px`;
+    }
+
     setAnim(newSrc) {
-        if (this.currentAnim !== newSrc) {
+        if (newSrc && this.currentAnim !== newSrc) {
             this.currentAnim = newSrc;
             if (this.domImg) {
                 this.domImg.src = newSrc;
@@ -131,10 +187,71 @@ export class Zombie {
             this.walkAnim = this.config.noHelmetWalkAnim || 'assets/zombies/football_nohelmet_walk.gif';
             this.attackAnim = this.config.noHelmetAttackAnim || 'assets/zombies/football_nohelmet_attack.gif';
             this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
+        } else if (this.type === 'digger') {
+            // 矿工镐被磁力菇吸走：若在地下掘进则立即钻出地面！
+            if (this.diggerPhase === 'digging') {
+                this.diggerPhase = 'dizzy';
+                this.diggerDizzyTimer = 0.85;
+                this.speed = this.config.walkSpeed || 18;
+                this.walkAnim = this.config.surfacedWalkAnim || 'assets/zombies/digger_walk.gif';
+                this.setAnim(this.walkAnim);
+            }
+        } else if (this.type === 'pogo') {
+            this.speed = this.config.walkSpeed || 18;
+            if (this.domElement) this.domElement.classList.remove('zombie-pogo');
+            this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
+            this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
+            this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
+        } else if (this.type === 'ladder') {
+            this.speed = this.config.walkSpeed || 18;
+            this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
+            this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
+            this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
+        } else if (this.type === 'jackinthebox') {
+            this.speed = 20;
+            this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
+            this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
+            this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
         } else {
             this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
             this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
             this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
+        }
+    }
+
+    popBalloon(engine) {
+        if (!this.isFlying) return;
+        this.isFlying = false;
+        this.speed = this.config.walkSpeed || 18;
+        if (this.domElement) {
+            this.domElement.classList.remove('zombie-balloon');
+        }
+        this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
+        this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
+        this.setAnim(this.walkAnim);
+        soundEngine.playSplat();
+        if (engine && engine.floatingTexts) {
+            engine.floatingTexts.push(new FloatingText(this.x, this.y - 45, '🎈 气球击破! 坠落地面!', '#2ecc71', 19));
+        }
+    }
+
+    blowAway(engine) {
+        if (this.isDead || this.isBlownAway) return;
+        this.isBlownAway = true;
+        this.state = 'blown';
+    }
+
+    applyButter(sec = 4.0) {
+        if (this.isDead || this.isDying) return;
+        this.butterTimer = Math.max(this.butterTimer, sec);
+        if (this.domElement && !this.domButter) {
+            this.domButter = document.createElement('img');
+            this.domButter.src = 'assets/projectiles/butter_hat.png';
+            this.domButter.className = 'zombie-butter-hat';
+            this.domElement.appendChild(this.domButter);
+        }
+        if (this.domButter) {
+            this.domButter.style.display = 'block';
         }
     }
 
@@ -149,9 +266,11 @@ export class Zombie {
             }, 80);
         }
 
-        // 原版机制：前向手持护盾（铁栅门/报纸）完好时阻挡寒冰豌豆的减速效果
-        const shieldBlocksChill = this.hasShield && this.armorHp > 0 &&
-            (this.shieldType === 'screendoor' || this.shieldType === 'newspaper');
+        // 原版机制：前向护盾（铁栅门/报纸/金属梯）与机械载具（冰车/投石车）不受寒冰减速
+        const shieldBlocksChill = this.isVehicle || (
+            this.hasShield && this.armorHp > 0 &&
+            (this.shieldType === 'screendoor' || this.shieldType === 'newspaper' || this.shieldType === 'ladder')
+        );
         if (isSlow && !shieldBlocksChill) {
             this.slowTimer = 10.0;
             this.isSlowed = true;
@@ -171,7 +290,7 @@ export class Zombie {
             this.hp -= amount;
         }
 
-        if (this.hp <= this.headLossThreshold && !this.hasLostHead) {
+        if (!this.isVehicle && this.type !== 'bungee' && this.hp <= this.headLossThreshold && !this.hasLostHead) {
             this.hasLostHead = true;
             this.spawnFallingHead();
             if (this.config.lostHeadWalkAnim) {
@@ -182,23 +301,18 @@ export class Zombie {
 
         if (this.hp <= 0) {
             this.hp = 0;
-            if (amount >= 1000) {
-                this.blastDie();
-            } else {
-                this.die();
-            }
+            this.die();
         }
     }
 
     takeFumeDamage(amount) {
         if (this.isDead || this.isDying) return;
-        // 大喷菇孢子雾：穿透铁栅门与报纸直击本体，但不能绕过路障/铁桶/橄榄球等头顶防具
-        if (this.hasShield && this.shieldType === 'screendoor') {
+        // 大喷菇孢子雾：穿透铁栅门、金属梯与报纸直击本体
+        if (this.hasShield && (this.shieldType === 'screendoor' || this.shieldType === 'ladder')) {
             this.takePiercingDamage(amount);
             return;
         }
         if (this.hasShield && this.shieldType === 'newspaper') {
-            // 同时侵蚀报纸与读报僵尸本体
             if (this.armorHp > 0) {
                 this.armorHp -= amount;
                 if (this.armorHp <= 0) {
@@ -224,7 +338,7 @@ export class Zombie {
         }
 
         this.hp -= amount;
-        if (this.hp <= this.headLossThreshold && !this.hasLostHead) {
+        if (!this.isVehicle && this.type !== 'bungee' && this.hp <= this.headLossThreshold && !this.hasLostHead) {
             this.hasLostHead = true;
             this.spawnFallingHead();
             if (this.config.lostHeadWalkAnim) {
@@ -239,7 +353,7 @@ export class Zombie {
     }
 
     hypnotize() {
-        if (this.isHypnotized || this.isDead || this.isDying) return;
+        if (this.isHypnotized || this.isDead || this.isDying || this.isVehicle || this.type === 'gargantuar' || this.type === 'bungee') return;
         this.isHypnotized = true;
         this.speed = -Math.abs(this.speed || 18);
         if (this.domElement) {
@@ -250,6 +364,7 @@ export class Zombie {
     }
 
     applyFreeze(freezeSec = 4.0, slowSec = 10.0) {
+        if (this.isVehicle) return;
         this.freezeTimer = freezeSec;
         this.slowTimer = freezeSec + slowSec;
         this.isSlowed = true;
@@ -263,12 +378,16 @@ export class Zombie {
         const armorEl = document.createElement('div');
         armorEl.className = `armor-drop-entity armor-${shieldType || 'cone'}`;
         armorEl.style.left = `${this.x - 20}px`;
-        armorEl.style.top = `${this.gridStartY + this.row * this.cellH - 35}px`;
+        armorEl.style.top = `${this.y - 55}px`;
         const dropMap = {
             bucket: 'assets/zombies/bucket_drop.png',
             newspaper: 'assets/zombies/newspaper_drop.png',
             screendoor: 'assets/zombies/screendoor_drop.png',
             football: 'assets/zombies/football_drop.png',
+            jackbox: 'assets/zombies/jackbox_drop.png',
+            pickaxe: 'assets/zombies/pickaxe_drop.png',
+            pogo: 'assets/zombies/pogo_drop.png',
+            ladder: 'assets/zombies/ladder_drop.png',
             cone: 'assets/zombies/cone_drop.png'
         };
         const imgSrc = dropMap[shieldType] || 'assets/zombies/cone_drop.png';
@@ -285,7 +404,7 @@ export class Zombie {
         const headEl = document.createElement('div');
         headEl.className = 'head-drop-entity';
         headEl.style.left = `${this.x - 30}px`;
-        headEl.style.top = `${this.gridStartY + this.row * this.cellH - 25}px`;
+        headEl.style.top = `${this.y - 50}px`;
         headEl.innerHTML = `<img src="${this.headAnim}" class="head-gif" />`;
         this.entityLayer.appendChild(headEl);
 
@@ -299,9 +418,11 @@ export class Zombie {
         const prevShield = this.shieldType;
         this.onArmorBroken(prevShield);
 
-        engine.floatingTexts.push(
-            new FloatingText(this.x, this.y - 45, '💥 破盾神雷!', '#ff3838', 22)
-        );
+        if (engine && engine.floatingTexts) {
+            engine.floatingTexts.push(
+                new FloatingText(this.x, this.y - 45, '💥 破除防具!', '#ff3838', 20)
+            );
+        }
         soundEngine.playThunder();
     }
 
@@ -310,8 +431,18 @@ export class Zombie {
         this.isDying = true;
         this.state = 'dying';
 
-        if (this.domShield) {
-            this.domShield.style.display = 'none';
+        if (this.domShield) this.domShield.style.display = 'none';
+        if (this.domButter) this.domButter.style.display = 'none';
+
+        if (this.isVehicle) {
+            soundEngine.playBoom();
+            this.dyingDuration = 0.45;
+            if (this.domElement) {
+                this.domElement.style.opacity = '0.35';
+                this.domElement.style.transform = 'scale(0.9)';
+            }
+            setTimeout(() => this.destroy(), 450);
+            return;
         }
 
         if (isCharred) {
@@ -332,6 +463,35 @@ export class Zombie {
     blastDie() {
         this.hp = 0;
         this.die(true);
+    }
+
+    mowerDie() {
+        if (this.isDying || this.isDead) return;
+        this.hp = 0;
+        this.armorHp = 0;
+        if (this.hasShield) {
+            this.hasShield = false;
+            if (this.domShield) this.domShield.style.display = 'none';
+            this.spawnFallingArmor(this.shieldType);
+        }
+        if (this.domButter) this.domButter.style.display = 'none';
+        if (!this.isVehicle && !this.hasLostHead) {
+            this.hasLostHead = true;
+            this.spawnFallingHead();
+        }
+        this.isDying = true;
+        this.state = 'dying';
+        this.dyingDuration = 0.85;
+        if (!this.isVehicle) {
+            this.setAnim(this.dieAnim);
+        }
+        if (this.domElement) {
+            this.domElement.classList.add('mower-die');
+        }
+        soundEngine.playSplat();
+        setTimeout(() => {
+            this.destroy();
+        }, this.dyingDuration * 1000);
     }
 
     destroy() {
@@ -398,21 +558,73 @@ export class Zombie {
         }
     }
 
-    update(dt, engine) {
-        if (this.isDead) return;
+    /**
+     * 查找当前格可阻挡/啃食的目标植物（忽略平铺地刺；优先啃南瓜壳 -> 承载植物 -> 睡莲/花盆底座）
+     */
+    findTargetPlant(engine, backwards = false) {
+        const candidates = engine.plants.filter(p => {
+            if (p.row !== this.row || p.isDead || p.isFlat) return false;
+            if (backwards) {
+                return p.x >= this.x - 12 && Math.abs(p.x - this.x) <= 38;
+            }
+            return p.x <= this.x + 12 && Math.abs(p.x - this.x) <= 38;
+        });
+        if (candidates.length === 0) return null;
 
-        // 同步引擎当前网格尺寸 (泳池关 6 行 rowCount=6, cellH=85)
-        if (engine) {
-            if (engine.cellH) this.cellH = engine.cellH;
-            if (engine.gridStartY) this.gridStartY = engine.gridStartY;
-            this.y = this.gridStartY + this.row * this.cellH + this.cellH / 2;
+        // 若该格已架设金属梯子，普通步行僵尸直接翻越而不停留啃食
+        const hasClimbedLadder = !this.isVehicle && this.type !== 'gargantuar' && !backwards &&
+            candidates.some(p => p.hasLadder);
+        if (hasClimbedLadder) {
+            return null;
         }
 
+        const pumpkin = candidates.find(p => p.isPumpkin);
+        if (pumpkin) return pumpkin;
+        const mainPlant = candidates.find(p => !p.isPot && p.type !== 'lilypad');
+        if (mainPlant) return mainPlant;
+        return candidates[0];
+    }
+
+    update(dt, engine) {
+        if (this.isDead) return;
+        this.age += dt;
+
+        // 同步引擎网格与屋顶斜坡高度
+        if (engine) {
+            if (engine.cellH) this.cellH = engine.cellH;
+            if (engine.cellW) this.cellW = engine.cellW;
+            if (engine.gridStartY) this.gridStartY = engine.gridStartY;
+            const slopeY = (typeof engine.getSurfaceOffsetY === 'function') ? engine.getSurfaceOffsetY(this.x) : 0;
+            this.y = this.gridStartY + this.row * this.cellH + this.cellH / 2 + slopeY;
+        }
+
+        // 三叶草狂风吹飞气球僵尸
+        if (this.isBlownAway) {
+            this.x += 680 * dt;
+            this.updateDOMPosition(engine, -24);
+            if (this.x > 980) {
+                this.destroy();
+            }
+            return;
+        }
+
+        // 黄油定身控制
+        if (this.butterTimer > 0) {
+            this.butterTimer -= dt;
+            if (this.butterTimer <= 0 && this.domButter) {
+                this.domButter.style.display = 'none';
+            }
+            this.updateDOMPosition(engine);
+            return;
+        }
+
+        // 寒冰菇极冻定身控制
         if (this.freezeTimer > 0) {
             this.freezeTimer -= dt;
             if (this.freezeTimer <= 0 && this.domElement) {
                 this.domElement.classList.remove('frozen');
             }
+            this.updateDOMPosition(engine);
             return;
         }
 
@@ -428,14 +640,205 @@ export class Zombie {
             return;
         }
 
+        // ================= 1. 蹦极僵尸从天而降偷窃植物 =================
+        if (this.type === 'bungee' && engine) {
+            if (this.bungeePhase === 'init') {
+                const rowPlants = engine.plants.filter(p => p.row === this.row && !p.isDead && !p.isFlat);
+                if (rowPlants.length > 0) {
+                    const chosen = rowPlants[Math.floor(Math.random() * rowPlants.length)];
+                    this.bungeeTargetPlant = chosen;
+                    this.x = chosen.x;
+                } else {
+                    const randCol = 1 + Math.floor(Math.random() * 4);
+                    this.x = (engine.gridStartX || 40) + randCol * this.cellW + this.cellW / 2;
+                }
+                const slopeY = (typeof engine.getSurfaceOffsetY === 'function') ? engine.getSurfaceOffsetY(this.x) : 0;
+                this.y = this.gridStartY + this.row * this.cellH + this.cellH / 2 + slopeY;
+                this.bungeeOffsetY = -280;
+                this.bungeePhase = 'descending';
+                soundEngine.playGroan();
+                if (engine.floatingTexts) {
+                    engine.floatingTexts.push(new FloatingText(this.x, this.y - 50, '🪂 蹦极偷袭!', '#e67e22', 20));
+                }
+            } else if (this.bungeePhase === 'descending') {
+                this.bungeeOffsetY = Math.min(0, this.bungeeOffsetY + 430 * dt);
+                if (this.bungeeOffsetY >= 0) {
+                    this.bungeeOffsetY = 0;
+                    this.bungeePhase = 'grabbing';
+                    this.bungeeTimer = 2.8;
+                }
+            } else if (this.bungeePhase === 'grabbing') {
+                this.bungeeTimer -= dt;
+                if (this.bungeeTimer <= 0) {
+                    if (this.bungeeTargetPlant && !this.bungeeTargetPlant.isDead) {
+                        // 若该格有保护伞外的植物，抓走最上层植物
+                        const cellPlants = engine.plants.filter(
+                            p => !p.isDead && p.row === this.bungeeTargetPlant.row && p.col === this.bungeeTargetPlant.col
+                        );
+                        const victim = cellPlants.find(p => !p.isPot && p.type !== 'lilypad' && !p.isPumpkin) || this.bungeeTargetPlant;
+                        victim.destroy();
+                        soundEngine.playSplat();
+                        if (engine.floatingTexts) {
+                            engine.floatingTexts.push(new FloatingText(this.x, this.y - 45, '😱 植物被抓走了!', '#e74c3c', 20));
+                        }
+                    }
+                    this.bungeePhase = 'ascending';
+                }
+            } else if (this.bungeePhase === 'ascending') {
+                this.bungeeOffsetY -= 460 * dt;
+                if (this.bungeeOffsetY <= -300) {
+                    this.destroy();
+                    return;
+                }
+            }
+            this.updateDOMPosition(engine, this.bungeeOffsetY);
+            return;
+        }
+
+        // ================= 2. 矿工僵尸地下掘进与绕后反噬 =================
+        if (this.type === 'digger' && this.diggerPhase && !this.isHypnotized && engine) {
+            if (this.diggerPhase === 'digging') {
+                const curSpd = this.isSlowed ? (this.config.digSpeed || 54) * 0.5 : (this.config.digSpeed || 54);
+                this.x -= curSpd * dt;
+                const leftEdge = (engine.gridStartX || 40) + 18;
+                if (this.x <= leftEdge) {
+                    this.x = leftEdge;
+                    this.diggerPhase = 'dizzy';
+                    this.diggerDizzyTimer = 1.1;
+                    this.walkAnim = this.config.surfacedWalkAnim || 'assets/zombies/digger_walk.gif';
+                    this.setAnim(this.walkAnim);
+                    if (engine.floatingTexts) {
+                        engine.floatingTexts.push(new FloatingText(this.x + 25, this.y - 42, '⛏️ 矿工从后方钻出!', '#f39c12', 19));
+                    }
+                }
+                this.updateDOMPosition(engine, 14);
+                return;
+            } else if (this.diggerPhase === 'dizzy') {
+                this.diggerDizzyTimer -= dt;
+                if (this.diggerDizzyTimer <= 0) {
+                    this.diggerPhase = 'backwards';
+                    this.speed = this.config.walkSpeed || 18;
+                    if (this.domImg) {
+                        this.domImg.style.transform = 'scaleX(-1)';
+                    }
+                }
+                this.updateDOMPosition(engine);
+                return;
+            } else if (this.diggerPhase === 'backwards') {
+                if (this.hasLostHead) {
+                    this.x += (this.speed * 0.6) * dt;
+                    this.hp -= dt * 20;
+                    if (this.hp <= 0) this.die();
+                    this.updateDOMPosition(engine);
+                    return;
+                }
+                const rearPlant = this.findTargetPlant(engine, true);
+                if (rearPlant) {
+                    if (this.state !== 'attack') {
+                        this.state = 'attack';
+                        this.setAnim(this.attackAnim);
+                    }
+                    this.biteTimer += dt;
+                    const biteRate = this.isSlowed ? this.biteInterval * 2 : this.biteInterval;
+                    if (this.biteTimer >= biteRate) {
+                        this.biteTimer = 0;
+                        rearPlant.takeDamage(this.biteDamage, this);
+                        soundEngine.playBite();
+                    }
+                } else {
+                    if (this.state !== 'walk') {
+                        this.state = 'walk';
+                        this.setAnim(this.walkAnim);
+                    }
+                    const curSpd = this.isSlowed ? this.speed * 0.5 : this.speed;
+                    this.x += curSpd * dt;
+                    if (this.x > 940) {
+                        this.destroy();
+                        return;
+                    }
+                }
+                this.updateDOMPosition(engine);
+                return;
+            }
+        }
+
+        // ================= 3. 小丑僵尸音乐盒随机引爆 =================
+        if (this.type === 'jackinthebox' && this.hasShield && !this.hasLostHead && !this.isHypnotized && engine) {
+            if (this.x <= 680) {
+                this.jackFuse -= dt;
+                if (this.jackFuse <= 0 || this.x <= 240) {
+                    soundEngine.playBoom();
+                    soundEngine.playThunder();
+                    engine.explosions.push(new ExplosionEffect(this.x, this.y, 'cherry'));
+                    if (engine.floatingTexts) {
+                        engine.floatingTexts.push(new FloatingText(this.x, this.y - 48, '🤡 惊吓魔盒自爆!', '#e74c3c', 22));
+                    }
+                    engine.plants.forEach(p => {
+                        if (!p.isDead && Math.abs(p.row - this.row) <= 1 && Math.abs(p.x - this.x) <= 110) {
+                            p.destroy();
+                        }
+                    });
+                    this.destroy();
+                    return;
+                }
+            }
+        }
+
+        // ================= 4. 气球僵尸空中漂浮前进 =================
+        if (this.type === 'balloon' && this.isFlying && !this.isHypnotized) {
+            const curSpd = this.isSlowed ? this.speed * 0.5 : this.speed;
+            this.x -= curSpd * dt;
+            const bob = Math.sin(this.age * 3.8) * 5 - 18;
+            this.updateDOMPosition(engine, bob);
+            return;
+        }
+
+        // ================= 5. 投石车僵尸远程抛投篮球与碾压 =================
+        if (this.type === 'catapult' && engine) {
+            const rowPlants = engine.plants.filter(p => p.row === this.row && !p.isDead && !p.isFlat);
+            if (this.x > 690 || this.basketballs <= 0 || rowPlants.length === 0) {
+                // 向前行驶并碾压非地刺植物
+                this.x -= this.speed * dt;
+                const crushPlant = this.findTargetPlant(engine, false);
+                if (crushPlant) {
+                    crushPlant.takeDamage(9999, this);
+                    soundEngine.playSplat();
+                }
+            } else {
+                // 原地抛投篮球攻击本行最左侧植物
+                this.catapultTimer -= dt;
+                if (this.catapultTimer <= 0) {
+                    this.catapultTimer = 2.8;
+                    this.basketballs--;
+                    rowPlants.sort((a, b) => a.x - b.x);
+                    const targetP = rowPlants[0];
+                    soundEngine.playShoot();
+                    engine.projectiles.push(
+                        new LobbedProjectile(this.row, this.x - 16, this.y - 44, targetP, 'basketball', 75)
+                    );
+                }
+            }
+            this.updateDOMPosition(engine);
+            return;
+        }
+
+        // ================= 6. 冰车僵尸碾压推进 =================
+        if (this.type === 'zomboni' && engine) {
+            this.x -= this.speed * dt;
+            const crushPlant = this.findTargetPlant(engine, false);
+            if (crushPlant) {
+                crushPlant.takeDamage(9999, this);
+                soundEngine.playSplat();
+            }
+            this.updateDOMPosition(engine);
+            return;
+        }
+
         // 读报僵尸报纸被打碎后的原地问号愤怒停顿 (原版 ~1.35s)
         if (this.state === 'enraging') {
             this.enrageTimer -= dt;
             if (this.enrageTimer > 0) {
-                if (this.domElement) {
-                    this.domElement.style.left = `${this.x - 105}px`;
-                    this.domElement.style.top = `${this.gridStartY + this.row * this.cellH - 46}px`;
-                }
+                this.updateDOMPosition(engine);
                 return;
             }
             this.state = 'walk';
@@ -445,13 +848,13 @@ export class Zombie {
             }
         }
 
-        // 舞王僵尸太空步入场与聚光灯召唤伴舞状态机 (支持魅惑状态下召唤魅惑伴舞)
+        // 舞王僵尸太空步入场与聚光灯召唤伴舞状态机
         if (this.type === 'dancing' && !this.hasLostHead && engine) {
             if (this.dancePhase === 'moonwalk') {
                 this.moonwalkTimer -= dt;
                 const hasObstacle = this.isHypnotized
                     ? engine.zombies.some(z => !z.isDead && !z.isDying && !z.isHypnotized && z.row === this.row && Math.abs(z.x - this.x) <= 45)
-                    : (engine.plants.some(p => p.row === this.row && !p.isDead && p.x <= this.x && Math.abs(p.x - this.x) <= 45) ||
+                    : (engine.plants.some(p => p.row === this.row && !p.isDead && !p.isFlat && p.x <= this.x && Math.abs(p.x - this.x) <= 45) ||
                        engine.zombies.some(z => !z.isDead && !z.isDying && z.isHypnotized && z.row === this.row && Math.abs(z.x - this.x) <= 45));
                 if (this.moonwalkTimer <= 0 || hasObstacle || (!this.isHypnotized && this.x <= 680)) {
                     this.dancePhase = 'summon';
@@ -460,6 +863,7 @@ export class Zombie {
                     this.speed = this.isHypnotized ? -Math.abs(baseSpd) : baseSpd;
                     this.setAnim(this.config.summonAnim || 'assets/zombies/dancing_summon.gif');
                     soundEngine.playDisco();
+                    this.updateDOMPosition(engine);
                     return;
                 }
             } else if (this.dancePhase === 'summon') {
@@ -472,10 +876,7 @@ export class Zombie {
                     this.state = 'walk';
                     this.setAnim(this.walkAnim);
                 }
-                if (this.domElement) {
-                    this.domElement.style.left = `${this.x - 105}px`;
-                    this.domElement.style.top = `${this.gridStartY + this.row * this.cellH - 46}px`;
-                }
+                this.updateDOMPosition(engine);
                 return;
             } else if (this.dancePhase === 'dance_walk') {
                 this.summonCooldown -= dt;
@@ -484,6 +885,7 @@ export class Zombie {
                     this.summonTimer = 1.15;
                     this.setAnim(this.config.summonAnim || 'assets/zombies/dancing_summon.gif');
                     soundEngine.playDisco();
+                    this.updateDOMPosition(engine);
                     return;
                 }
             }
@@ -527,31 +929,60 @@ export class Zombie {
                     this.destroy();
                 }
             }
-            if (this.domElement) {
-                this.domElement.style.left = `${this.x - 105}px`;
-                this.domElement.style.top = `${this.gridStartY + this.row * this.cellH - 46}px`;
+            this.updateDOMPosition(engine);
+            return;
+        }
+
+        // 撑杆跳 / 海豚骑手腾空飞跃动画
+        if (this.state === 'jumping') {
+            this.jumpTimer -= dt;
+            const totalDur = this.type === 'dolphin' ? 0.78 : 0.85;
+            const progress = 1 - Math.max(0, this.jumpTimer) / totalDur;
+            this.x = this.jumpStartX + (this.jumpTargetX - this.jumpStartX) * progress;
+            const jumpArc = Math.sin(progress * Math.PI) * 48;
+            this.updateDOMPosition(engine, -jumpArc);
+            if (this.jumpTimer <= 0) {
+                if (this.type === 'dolphin') {
+                    this.hasDolphin = false;
+                    this.speed = this.config.swimSpeed || 18;
+                    this.walkAnim = this.config.swimAnim || 'assets/zombies/dolphin_swim.gif';
+                } else {
+                    this.hasPole = false;
+                    this.speed = this.config.walkSpeed || 18;
+                    this.walkAnim = 'assets/zombies/polevault_walk.gif';
+                    this.attackAnim = 'assets/zombies/polevault_attack.gif';
+                }
+                this.state = 'walk';
+                this.setAnim(this.walkAnim);
             }
             return;
         }
 
-        // 撑杆跳跃飞行动画
-        if (this.state === 'jumping') {
-            this.jumpTimer -= dt;
-            const progress = 1 - Math.max(0, this.jumpTimer) / 0.85;
-            this.x = this.jumpStartX + (this.jumpTargetX - this.jumpStartX) * progress;
-            const jumpArc = Math.sin(progress * Math.PI) * 45;
-            if (this.domElement) {
-                this.domElement.style.left = `${this.x - 105}px`;
-                this.domElement.style.top = `${this.gridStartY + this.row * this.cellH - 46 - jumpArc}px`;
+        // 伽刚特尔巨人半血投掷小鬼僵尸
+        if (this.type === 'gargantuar' && !this.hasThrownImp && this.hp <= this.maxTotalHp * 0.5 && this.x > 340 && engine) {
+            this.hasThrownImp = true;
+            const landX = Math.max((engine.gridStartX || 40) + 140, this.x - 230);
+            const imp = new Zombie('imp', this.row, landX, this.entityLayer);
+            engine.zombies.push(imp);
+            soundEngine.playGroan();
+            if (engine.floatingTexts) {
+                engine.floatingTexts.push(new FloatingText(landX, this.y - 45, '👶 巨人投掷小鬼僵尸!', '#e67e22', 19));
             }
-            if (this.jumpTimer <= 0) {
-                this.hasPole = false;
+        }
+
+        // 伽刚特尔巨人挥舞电线杆重砸动画
+        if (this.type === 'gargantuar' && this.state === 'smashing') {
+            this.smashTimer -= dt;
+            if (this.smashTimer <= 0) {
+                if (this.smashTarget && !this.smashTarget.isDead) {
+                    this.smashTarget.takeDamage(1800, this);
+                    soundEngine.playBoom();
+                }
+                this.smashTarget = null;
                 this.state = 'walk';
-                this.speed = this.config.walkSpeed || 18;
-                this.walkAnim = 'assets/zombies/polevault_walk.gif';
-                this.attackAnim = 'assets/zombies/polevault_attack.gif';
                 this.setAnim(this.walkAnim);
             }
+            this.updateDOMPosition(engine);
             return;
         }
 
@@ -563,97 +994,159 @@ export class Zombie {
             }
             const curSpeed = (this.isSlowed ? this.speed * 0.5 : this.speed) * 0.75;
             this.x -= curSpeed * dt;
-            // 掉头后剩余70血量，持续流血约3.5秒后自然倒地化灰 (20 HP/s)
             this.hp -= dt * 20;
             if (this.hp <= 0) {
                 this.hp = 0;
                 this.die();
             }
-        } else {
-            // 优先检测同行魅惑倒戈僵尸 (原版双向互啃对决)
-            const hypnoTarget = engine.zombies.find(z =>
-                !z.isDead && !z.isDying && z.isHypnotized && z.row === this.row && Math.abs(z.x - this.x) <= 35
-            );
-            if (hypnoTarget) {
-                if (this.hasPole) {
-                    this.hasPole = false;
-                    this.speed = this.config.walkSpeed || 18;
-                    this.walkAnim = 'assets/zombies/polevault_walk.gif';
-                    this.attackAnim = 'assets/zombies/polevault_attack.gif';
-                }
-                if (this.state !== 'attack') {
+            this.updateDOMPosition(engine);
+            return;
+        }
+
+        // 优先检测同行魅惑倒戈僵尸
+        const hypnoTarget = engine && engine.zombies.find(z =>
+            !z.isDead && !z.isDying && z.isHypnotized && z.row === this.row && Math.abs(z.x - this.x) <= 35
+        );
+        if (hypnoTarget) {
+            if (this.hasPole) {
+                this.hasPole = false;
+                this.speed = this.config.walkSpeed || 18;
+                this.walkAnim = 'assets/zombies/polevault_walk.gif';
+                this.attackAnim = 'assets/zombies/polevault_attack.gif';
+            }
+            this.isSubmerged = false;
+            if (this.state !== 'attack') {
+                this.state = 'attack';
+                this.setAnim(this.attackAnim);
+            }
+            this.biteTimer += dt;
+            const biteRate = this.isSlowed ? this.biteInterval * 2 : this.biteInterval;
+            if (this.biteTimer >= biteRate) {
+                this.biteTimer = 0;
+                hypnoTarget.takeDamage(this.biteDamage);
+                soundEngine.playBite();
+            }
+            this.updateDOMPosition(engine);
+            return;
+        }
+
+        // 检测前方植物
+        const targetPlant = engine ? this.findTargetPlant(engine, false) : null;
+
+        if (targetPlant) {
+            // 1. 撑杆跳或海豚骑手首次跳跃判定
+            if (this.hasPole || this.hasDolphin) {
+                if (targetPlant.isTall) {
+                    if (this.hasDolphin) {
+                        this.hasDolphin = false;
+                        this.speed = this.config.swimSpeed || 18;
+                        this.walkAnim = this.config.swimAnim || 'assets/zombies/dolphin_swim.gif';
+                    } else {
+                        this.hasPole = false;
+                        this.speed = this.config.walkSpeed || 18;
+                        this.walkAnim = 'assets/zombies/polevault_walk.gif';
+                        this.attackAnim = 'assets/zombies/polevault_attack.gif';
+                    }
                     this.state = 'attack';
                     this.setAnim(this.attackAnim);
-                }
-                this.biteTimer += dt;
-                const biteRate = this.isSlowed ? this.biteInterval * 2 : this.biteInterval;
-                if (this.biteTimer >= biteRate) {
-                    this.biteTimer = 0;
-                    hypnoTarget.takeDamage(this.biteDamage);
-                    soundEngine.playBite();
-                }
-            } else {
-                const candidates = engine.plants.filter(p => 
-                    p.row === this.row && !p.isDead && (p.x <= this.x && Math.abs(p.x - this.x) <= 38)
-                );
-                // 优先攻击荷叶之上的植物；只有在没有上层植物时才啃咬荷叶底座
-                const targetPlant = candidates.find(p => p.type !== 'lilypad') || candidates[0];
-
-                if (targetPlant) {
-                    // 撑杆跳僵尸遇到第一株植物！
-                    if (this.hasPole) {
-                        if (targetPlant.isTall) {
-                            // 遇到高坚果！起跳失败！
-                            this.hasPole = false;
-                            this.speed = this.config.walkSpeed || 18;
-                            this.walkAnim = 'assets/zombies/polevault_walk.gif';
-                            this.attackAnim = 'assets/zombies/polevault_attack.gif';
-                            this.state = 'attack';
-                            this.setAnim(this.attackAnim);
-                            engine.floatingTexts.push(new FloatingText(this.x, this.y - 45, '🛑 高坚果拦截！起跳失败！', '#e74c3c', 20));
-                            soundEngine.playSplat();
-                        } else {
-                            // 成功起跳！越过植物落于其身后！
-                            this.state = 'jumping';
-                            this.jumpTimer = 0.85;
-                            this.jumpStartX = this.x;
-                            this.jumpTargetX = targetPlant.x - 48;
-                            this.setAnim(this.config.jumpAnim || 'assets/zombies/polevault_jump.gif');
-                            soundEngine.playGroan();
-                            return;
-                        }
-                    }
-
-                    if (this.state !== 'attack') {
-                        this.state = 'attack';
-                        this.setAnim(this.attackAnim);
-                    }
-                    this.biteTimer += dt;
-                    const biteRate = this.isSlowed ? this.biteInterval * 2 : this.biteInterval;
-                    if (this.biteTimer >= biteRate) {
-                        this.biteTimer = 0;
-                        targetPlant.takeDamage(this.biteDamage, this);
-                        soundEngine.playBite();
-                    }
+                    engine.floatingTexts.push(new FloatingText(this.x, this.y - 45, '🛑 高坚果拦截！', '#e74c3c', 19));
+                    soundEngine.playSplat();
                 } else {
-                    const desiredWalk = (this.type === 'dancing' && this.dancePhase === 'moonwalk')
-                        ? (this.config.moonwalkAnim || this.walkAnim)
-                        : this.walkAnim;
-                    if (this.state !== 'walk' || this.currentAnim !== desiredWalk) {
-                        this.state = 'walk';
-                        this.setAnim(desiredWalk);
-                    }
-                    const curSpeed = this.isSlowed ? this.speed * 0.5 : this.speed;
-                    this.x -= curSpeed * dt;
+                    this.state = 'jumping';
+                    this.jumpTimer = this.hasDolphin ? 0.78 : 0.85;
+                    this.jumpStartX = this.x;
+                    this.jumpTargetX = targetPlant.x - 48;
+                    this.setAnim(this.config.jumpAnim || 'assets/zombies/polevault_jump.gif');
+                    soundEngine.playGroan();
+                    this.updateDOMPosition(engine);
+                    return;
                 }
             }
+
+            // 2. 跳跳僵尸弹跳越过植物（遇高坚果撞落跳跳杆）
+            if (this.type === 'pogo' && this.hasShield && this.shieldType === 'pogo') {
+                if (targetPlant.isTall) {
+                    this.onArmorBroken('pogo');
+                    engine.floatingTexts.push(new FloatingText(this.x, this.y - 45, '🛑 高坚果撞落跳跳杆!', '#e74c3c', 19));
+                    soundEngine.playSplat();
+                } else {
+                    this.x = targetPlant.x - 44;
+                    soundEngine.playShoot();
+                    this.updateDOMPosition(engine, -18);
+                    return;
+                }
+            }
+
+            // 3. 扶梯僵尸在坚果/南瓜头上架设金属梯子
+            if (this.type === 'ladder' && this.hasShield && this.shieldType === 'ladder') {
+                targetPlant.hasLadder = true;
+                if (targetPlant.domElement) {
+                    targetPlant.domElement.classList.add('has-ladder');
+                }
+                this.armorHp = 0;
+                this.hasShield = false;
+                this.speed = this.config.walkSpeed || 18;
+                this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
+                this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
+                this.setAnim(this.walkAnim);
+                this.x = targetPlant.x - 40;
+                soundEngine.playSplat();
+                if (engine.floatingTexts) {
+                    engine.floatingTexts.push(new FloatingText(targetPlant.x, targetPlant.y - 42, '🪜 架设扶梯!', '#f39c12', 19));
+                }
+                this.updateDOMPosition(engine, -12);
+                return;
+            }
+
+            // 4. 伽刚特尔巨人挥杆重击秒杀植物
+            if (this.type === 'gargantuar') {
+                this.state = 'smashing';
+                this.smashTimer = 0.85;
+                this.smashTarget = targetPlant;
+                this.setAnim(this.attackAnim);
+                this.updateDOMPosition(engine);
+                return;
+            }
+
+            // 5. 常规啃咬植物（潜水僵尸浮出水面啃咬）
+            if (this.type === 'snorkel') {
+                this.isSubmerged = false;
+            }
+            if (this.state !== 'attack') {
+                this.state = 'attack';
+                this.setAnim(this.attackAnim);
+            }
+            this.biteTimer += dt;
+            const biteRate = this.isSlowed ? this.biteInterval * 2 : this.biteInterval;
+            if (this.biteTimer >= biteRate) {
+                this.biteTimer = 0;
+                targetPlant.takeDamage(this.biteDamage, this);
+                soundEngine.playBite();
+            }
+        } else {
+            if (this.type === 'snorkel') {
+                this.isSubmerged = true;
+            }
+            const desiredWalk = (this.type === 'dancing' && this.dancePhase === 'moonwalk')
+                ? (this.config.moonwalkAnim || this.walkAnim)
+                : this.walkAnim;
+            if (this.state !== 'walk' || this.currentAnim !== desiredWalk) {
+                this.state = 'walk';
+                this.setAnim(desiredWalk);
+            }
+            const curSpeed = this.isSlowed ? this.speed * 0.5 : this.speed;
+            this.x -= curSpeed * dt;
         }
 
-        // 更新 DOM 坐标
-        if (this.domElement) {
-            this.domElement.style.left = `${this.x - 105}px`;
-            this.domElement.style.top = `${this.gridStartY + this.row * this.cellH - 46}px`;
+        // 跳跳僵尸弹跳起伏 & 架梯植物翻越抬升效果
+        let extraY = 0;
+        if (this.type === 'pogo' && this.hasShield && this.shieldType === 'pogo') {
+            extraY = -Math.abs(Math.sin(this.age * 7.5)) * 22;
+        } else if (engine && engine.plants.some(p => !p.isDead && p.row === this.row && p.hasLadder && Math.abs(p.x - this.x) <= 28)) {
+            extraY = -18;
         }
+
+        this.updateDOMPosition(engine, extraY);
     }
 
     render(ctx) {

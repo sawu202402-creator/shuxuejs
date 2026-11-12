@@ -366,7 +366,21 @@ export const GAME_CONFIG = {
             desc: '引爆后焚烧整整一整行所有僵尸 (1800伤害)',
             icon: 'assets/cards/card_jalapeno.png',
             anim: 'assets/plants/jalapeno.gif',
-            unlockLevel: '3-4'
+            unlockLevel: '3-5'
+        },
+        spikeweed: {
+            id: 'spikeweed',
+            name: '地刺',
+            cost: 100,
+            cooldown: 7.5,
+            hp: 300,
+            damage: 20,
+            attackInterval: 0.7,
+            isFlat: true,
+            desc: '贴地尖刺不会被普通僵尸啃食，持续扎伤经过僵尸并瞬间扎爆雪橇车与投石车轮胎！',
+            icon: 'assets/cards/card_spikeweed.png',
+            anim: 'assets/plants/spikeweed.gif',
+            unlockLevel: '3-6'
         },
         torchwood: {
             id: 'torchwood',
@@ -374,10 +388,10 @@ export const GAME_CONFIG = {
             cost: 175,
             cooldown: 7.5,
             hp: 300,
-            desc: '穿过的普通豌豆将化为烈焰火球，攻击力翻倍！',
+            desc: '穿过的普通豌豆将化为烈焰火球，攻击力翻倍，并能微弱照亮周围迷雾！',
             icon: 'assets/cards/card_torchwood.png',
             anim: 'assets/plants/torchwood.gif',
-            unlockLevel: '3-5'
+            unlockLevel: '3-7'
         },
         tallnut: {
             id: 'tallnut',
@@ -386,14 +400,14 @@ export const GAME_CONFIG = {
             cooldown: 30.0,
             hp: 8000,
             isTall: true,
-            desc: '身形高大、具有极高耐久 (8000 HP)，并能彻底拦截撑杆跳僵尸！',
+            desc: '身形高大、具有极高耐久 (8000 HP)，彻底拦截撑杆跳、海豚骑士与跳跳僵尸！',
             icon: 'assets/cards/card_tallnut.png',
             anim: 'assets/plants/tallnut.gif',
-            crack1Anim: 'assets/plants/wallnut_cracked1.gif',
-            crack2Anim: 'assets/plants/wallnut_cracked2.gif',
+            crack1Anim: 'assets/plants/tallnut_cracked1.gif',
+            crack2Anim: 'assets/plants/tallnut_cracked2.gif',
             crackThreshold1: 5333,
             crackThreshold2: 2666,
-            unlockLevel: '3-6'
+            unlockLevel: '3-8'
         },
         seashroom: {
             id: 'seashroom',
@@ -412,6 +426,57 @@ export const GAME_CONFIG = {
             sleepAnim: 'assets/plants/seashroom_sleep.gif',
             unlockLevel: '4-1'
         },
+        plantern: {
+            id: 'plantern',
+            name: '路灯花',
+            cost: 25,
+            cooldown: 30.0,
+            hp: 300,
+            lightRadius: 205,
+            desc: '绽放温暖光芒照亮周围大片浓雾区域，让迷雾中的僵尸无所遁形！',
+            icon: 'assets/cards/card_plantern.png',
+            anim: 'assets/plants/plantern.gif',
+            unlockLevel: '4-2'
+        },
+        cactus: {
+            id: 'cactus',
+            name: '仙人掌',
+            cost: 125,
+            cooldown: 7.5,
+            hp: 300,
+            damage: 20,
+            attackInterval: 1.425,
+            desc: '发射尖锐仙人掌刺，发现空中气球僵尸时会伸长身躯精准击破气球！',
+            icon: 'assets/cards/card_cactus.png',
+            anim: 'assets/plants/cactus.gif',
+            bulletAnim: 'assets/projectiles/cactus_thorn.png',
+            unlockLevel: '4-3'
+        },
+        blover: {
+            id: 'blover',
+            name: '三叶草',
+            cost: 100,
+            cooldown: 7.5,
+            hp: 300,
+            desc: '瞬间刮起狂风吹散全场浓雾18秒，并将空中所有气球僵尸直接吹飞出局！',
+            icon: 'assets/cards/card_blover.png',
+            anim: 'assets/plants/blover.gif',
+            unlockLevel: '4-4'
+        },
+        splitpea: {
+            id: 'splitpea',
+            name: '裂荚射手',
+            cost: 125,
+            cooldown: 7.5,
+            hp: 300,
+            damage: 20,
+            attackInterval: 1.425,
+            desc: '前后双向警戒！向前发射单发豌豆，向后连续发射双发豌豆专克绕后矿工僵尸！',
+            icon: 'assets/cards/card_splitpea.png',
+            anim: 'assets/plants/splitpea.gif',
+            bulletAnim: 'assets/projectiles/pea.gif',
+            unlockLevel: '4-5'
+        },
         starfruit: {
             id: 'starfruit',
             name: '星星果/杨桃',
@@ -423,7 +488,7 @@ export const GAME_CONFIG = {
             desc: '向 5 个方向同时发射锋利飞星，全方位打击',
             icon: 'assets/cards/card_starfruit.png',
             anim: 'assets/plants/starfruit.gif',
-            unlockLevel: '4-2'
+            unlockLevel: '4-6'
         },
         pumpkin: {
             id: 'pumpkin',
@@ -438,7 +503,7 @@ export const GAME_CONFIG = {
             crack2Anim: 'assets/plants/pumpkin_cracked2.gif',
             crackThreshold1: 2666,
             crackThreshold2: 1333,
-            unlockLevel: '4-3'
+            unlockLevel: '4-7'
         },
         magnetshroom: {
             id: 'magnetshroom',
@@ -447,21 +512,12 @@ export const GAME_CONFIG = {
             cooldown: 15.0,
             hp: 300,
             isNocturnal: true,
-            desc: '吸走僵尸身上的铁桶、铁栅门和头盔防具',
+            desc: '强磁吸走铁桶、铁栅门、橄榄球头盔、小丑玩偶匣、矿工镐、跳跳杆与扶梯！',
             icon: 'assets/cards/card_magnetshroom.png',
             anim: 'assets/plants/magnetshroom.gif',
-            unlockLevel: '4-4'
-        },
-        blover: {
-            id: 'blover',
-            name: '三叶草',
-            cost: 100,
-            cooldown: 7.5,
-            hp: 300,
-            desc: '瞬间刮起狂风吹散全场浓雾15秒',
-            icon: 'assets/cards/card_blover.png',
-            anim: 'assets/plants/blover.gif',
-            unlockLevel: '4-5'
+            cooldownAnim: 'assets/plants/magnetshroom_cooldown.gif',
+            sleepAnim: 'assets/plants/magnetshroom_sleep.gif',
+            unlockLevel: '4-8'
         },
         cabbagepult: {
             id: 'cabbagepult',
@@ -725,8 +781,242 @@ export const GAME_CONFIG = {
             jumpAnim: 'assets/zombies/polevault_jump.gif',
             walkAnim: 'assets/zombies/polevault_walk.gif',
             attackAnim: 'assets/zombies/polevault_attack.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
             dieAnim: 'assets/zombies/polevault_die.gif',
             walkAnims: ['assets/zombies/polevault_run.gif']
+        },
+        ducky: {
+            id: 'ducky',
+            name: '鸭子救生圈僵尸',
+            hp: 270,
+            armorHp: 0,
+            headLossThreshold: 70,
+            speed: 18,
+            dps: 100,
+            biteInterval: 0.25,
+            biteDamage: 25,
+            score: 180,
+            isWaterOnly: true,
+            walkAnims: ['assets/zombies/ducky_walk.gif'],
+            attackAnim: 'assets/zombies/ducky_attack.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_die.gif'
+        },
+        snorkel: {
+            id: 'snorkel',
+            name: '潜水僵尸',
+            hp: 270,
+            armorHp: 0,
+            headLossThreshold: 70,
+            speed: 20,
+            dps: 100,
+            biteInterval: 0.25,
+            biteDamage: 25,
+            score: 320,
+            isWaterOnly: true,
+            walkAnims: ['assets/zombies/snorkel_swim.gif'],
+            attackAnim: 'assets/zombies/snorkel_attack.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_die.gif'
+        },
+        dolphin: {
+            id: 'dolphin',
+            name: '海豚骑士僵尸',
+            hp: 500,
+            armorHp: 0,
+            headLossThreshold: 70,
+            speed: 48,
+            walkSpeed: 18,
+            dps: 100,
+            biteInterval: 0.25,
+            biteDamage: 25,
+            score: 480,
+            isWaterOnly: true,
+            hasDolphin: true,
+            rideAnim: 'assets/zombies/dolphin_ride.gif',
+            jumpAnim: 'assets/zombies/dolphin_jump.gif',
+            swimAnim: 'assets/zombies/dolphin_swim.gif',
+            walkAnims: ['assets/zombies/dolphin_ride.gif'],
+            attackAnim: 'assets/zombies/dolphin_attack.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_die.gif'
+        },
+        zomboni: {
+            id: 'zomboni',
+            name: '雪橇车僵尸',
+            hp: 1150,
+            armorHp: 0,
+            headLossThreshold: 0,
+            speed: 22,
+            dps: 999,
+            biteInterval: 0.2,
+            biteDamage: 999,
+            score: 700,
+            isVehicle: true,
+            walkAnims: ['assets/zombies/zomboni_drive.gif'],
+            attackAnim: 'assets/zombies/zomboni_drive.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_charred.gif'
+        },
+        jackinthebox: {
+            id: 'jackinthebox',
+            name: '玩偶匣小丑僵尸',
+            hp: 500,
+            armorHp: 80,
+            headLossThreshold: 70,
+            speed: 34,
+            dps: 100,
+            biteInterval: 0.25,
+            biteDamage: 25,
+            score: 520,
+            hasShield: true,
+            shieldType: 'jackbox',
+            walkAnims: ['assets/zombies/jack_walk.gif'],
+            attackAnim: 'assets/zombies/jack_attack.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_die.gif'
+        },
+        balloon: {
+            id: 'balloon',
+            name: '气球僵尸',
+            hp: 270,
+            armorHp: 0,
+            headLossThreshold: 70,
+            speed: 28,
+            walkSpeed: 18,
+            dps: 100,
+            biteInterval: 0.25,
+            biteDamage: 25,
+            score: 420,
+            isFlying: true,
+            walkAnims: ['assets/zombies/balloon_fly.gif'],
+            attackAnim: 'assets/zombies/zombie_attack.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_die.gif'
+        },
+        digger: {
+            id: 'digger',
+            name: '矿工僵尸',
+            hp: 370,
+            armorHp: 100,
+            headLossThreshold: 70,
+            digSpeed: 54,
+            speed: 18,
+            dps: 100,
+            biteInterval: 0.25,
+            biteDamage: 25,
+            score: 480,
+            hasShield: true,
+            shieldType: 'pickaxe',
+            digAnim: 'assets/zombies/digger_dig.gif',
+            surfacedWalkAnim: 'assets/zombies/digger_walk.gif',
+            walkAnims: ['assets/zombies/digger_dig.gif'],
+            attackAnim: 'assets/zombies/digger_attack.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_die.gif'
+        },
+        pogo: {
+            id: 'pogo',
+            name: '跳跳僵尸',
+            hp: 500,
+            armorHp: 80,
+            headLossThreshold: 70,
+            speed: 36,
+            walkSpeed: 18,
+            dps: 100,
+            biteInterval: 0.25,
+            biteDamage: 25,
+            score: 500,
+            hasShield: true,
+            shieldType: 'pogo',
+            walkAnims: ['assets/zombies/pogo_bounce.gif'],
+            attackAnim: 'assets/zombies/zombie_attack.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_die.gif'
+        },
+        bungee: {
+            id: 'bungee',
+            name: '蹦极僵尸',
+            hp: 450,
+            armorHp: 0,
+            headLossThreshold: 0,
+            speed: 0,
+            dps: 0,
+            biteInterval: 1.0,
+            biteDamage: 0,
+            score: 400,
+            walkAnims: ['assets/zombies/bungee_drop.gif'],
+            attackAnim: 'assets/zombies/bungee_drop.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_die.gif'
+        },
+        ladder: {
+            id: 'ladder',
+            name: '扶梯僵尸',
+            hp: 500,
+            armorHp: 500,
+            headLossThreshold: 70,
+            speed: 36,
+            walkSpeed: 18,
+            dps: 100,
+            biteInterval: 0.25,
+            biteDamage: 25,
+            score: 580,
+            hasShield: true,
+            shieldType: 'ladder',
+            walkAnims: ['assets/zombies/ladder_walk.gif'],
+            attackAnim: 'assets/zombies/ladder_attack.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_die.gif'
+        },
+        catapult: {
+            id: 'catapult',
+            name: '投石车僵尸',
+            hp: 850,
+            armorHp: 0,
+            headLossThreshold: 0,
+            speed: 22,
+            dps: 999,
+            biteInterval: 0.2,
+            biteDamage: 999,
+            score: 720,
+            isVehicle: true,
+            walkAnims: ['assets/zombies/catapult_drive.gif'],
+            attackAnim: 'assets/zombies/catapult_drive.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_charred.gif'
+        },
+        gargantuar: {
+            id: 'gargantuar',
+            name: '伽刚特尔巨人',
+            hp: 3000,
+            armorHp: 0,
+            headLossThreshold: 0,
+            speed: 14,
+            dps: 1800,
+            biteInterval: 1.15,
+            biteDamage: 1800,
+            score: 1500,
+            walkAnims: ['assets/zombies/gargantuar_walk.gif'],
+            attackAnim: 'assets/zombies/gargantuar_smash.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/football_die.gif'
+        },
+        imp: {
+            id: 'imp',
+            name: '小鬼僵尸',
+            hp: 190,
+            armorHp: 0,
+            headLossThreshold: 40,
+            speed: 34,
+            dps: 100,
+            biteInterval: 0.25,
+            biteDamage: 25,
+            score: 180,
+            walkAnims: ['assets/zombies/imp_walk.gif'],
+            attackAnim: 'assets/zombies/imp_attack.gif',
+            headAnim: 'assets/zombies/zombie_head.gif',
+            dieAnim: 'assets/zombies/zombie_die.gif'
         }
     },
 
@@ -859,7 +1149,7 @@ export const GAME_CONFIG = {
         '1-6': {
             id: '1-6',
             world: 1,
-            title: '第 1-6 关：埋伏奇袭',
+            title: '第 1-6 关：埋伏奇袭 (撑杆跳僵尸登场)',
             bg: 'assets/backgrounds/day_5row_viewport.jpg',
             activeRows: [0, 1, 2, 3, 4],
             allowedPlants: ['peashooter', 'sunflower', 'cherrybomb', 'wallnut', 'potatomine'],
@@ -868,15 +1158,15 @@ export const GAME_CONFIG = {
             waves: [
                 { delay: 20, zombies: [{ type: 'normal', row: 3 }] },
                 { delay: 24, zombies: [{ type: 'normal', row: 0 }] },
-                { delay: 25, zombies: [{ type: 'conehead', row: 2 }] },
+                { delay: 25, zombies: [{ type: 'polevault', row: 2 }] },
                 { delay: 24, zombies: [{ type: 'normal', row: 4 }, { type: 'conehead', row: 1 }] },
-                { delay: 25, zombies: [{ type: 'conehead', row: 3 }] },
+                { delay: 25, zombies: [{ type: 'polevault', row: 3 }] },
                 { delay: 28, isFlag: true, zombies: [
                     { type: 'flag', row: 2 },
+                    { type: 'polevault', row: 1 },
                     { type: 'conehead', row: 0 },
                     { type: 'conehead', row: 2 },
                     { type: 'conehead', row: 4 },
-                    { type: 'normal', row: 1 },
                     { type: 'normal', row: 3 }
                 ]}
             ]
@@ -1367,2088 +1657,810 @@ export const GAME_CONFIG = {
         '3-1': {
             id: '3-1',
             world: 3,
-            title: '第 3-1 关：碧波荡漾 (泳池初战)',
+            title: '第 3-1 关：碧波荡漾 (鸭子救生圈僵尸登场)',
             bg: 'assets/backgrounds/pool_viewport.jpg',
             isPool: true,
             rowCount: 6,
             waterRows: [2, 3],
             activeRows: [0, 1, 2, 3, 4, 5],
-            allowedPlants: ['peashooter', 'sunflower', 'wallnut', 'repeater', 'snowpea', 'lilypad'],
+            allowedPlants: ['sunflower', 'peashooter', 'lilypad', 'wallnut', 'potatomine', 'cherrybomb'],
             rewardPlant: 'squash',
-            rewardText: '恭喜解锁：窝瓜！跃起压扁靠近的僵尸！',
+            rewardText: '恭喜解锁：窝瓜！发现前后靠近的僵尸跃起泰山压顶！',
             waves: [
-                { delay: 20, zombies: [{ type: 'normal', row: 1 }] },
-                { delay: 22, zombies: [{ type: 'normal', row: 2 }] },
-                { delay: 25, zombies: [{ type: 'conehead', row: 4 }] },
-                { delay: 25, zombies: [{ type: 'normal', row: 3 }, { type: 'normal', row: 0 }] },
+                { delay: 22, zombies: [{ type: 'normal', row: 1 }] },
+                { delay: 22, zombies: [{ type: 'normal', row: 4 }] },
+                { delay: 24, zombies: [{ type: 'ducky', row: 2 }] },
+                { delay: 24, zombies: [{ type: 'conehead', row: 0 }, { type: 'ducky', row: 3 }] },
                 { delay: 28, isFlag: true, zombies: [
-                    { type: 'flag', row: 2 },
-                    { type: 'conehead', row: 1 },
-                    { type: 'normal', row: 2 },
-                    { type: 'normal', row: 3 },
-                    { type: 'conehead', row: 5 }
+                    { type: 'flag', row: 1 },
+                    { type: 'ducky', row: 2 },
+                    { type: 'ducky', row: 3 },
+                    { type: 'conehead', row: 4 },
+                    { type: 'normal', row: 5 }
                 ]}
             ]
         },
         '3-2': {
             id: '3-2',
             world: 3,
-            title: '第 3-2 关：一跃而过 (撑杆僵尸登场)',
+            title: '第 3-2 关：泰山压顶',
             bg: 'assets/backgrounds/pool_viewport.jpg',
             isPool: true,
             rowCount: 6,
             waterRows: [2, 3],
             activeRows: [0, 1, 2, 3, 4, 5],
-            allowedPlants: ['peashooter', 'sunflower', 'wallnut', 'repeater', 'lilypad', 'squash'],
+            allowedPlants: ['sunflower', 'peashooter', 'repeater', 'lilypad', 'squash', 'wallnut', 'snowpea'],
             rewardPlant: 'threepeater',
-            rewardText: '恭喜解锁：三线射手！同时覆盖三条航道！',
+            rewardText: '恭喜解锁：三线射手！同时覆盖自身与上下相邻三条航道！',
             waves: [
                 { delay: 20, zombies: [{ type: 'normal', row: 0 }] },
-                { delay: 22, zombies: [{ type: 'polevault', row: 1 }] },
-                { delay: 25, zombies: [{ type: 'normal', row: 2 }, { type: 'conehead', row: 4 }] },
-                { delay: 25, zombies: [{ type: 'polevault', row: 5 }, { type: 'normal', row: 3 }] },
-                { delay: 28, isFlag: true, zombies: [
-                    { type: 'flag', row: 2 },
-                    { type: 'polevault', row: 0 },
-                    { type: 'conehead', row: 2 },
-                    { type: 'polevault', row: 4 },
-                    { type: 'normal', row: 3 },
-                    { type: 'conehead', row: 1 }
+                { delay: 22, zombies: [{ type: 'ducky', row: 2 }, { type: 'conehead', row: 5 }] },
+                { delay: 24, zombies: [{ type: 'newspaper', row: 1 }, { type: 'buckethead', row: 4 }] },
+                { delay: 26, isFlag: true, zombies: [
+                    { type: 'flag', row: 0 },
+                    { type: 'buckethead', row: 1 },
+                    { type: 'ducky', row: 2 },
+                    { type: 'ducky', row: 3 },
+                    { type: 'newspaper', row: 4 },
+                    { type: 'conehead', row: 5 }
                 ]}
             ]
         },
         '3-3': {
             id: '3-3',
             world: 3,
-            title: '第 3-3 关：三路齐射',
+            title: '第 3-3 关：潜流暗影 (潜水僵尸登场)',
             bg: 'assets/backgrounds/pool_viewport.jpg',
             isPool: true,
             rowCount: 6,
             waterRows: [2, 3],
             activeRows: [0, 1, 2, 3, 4, 5],
-            allowedPlants: ['peashooter', 'sunflower', 'wallnut', 'repeater', 'lilypad', 'squash', 'threepeater'],
+            allowedPlants: ['sunflower', 'threepeater', 'peashooter', 'lilypad', 'squash', 'wallnut', 'cherrybomb'],
             rewardPlant: 'jalapeno',
-            rewardText: '恭喜解锁：火爆辣椒！焚尽整整一整行所有敌人！',
+            rewardText: '恭喜解锁：火爆辣椒！引爆后焚毁整整一行所有僵尸与冰道！',
             waves: [
-                { delay: 20, zombies: [{ type: 'normal', row: 2 }] },
-                { delay: 22, zombies: [{ type: 'polevault', row: 4 }] },
-                { delay: 25, zombies: [{ type: 'buckethead', row: 1 }, { type: 'normal', row: 3 }] },
-                { delay: 25, zombies: [{ type: 'polevault', row: 0 }, { type: 'conehead', row: 5 }] },
+                { delay: 20, zombies: [{ type: 'normal', row: 1 }] },
+                { delay: 22, zombies: [{ type: 'snorkel', row: 2 }] },
+                { delay: 24, zombies: [{ type: 'conehead', row: 4 }, { type: 'snorkel', row: 3 }] },
+                { delay: 25, zombies: [{ type: 'buckethead', row: 0 }, { type: 'ducky', row: 2 }] },
                 { delay: 28, isFlag: true, zombies: [
-                    { type: 'flag', row: 2 },
-                    { type: 'buckethead', row: 0 },
-                    { type: 'polevault', row: 1 },
-                    { type: 'conehead', row: 2 },
-                    { type: 'conehead', row: 3 },
-                    { type: 'polevault', row: 4 },
-                    { type: 'buckethead', row: 5 }
+                    { type: 'flag', row: 1 },
+                    { type: 'snorkel', row: 2 },
+                    { type: 'snorkel', row: 3 },
+                    { type: 'ducky', row: 2 },
+                    { type: 'buckethead', row: 4 },
+                    { type: 'conehead', row: 5 }
                 ]}
             ]
         },
         '3-4': {
             id: '3-4',
             world: 3,
-            title: '第 3-4 关：烈焰风暴',
+            title: '第 3-4 关：水陆夹击',
             bg: 'assets/backgrounds/pool_viewport.jpg',
             isPool: true,
             rowCount: 6,
             waterRows: [2, 3],
             activeRows: [0, 1, 2, 3, 4, 5],
-            allowedPlants: ['peashooter', 'sunflower', 'wallnut', 'repeater', 'lilypad', 'squash', 'threepeater', 'jalapeno'],
+            allowedPlants: ['sunflower', 'threepeater', 'repeater', 'lilypad', 'squash', 'jalapeno', 'wallnut'],
             rewardPlant: 'torchwood',
-            rewardText: '恭喜解锁：火炬树桩！让穿过的豌豆变成双倍伤害的烈火！',
+            rewardText: '恭喜解锁：火炬树桩！穿过的豌豆化为双倍伤害烈焰火球！',
             waves: [
-                { delay: 18, zombies: [{ type: 'conehead', row: 1 }] },
-                { delay: 22, zombies: [{ type: 'buckethead', row: 4 }] },
-                { delay: 22, zombies: [{ type: 'polevault', row: 0 }, { type: 'normal', row: 2 }] },
-                { delay: 25, zombies: [{ type: 'polevault', row: 5 }, { type: 'buckethead', row: 3 }] },
-                { delay: 28, isFlag: true, zombies: [
-                    { type: 'flag', row: 2 },
-                    { type: 'buckethead', row: 1 },
-                    { type: 'buckethead', row: 4 },
+                { delay: 20, zombies: [{ type: 'conehead', row: 0 }] },
+                { delay: 22, zombies: [{ type: 'polevault', row: 4 }, { type: 'snorkel', row: 2 }] },
+                { delay: 24, zombies: [{ type: 'buckethead', row: 1 }, { type: 'ducky', row: 3 }] },
+                { delay: 27, isFlag: true, zombies: [
+                    { type: 'flag', row: 4 },
                     { type: 'polevault', row: 0 },
-                    { type: 'polevault', row: 5 },
-                    { type: 'conehead', row: 2 },
-                    { type: 'conehead', row: 3 }
+                    { type: 'snorkel', row: 2 },
+                    { type: 'snorkel', row: 3 },
+                    { type: 'buckethead', row: 5 }
                 ]}
             ]
         },
         '3-5': {
             id: '3-5',
             world: 3,
-            title: '第 3-5 关：燃烧的豌豆',
+            title: '第 3-5 关：泳池传送带突袭',
             bg: 'assets/backgrounds/pool_viewport.jpg',
             isPool: true,
+            isConveyorBelt: true,
+            conveyorCards: ['peashooter', 'threepeater', 'lilypad', 'wallnut', 'squash', 'jalapeno', 'cherrybomb'],
             rowCount: 6,
             waterRows: [2, 3],
             activeRows: [0, 1, 2, 3, 4, 5],
-            allowedPlants: ['peashooter', 'sunflower', 'wallnut', 'repeater', 'lilypad', 'squash', 'threepeater', 'jalapeno', 'torchwood'],
-            rewardPlant: 'tallnut',
-            rewardText: '恭喜解锁：高坚果！超强8000耐久，彻底拦截撑杆跳僵尸！',
+            allowedPlants: ['peashooter', 'threepeater', 'lilypad', 'wallnut', 'squash', 'jalapeno', 'cherrybomb'],
+            rewardPlant: 'torchwood',
+            rewardText: '烈焰豌豆防线成型！',
             waves: [
-                { delay: 18, zombies: [{ type: 'normal', row: 2 }] },
-                { delay: 20, zombies: [{ type: 'polevault', row: 1 }, { type: 'conehead', row: 4 }] },
-                { delay: 22, zombies: [{ type: 'buckethead', row: 0 }, { type: 'polevault', row: 5 }] },
-                { delay: 25, zombies: [{ type: 'buckethead', row: 3 }, { type: 'conehead', row: 2 }] },
-                { delay: 28, isFlag: true, zombies: [
-                    { type: 'flag', row: 2 },
-                    { type: 'football', row: 1 },
+                { delay: 14, zombies: [{ type: 'normal', row: 1 }, { type: 'ducky', row: 2 }] },
+                { delay: 17, zombies: [{ type: 'conehead', row: 4 }, { type: 'snorkel', row: 3 }] },
+                { delay: 19, zombies: [{ type: 'football', row: 0 }, { type: 'polevault', row: 5 }] },
+                { delay: 22, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
                     { type: 'football', row: 4 },
-                    { type: 'polevault', row: 0 },
-                    { type: 'polevault', row: 5 },
-                    { type: 'buckethead', row: 2 },
-                    { type: 'buckethead', row: 3 }
+                    { type: 'snorkel', row: 2 },
+                    { type: 'ducky', row: 3 },
+                    { type: 'buckethead', row: 0 }
                 ]}
             ]
         },
         '3-6': {
             id: '3-6',
             world: 3,
-            title: '第 3-6 关：巍峨天堑 (高坚果防线)',
+            title: '第 3-6 关：寒冰铁骑 (雪橇车僵尸登场)',
             bg: 'assets/backgrounds/pool_viewport.jpg',
             isPool: true,
             rowCount: 6,
             waterRows: [2, 3],
             activeRows: [0, 1, 2, 3, 4, 5],
-            allowedPlants: ['peashooter', 'sunflower', 'tallnut', 'repeater', 'lilypad', 'squash', 'threepeater', 'jalapeno', 'torchwood'],
+            allowedPlants: ['sunflower', 'threepeater', 'torchwood', 'lilypad', 'squash', 'jalapeno', 'wallnut', 'potatomine'],
             rewardPlant: 'spikeweed',
-            rewardText: '防守固若金汤！高坚果坚不可摧！',
+            rewardText: '恭喜解锁：地刺！不会被普通僵尸啃食，还能一击扎爆雪橇车轮胎！',
             waves: [
-                { delay: 18, zombies: [{ type: 'polevault', row: 0 }] },
-                { delay: 20, zombies: [{ type: 'polevault', row: 1 }, { type: 'polevault', row: 4 }] },
-                { delay: 22, zombies: [{ type: 'football', row: 5 }, { type: 'buckethead', row: 2 }] },
-                { delay: 25, zombies: [{ type: 'polevault', row: 0 }, { type: 'buckethead', row: 3 }] },
-                { delay: 28, isFlag: true, zombies: [
-                    { type: 'flag', row: 2 },
-                    { type: 'polevault', row: 0 },
-                    { type: 'polevault', row: 1 },
-                    { type: 'polevault', row: 4 },
-                    { type: 'polevault', row: 5 },
-                    { type: 'football', row: 2 },
-                    { type: 'football', row: 3 }
+                { delay: 20, zombies: [{ type: 'conehead', row: 1 }] },
+                { delay: 22, zombies: [{ type: 'zomboni', row: 0 }] },
+                { delay: 24, zombies: [{ type: 'snorkel', row: 2 }, { type: 'zomboni', row: 4 }] },
+                { delay: 27, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'zomboni', row: 0 },
+                    { type: 'zomboni', row: 5 },
+                    { type: 'snorkel', row: 2 },
+                    { type: 'ducky', row: 3 },
+                    { type: 'buckethead', row: 4 }
                 ]}
             ]
         },
         '3-7': {
             id: '3-7',
             world: 3,
-            title: '第 3-7 关：水陆双向合围',
+            title: '第 3-7 关：尖刺爆胎',
             bg: 'assets/backgrounds/pool_viewport.jpg',
             isPool: true,
             rowCount: 6,
             waterRows: [2, 3],
             activeRows: [0, 1, 2, 3, 4, 5],
-            allowedPlants: ['peashooter', 'sunflower', 'tallnut', 'repeater', 'lilypad', 'squash', 'threepeater', 'jalapeno', 'torchwood'],
-            rewardPlant: 'starfruit',
-            rewardText: '水陆防线完美协同！',
+            allowedPlants: ['sunflower', 'threepeater', 'torchwood', 'spikeweed', 'lilypad', 'squash', 'jalapeno', 'wallnut'],
+            rewardPlant: 'tallnut',
+            rewardText: '恭喜解锁：高坚果！8000超高耐久，彻底拦截撑杆跳与海豚骑士！',
             waves: [
-                { delay: 18, zombies: [{ type: 'conehead', row: 2 }] },
-                { delay: 20, zombies: [{ type: 'buckethead', row: 3 }, { type: 'polevault', row: 1 }] },
-                { delay: 22, zombies: [{ type: 'screendoor', row: 0 }, { type: 'football', row: 4 }] },
-                { delay: 25, isFlag: true, zombies: [
-                    { type: 'flag', row: 2 },
-                    { type: 'buckethead', row: 2 },
-                    { type: 'buckethead', row: 3 },
-                    { type: 'football', row: 1 },
-                    { type: 'football', row: 4 },
-                    { type: 'polevault', row: 0 },
-                    { type: 'polevault', row: 5 }
+                { delay: 20, zombies: [{ type: 'zomboni', row: 1 }] },
+                { delay: 22, zombies: [{ type: 'snorkel', row: 2 }, { type: 'buckethead', row: 4 }] },
+                { delay: 24, zombies: [{ type: 'zomboni', row: 5 }, { type: 'football', row: 0 }] },
+                { delay: 27, isFlag: true, zombies: [
+                    { type: 'flag', row: 4 },
+                    { type: 'zomboni', row: 0 },
+                    { type: 'zomboni', row: 4 },
+                    { type: 'snorkel', row: 2 },
+                    { type: 'snorkel', row: 3 },
+                    { type: 'football', row: 1 }
                 ]}
             ]
         },
         '3-8': {
             id: '3-8',
             world: 3,
-            title: '第 3-8 关：碧水惊涛',
+            title: '第 3-8 关：碧水惊涛 (海豚骑士僵尸登场)',
             bg: 'assets/backgrounds/pool_viewport.jpg',
             isPool: true,
             rowCount: 6,
             waterRows: [2, 3],
             activeRows: [0, 1, 2, 3, 4, 5],
-            allowedPlants: ['peashooter', 'sunflower', 'tallnut', 'repeater', 'lilypad', 'squash', 'threepeater', 'jalapeno', 'torchwood'],
-            rewardPlant: 'pumpkin',
-            rewardText: '顶住惊涛骇浪！向终极决战进军！',
+            allowedPlants: ['sunflower', 'threepeater', 'torchwood', 'tallnut', 'spikeweed', 'lilypad', 'squash', 'jalapeno'],
+            rewardPlant: 'seashroom',
+            rewardText: '成功拦截海豚突袭！解锁免费水生夜战植物：海蘑菇！',
             waves: [
-                { delay: 16, zombies: [{ type: 'polevault', row: 4 }] },
-                { delay: 18, zombies: [{ type: 'football', row: 1 }, { type: 'buckethead', row: 2 }] },
-                { delay: 20, zombies: [{ type: 'screendoor', row: 3 }, { type: 'polevault', row: 5 }] },
-                { delay: 22, isFlag: true, zombies: [
-                    { type: 'flag', row: 2 },
-                    { type: 'football', row: 0 },
-                    { type: 'football', row: 5 },
-                    { type: 'buckethead', row: 2 },
-                    { type: 'buckethead', row: 3 },
-                    { type: 'polevault', row: 1 },
-                    { type: 'polevault', row: 4 }
+                { delay: 20, zombies: [{ type: 'normal', row: 0 }] },
+                { delay: 22, zombies: [{ type: 'dolphin', row: 2 }] },
+                { delay: 24, zombies: [{ type: 'zomboni', row: 4 }, { type: 'dolphin', row: 3 }] },
+                { delay: 27, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'dolphin', row: 2 },
+                    { type: 'dolphin', row: 3 },
+                    { type: 'zomboni', row: 0 },
+                    { type: 'buckethead', row: 5 }
                 ]}
             ]
         },
         '3-9': {
             id: '3-9',
             world: 3,
-            title: '第 3-9 关：决战前夜',
+            title: '第 3-9 关：泳池决战前夜',
             bg: 'assets/backgrounds/pool_viewport.jpg',
             isPool: true,
             rowCount: 6,
             waterRows: [2, 3],
             activeRows: [0, 1, 2, 3, 4, 5],
-            allowedPlants: ['peashooter', 'sunflower', 'tallnut', 'repeater', 'lilypad', 'squash', 'threepeater', 'jalapeno', 'torchwood'],
-            rewardPlant: 'magnetshroom',
-            rewardText: '坚如磐石！准备迎接泳池终极大考！',
+            allowedPlants: ['sunflower', 'threepeater', 'torchwood', 'tallnut', 'spikeweed', 'lilypad', 'squash', 'cherrybomb'],
+            rewardPlant: 'note',
+            rewardText: '发现了泳池边的信件：“夜幕浓雾将至，小心从水中与地底袭来的敌军！”',
             waves: [
-                { delay: 16, zombies: [{ type: 'football', row: 2 }] },
-                { delay: 18, zombies: [{ type: 'polevault', row: 0 }, { type: 'polevault', row: 5 }] },
-                { delay: 20, zombies: [{ type: 'screendoor', row: 1 }, { type: 'screendoor', row: 4 }] },
-                { delay: 22, isFlag: true, zombies: [
-                    { type: 'flag', row: 2 },
-                    { type: 'football', row: 0 },
-                    { type: 'football', row: 2 },
-                    { type: 'football', row: 3 },
-                    { type: 'football', row: 5 },
-                    { type: 'polevault', row: 1 },
-                    { type: 'polevault', row: 4 }
+                { delay: 18, zombies: [{ type: 'polevault', row: 1 }, { type: 'dolphin', row: 2 }] },
+                { delay: 20, zombies: [{ type: 'zomboni', row: 4 }, { type: 'snorkel', row: 3 }] },
+                { delay: 22, zombies: [{ type: 'football', row: 0 }, { type: 'dolphin', row: 3 }] },
+                { delay: 26, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'zomboni', row: 0 },
+                    { type: 'zomboni', row: 5 },
+                    { type: 'dolphin', row: 2 },
+                    { type: 'dolphin', row: 3 },
+                    { type: 'football', row: 4 }
                 ]}
             ]
         },
         '3-10': {
             id: '3-10',
             world: 3,
-            title: '第 3-10 关：碧波大决战 (传送带终极大试炼)',
+            title: '第 3-10 关：碧波大决战 (泳池传送带总攻)',
             bg: 'assets/backgrounds/pool_viewport.jpg',
             isPool: true,
+            isConveyorBelt: true,
+            conveyorCards: ['threepeater', 'torchwood', 'lilypad', 'squash', 'jalapeno', 'spikeweed', 'tallnut', 'peashooter'],
+            rowCount: 6,
+            waterRows: [2, 3],
+            activeRows: [0, 1, 2, 3, 4, 5],
+            allowedPlants: ['threepeater', 'torchwood', 'lilypad', 'squash', 'jalapeno', 'spikeweed', 'tallnut', 'peashooter'],
+            rewardPlant: 'seashroom',
+            rewardText: '🎉 彻底守卫阳光泳池！解锁夜战水生蘑菇：【海蘑菇】！浓雾夜战开启！🏆',
+            waves: [
+                { delay: 14, zombies: [{ type: 'conehead', row: 1 }, { type: 'ducky', row: 2 }] },
+                { delay: 17, zombies: [{ type: 'zomboni', row: 0 }, { type: 'snorkel', row: 3 }] },
+                { delay: 19, zombies: [{ type: 'dolphin', row: 2 }, { type: 'polevault', row: 4 }] },
+                { delay: 22, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'zomboni', row: 0 },
+                    { type: 'dolphin', row: 2 },
+                    { type: 'snorkel', row: 3 },
+                    { type: 'football', row: 5 }
+                ]},
+                { delay: 25, isFlag: true, zombies: [
+                    { type: 'flag', row: 4 },
+                    { type: 'zomboni', row: 1 },
+                    { type: 'zomboni', row: 5 },
+                    { type: 'dolphin', row: 2 },
+                    { type: 'dolphin', row: 3 },
+                    { type: 'buckethead', row: 0 }
+                ]}
+            ]
+        },
+        '4-1': {
+            id: '4-1',
+            world: 4,
+            initialSun: 50,
+            title: '第 4-1 关：浓雾笼罩 (夜幕泳池初战)',
+            bg: 'assets/backgrounds/fog_viewport.jpg',
+            isPool: true,
+            isFog: true,
+            rowCount: 6,
+            waterRows: [2, 3],
+            activeRows: [0, 1, 2, 3, 4, 5],
+            allowedPlants: ['sunshroom', 'puffshroom', 'seashroom', 'fumeshroom', 'lilypad', 'wallnut', 'squash'],
+            rewardPlant: 'plantern',
+            rewardText: '恭喜解锁：路灯花！绽放温暖灯光照亮周围大片浓雾区域！',
+            waves: [
+                { delay: 20, zombies: [{ type: 'normal', row: 1 }] },
+                { delay: 22, zombies: [{ type: 'ducky', row: 2 }] },
+                { delay: 24, zombies: [{ type: 'conehead', row: 4 }, { type: 'ducky', row: 3 }] },
+                { delay: 27, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'ducky', row: 2 },
+                    { type: 'ducky', row: 3 },
+                    { type: 'conehead', row: 0 },
+                    { type: 'normal', row: 5 }
+                ]}
+            ]
+        },
+        '4-2': {
+            id: '4-2',
+            world: 4,
+            initialSun: 50,
+            title: '第 4-2 关：迷雾明灯 (玩偶匣小丑登场)',
+            bg: 'assets/backgrounds/fog_viewport.jpg',
+            isPool: true,
+            isFog: true,
+            rowCount: 6,
+            waterRows: [2, 3],
+            activeRows: [0, 1, 2, 3, 4, 5],
+            allowedPlants: ['sunshroom', 'puffshroom', 'seashroom', 'plantern', 'fumeshroom', 'scaredyshroom', 'lilypad', 'wallnut'],
+            rewardPlant: 'cactus',
+            rewardText: '恭喜解锁：仙人掌！发射尖刺并能伸长身躯击破气球僵尸！',
+            waves: [
+                { delay: 20, zombies: [{ type: 'normal', row: 0 }] },
+                { delay: 22, zombies: [{ type: 'jackinthebox', row: 4 }] },
+                { delay: 24, zombies: [{ type: 'ducky', row: 2 }, { type: 'conehead', row: 1 }] },
+                { delay: 27, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'jackinthebox', row: 0 },
+                    { type: 'ducky', row: 2 },
+                    { type: 'snorkel', row: 3 },
+                    { type: 'buckethead', row: 5 }
+                ]}
+            ]
+        },
+        '4-3': {
+            id: '4-3',
+            world: 4,
+            initialSun: 50,
+            title: '第 4-3 关：飞天危机 (气球僵尸登场)',
+            bg: 'assets/backgrounds/fog_viewport.jpg',
+            isPool: true,
+            isFog: true,
+            rowCount: 6,
+            waterRows: [2, 3],
+            activeRows: [0, 1, 2, 3, 4, 5],
+            allowedPlants: ['sunshroom', 'puffshroom', 'seashroom', 'plantern', 'cactus', 'fumeshroom', 'lilypad', 'wallnut'],
+            rewardPlant: 'blover',
+            rewardText: '恭喜解锁：三叶草！狂风吹散全屏浓雾并将气球僵尸直接吹飞！',
+            waves: [
+                { delay: 20, zombies: [{ type: 'conehead', row: 1 }] },
+                { delay: 22, zombies: [{ type: 'balloon', row: 2 }] },
+                { delay: 24, zombies: [{ type: 'balloon', row: 4 }, { type: 'ducky', row: 3 }] },
+                { delay: 27, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'balloon', row: 0 },
+                    { type: 'balloon', row: 3 },
+                    { type: 'jackinthebox', row: 5 },
+                    { type: 'ducky', row: 2 }
+                ]}
+            ]
+        },
+        '4-4': {
+            id: '4-4',
+            world: 4,
+            initialSun: 50,
+            title: '第 4-4 关：狂风驱雾',
+            bg: 'assets/backgrounds/fog_viewport.jpg',
+            isPool: true,
+            isFog: true,
+            rowCount: 6,
+            waterRows: [2, 3],
+            activeRows: [0, 1, 2, 3, 4, 5],
+            allowedPlants: ['sunshroom', 'puffshroom', 'seashroom', 'plantern', 'cactus', 'blover', 'fumeshroom', 'lilypad'],
+            rewardPlant: 'splitpea',
+            rewardText: '恭喜解锁：裂荚射手！向后双发豌豆火力，专克绕后偷袭的矿工僵尸！',
+            waves: [
+                { delay: 18, zombies: [{ type: 'balloon', row: 1 }] },
+                { delay: 22, zombies: [{ type: 'dolphin', row: 2 }, { type: 'screendoor', row: 4 }] },
+                { delay: 24, zombies: [{ type: 'balloon', row: 3 }, { type: 'jackinthebox', row: 0 }] },
+                { delay: 28, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'balloon', row: 0 },
+                    { type: 'balloon', row: 4 },
+                    { type: 'dolphin', row: 2 },
+                    { type: 'dolphin', row: 3 },
+                    { type: 'buckethead', row: 5 }
+                ]}
+            ]
+        },
+        '4-5': {
+            id: '4-5',
+            world: 4,
+            initialSun: 50,
+            title: '第 4-5 关：地底掘进 (矿工僵尸登场)',
+            bg: 'assets/backgrounds/fog_viewport.jpg',
+            isPool: true,
+            isFog: true,
+            rowCount: 6,
+            waterRows: [2, 3],
+            activeRows: [0, 1, 2, 3, 4, 5],
+            allowedPlants: ['sunshroom', 'puffshroom', 'seashroom', 'splitpea', 'plantern', 'blover', 'fumeshroom', 'lilypad'],
+            rewardPlant: 'starfruit',
+            rewardText: '恭喜解锁：星星果/杨桃！向5个方向同时发射飞星，全方位清场！',
+            waves: [
+                { delay: 20, zombies: [{ type: 'conehead', row: 1 }] },
+                { delay: 22, zombies: [{ type: 'digger', row: 0 }] },
+                { delay: 24, zombies: [{ type: 'digger', row: 4 }, { type: 'snorkel', row: 2 }] },
+                { delay: 28, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'digger', row: 0 },
+                    { type: 'digger', row: 5 },
+                    { type: 'balloon', row: 2 },
+                    { type: 'ducky', row: 3 }
+                ]}
+            ]
+        },
+        '4-6': {
+            id: '4-6',
+            world: 4,
+            initialSun: 50,
+            title: '第 4-6 关：五向飞星',
+            bg: 'assets/backgrounds/fog_viewport.jpg',
+            isPool: true,
+            isFog: true,
+            rowCount: 6,
+            waterRows: [2, 3],
+            activeRows: [0, 1, 2, 3, 4, 5],
+            allowedPlants: ['sunshroom', 'puffshroom', 'seashroom', 'starfruit', 'splitpea', 'plantern', 'blover', 'lilypad'],
+            rewardPlant: 'pumpkin',
+            rewardText: '恭喜解锁：南瓜头！套在任何植物外层提供4000点坚固护甲防护！',
+            waves: [
+                { delay: 18, zombies: [{ type: 'digger', row: 1 }] },
+                { delay: 20, zombies: [{ type: 'jackinthebox', row: 4 }, { type: 'ducky', row: 2 }] },
+                { delay: 24, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'digger', row: 0 },
+                    { type: 'digger', row: 5 },
+                    { type: 'dolphin', row: 3 },
+                    { type: 'balloon', row: 2 }
+                ]}
+            ]
+        },
+        '4-7': {
+            id: '4-7',
+            world: 4,
+            initialSun: 50,
+            title: '第 4-7 关：弹跳突击 (跳跳僵尸登场)',
+            bg: 'assets/backgrounds/fog_viewport.jpg',
+            isPool: true,
+            isFog: true,
+            rowCount: 6,
+            waterRows: [2, 3],
+            activeRows: [0, 1, 2, 3, 4, 5],
+            allowedPlants: ['sunshroom', 'puffshroom', 'seashroom', 'starfruit', 'pumpkin', 'tallnut', 'plantern', 'lilypad'],
+            rewardPlant: 'magnetshroom',
+            rewardText: '恭喜解锁：磁力菇！吸走铁桶、头盔、玩偶匣、矿工镐与跳跳杆！',
+            waves: [
+                { delay: 18, zombies: [{ type: 'pogo', row: 1 }] },
+                { delay: 20, zombies: [{ type: 'pogo', row: 4 }, { type: 'snorkel', row: 2 }] },
+                { delay: 24, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'pogo', row: 0 },
+                    { type: 'pogo', row: 5 },
+                    { type: 'digger', row: 4 },
+                    { type: 'dolphin', row: 3 }
+                ]}
+            ]
+        },
+        '4-8': {
+            id: '4-8',
+            world: 4,
+            initialSun: 50,
+            title: '第 4-8 关：磁力神威',
+            bg: 'assets/backgrounds/fog_viewport.jpg',
+            isPool: true,
+            isFog: true,
+            rowCount: 6,
+            waterRows: [2, 3],
+            activeRows: [0, 1, 2, 3, 4, 5],
+            allowedPlants: ['sunshroom', 'puffshroom', 'seashroom', 'magnetshroom', 'starfruit', 'pumpkin', 'blover', 'lilypad'],
+            rewardPlant: 'cabbagepult',
+            rewardText: '磁力防线无懈可击！屋顶高抛植物即将登场！',
+            waves: [
+                { delay: 18, zombies: [{ type: 'buckethead', row: 1 }, { type: 'pogo', row: 4 }] },
+                { delay: 20, zombies: [{ type: 'digger', row: 0 }, { type: 'jackinthebox', row: 5 }] },
+                { delay: 24, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'football', row: 0 },
+                    { type: 'pogo', row: 4 },
+                    { type: 'digger', row: 5 },
+                    { type: 'dolphin', row: 2 },
+                    { type: 'snorkel', row: 3 }
+                ]}
+            ]
+        },
+        '4-9': {
+            id: '4-9',
+            world: 4,
+            initialSun: 50,
+            title: '第 4-9 关：浓雾终战前夕',
+            bg: 'assets/backgrounds/fog_viewport.jpg',
+            isPool: true,
+            isFog: true,
+            rowCount: 6,
+            waterRows: [2, 3],
+            activeRows: [0, 1, 2, 3, 4, 5],
+            allowedPlants: ['sunshroom', 'puffshroom', 'seashroom', 'magnetshroom', 'starfruit', 'pumpkin', 'blover', 'lilypad'],
+            rewardPlant: 'note',
+            rewardText: '浓雾深处雷声隆隆！暴风雨之夜大决战即将降临！',
+            waves: [
+                { delay: 18, zombies: [{ type: 'jackinthebox', row: 1 }, { type: 'balloon', row: 2 }] },
+                { delay: 20, zombies: [{ type: 'pogo', row: 4 }, { type: 'digger', row: 0 }] },
+                { delay: 24, isFlag: true, zombies: [
+                    { type: 'flag', row: 1 },
+                    { type: 'football', row: 0 },
+                    { type: 'jackinthebox', row: 1 },
+                    { type: 'dolphin', row: 2 },
+                    { type: 'balloon', row: 3 },
+                    { type: 'pogo', row: 4 },
+                    { type: 'digger', row: 5 }
+                ]}
+            ]
+        },
+        '4-10': {
+            id: '4-10',
+            world: 4,
+            title: '第 4-10 关：浓雾大决战 (雷雨传送带终极试炼)',
+            bg: 'assets/backgrounds/fog_viewport.jpg',
+            isPool: true,
+            isFog: true,
             rowCount: 6,
             waterRows: [2, 3],
             activeRows: [0, 1, 2, 3, 4, 5],
             isConveyorBelt: true,
-            conveyorCards: ['threepeater', 'repeater', 'peashooter', 'torchwood', 'lilypad', 'squash', 'jalapeno', 'tallnut', 'wallnut'],
-            allowedPlants: ['threepeater', 'repeater', 'peashooter', 'torchwood', 'lilypad', 'squash', 'jalapeno', 'tallnut', 'wallnut'],
-            rewardPlant: 'trophy_pool',
-            rewardText: '🎉 彻底征服泳池！荣获第三大关荣誉勋章【海蓝宝水晶向日葵】！🏆',
+            conveyorCards: ['starfruit', 'cactus', 'splitpea', 'fumeshroom', 'puffshroom', 'seashroom', 'pumpkin', 'magnetshroom', 'blover', 'plantern', 'lilypad'],
+            allowedPlants: ['starfruit', 'cactus', 'splitpea', 'fumeshroom', 'puffshroom', 'seashroom', 'pumpkin', 'magnetshroom', 'blover', 'plantern', 'lilypad'],
+            rewardPlant: 'cabbagepult',
+            rewardText: '🎉 彻底驱散无尽浓雾！解锁屋顶高抛植物：【卷心菜投手】与【花盆】！🏆',
             waves: [
-                { delay: 15, zombies: [{ type: 'polevault', row: 1 }] },
-                { delay: 18, zombies: [{ type: 'buckethead', row: 2 }, { type: 'conehead', row: 4 }] },
-                { delay: 20, zombies: [{ type: 'football', row: 3 }, { type: 'polevault', row: 5 }] },
+                { delay: 14, zombies: [{ type: 'conehead', row: 1 }, { type: 'ducky', row: 2 }] },
+                { delay: 17, zombies: [{ type: 'balloon', row: 3 }, { type: 'digger', row: 4 }] },
+                { delay: 19, zombies: [{ type: 'pogo', row: 0 }, { type: 'jackinthebox', row: 5 }] },
                 { delay: 22, isFlag: true, zombies: [
-                    { type: 'flag', row: 2 },
-                    { type: 'football', row: 1 },
-                    { type: 'screendoor', row: 4 },
-                    { type: 'buckethead', row: 2 },
-                    { type: 'buckethead', row: 3 },
-                    { type: 'polevault', row: 0 },
-                    { type: 'polevault', row: 5 }
+                    { type: 'flag', row: 1 },
+                    { type: 'football', row: 0 },
+                    { type: 'dolphin', row: 2 },
+                    { type: 'balloon', row: 3 },
+                    { type: 'pogo', row: 4 },
+                    { type: 'digger', row: 5 }
                 ]},
                 { delay: 25, isFlag: true, zombies: [
-                    { type: 'flag', row: 2 },
-                    { type: 'football', row: 0 },
-                    { type: 'football', row: 5 },
-                    { type: 'football', row: 2 },
-                    { type: 'football', row: 3 },
-                    { type: 'polevault', row: 1 },
-                    { type: 'polevault', row: 4 },
-                    { type: 'buckethead', row: 1 },
-                    { type: 'buckethead', row: 4 }
+                    { type: 'flag', row: 4 },
+                    { type: 'jackinthebox', row: 0 },
+                    { type: 'football', row: 1 },
+                    { type: 'dolphin', row: 2 },
+                    { type: 'snorkel', row: 3 },
+                    { type: 'pogo', row: 4 },
+                    { type: 'digger', row: 5 }
                 ]}
             ]
-        }        ,
-        "4-1": {
-            "id": "4-1",
-            "world": 4,
-            "title": "第 4-1 关：浓雾笼罩 (初探迷雾)",
-            "bg": "assets/backgrounds/fog_viewport.jpg",
-            "isPool": true,
-            "isFog": true,
-            "rowCount": 6,
-            "waterRows": [
-                        2,
-                        3
-            ],
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5
-            ],
-            "allowedPlants": [
-                        "puffshroom",
-                        "sunshroom",
-                        "fumeshroom",
-                        "lilypad",
-                        "wallnut",
-                        "repeater"
-            ],
-            "rewardPlant": "seashroom",
-            "rewardText": "恭喜解锁：海蘑菇！免费水生喷射蘑菇！",
-            "waves": [
-                        {
-                                    "delay": 20,
-                                    "zombies": [
-                                                {
-                                                            "type": "normal",
-                                                            "row": 1
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "zombies": [
-                                                {
-                                                            "type": "normal",
-                                                            "row": 2
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 25,
-                                    "zombies": [
-                                                {
-                                                            "type": "conehead",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 28,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "conehead",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "normal",
-                                                            "row": 3
-                                                },
-                                                {
-                                                            "type": "conehead",
-                                                            "row": 5
-                                                }
-                                    ]
-                        }
+        },
+        '5-1': {
+            id: '5-1',
+            world: 5,
+            title: '第 5-1 关：登高远望 (屋顶斜坡与蹦极僵尸)',
+            bg: 'assets/backgrounds/roof_viewport.jpg',
+            isRoof: true,
+            initialPotsCols: [0, 1, 2],
+            activeRows: [0, 1, 2, 3, 4],
+            allowedPlants: ['sunflower', 'flowerpot', 'cabbagepult', 'wallnut', 'potatomine', 'cherrybomb'],
+            rewardPlant: 'kernelpult',
+            rewardText: '恭喜解锁：玉米投手！高抛投掷玉米粒并有几率投出黄油定身僵尸4秒！',
+            waves: [
+                { delay: 22, zombies: [{ type: 'normal', row: 2 }] },
+                { delay: 22, zombies: [{ type: 'normal', row: 0 }] },
+                { delay: 24, zombies: [{ type: 'conehead', row: 3 }] },
+                { delay: 25, zombies: [{ type: 'bungee', row: 1 }, { type: 'conehead', row: 4 }] },
+                { delay: 28, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'bungee', row: 2 },
+                    { type: 'conehead', row: 0 },
+                    { type: 'conehead', row: 3 },
+                    { type: 'normal', row: 4 }
+                ]}
             ]
-}        ,
-        "4-2": {
-            "id": "4-2",
-            "world": 4,
-            "title": "第 4-2 关：隐秘杀机 (水生奇兵)",
-            "bg": "assets/backgrounds/fog_viewport.jpg",
-            "isPool": true,
-            "isFog": true,
-            "rowCount": 6,
-            "waterRows": [
-                        2,
-                        3
-            ],
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5
-            ],
-            "allowedPlants": [
-                        "puffshroom",
-                        "sunshroom",
-                        "seashroom",
-                        "lilypad",
-                        "wallnut",
-                        "repeater"
-            ],
-            "rewardPlant": "starfruit",
-            "rewardText": "恭喜解锁：星星果！向 5 个方向发射飞星！",
-            "waves": [
-                        {
-                                    "delay": 20,
-                                    "zombies": [
-                                                {
-                                                            "type": "normal",
-                                                            "row": 2
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "zombies": [
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 1
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 25,
-                                    "zombies": [
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "normal",
-                                                            "row": 3
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 28,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "conehead",
-                                                            "row": 4
-                                                }
-                                    ]
-                        }
+        },
+        '5-2': {
+            id: '5-2',
+            world: 5,
+            title: '第 5-2 关：黄油定身',
+            bg: 'assets/backgrounds/roof_viewport.jpg',
+            isRoof: true,
+            initialPotsCols: [0, 1, 2],
+            activeRows: [0, 1, 2, 3, 4],
+            allowedPlants: ['sunflower', 'flowerpot', 'cabbagepult', 'kernelpult', 'wallnut', 'squash', 'cherrybomb'],
+            rewardPlant: 'garlic',
+            rewardText: '恭喜解锁：大蒜！僵尸咬上一口立即呛得转向相邻航道！',
+            waves: [
+                { delay: 20, zombies: [{ type: 'normal', row: 1 }] },
+                { delay: 22, zombies: [{ type: 'polevault', row: 3 }] },
+                { delay: 24, zombies: [{ type: 'buckethead', row: 2 }, { type: 'bungee', row: 0 }] },
+                { delay: 27, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'polevault', row: 0 },
+                    { type: 'buckethead', row: 1 },
+                    { type: 'bungee', row: 3 },
+                    { type: 'conehead', row: 4 }
+                ]}
             ]
-}        ,
-        "4-3": {
-            "id": "4-3",
-            "world": 4,
-            "title": "第 4-3 关：五向齐发",
-            "bg": "assets/backgrounds/fog_viewport.jpg",
-            "isPool": true,
-            "isFog": true,
-            "rowCount": 6,
-            "waterRows": [
-                        2,
-                        3
-            ],
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5
-            ],
-            "allowedPlants": [
-                        "puffshroom",
-                        "sunshroom",
-                        "seashroom",
-                        "starfruit",
-                        "lilypad",
-                        "wallnut"
-            ],
-            "rewardPlant": "pumpkin",
-            "rewardText": "恭喜解锁：南瓜头！可套在任何植物外层提供4000点护甲！",
-            "waves": [
-                        {
-                                    "delay": 20,
-                                    "zombies": [
-                                                {
-                                                            "type": "conehead",
-                                                            "row": 0
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "zombies": [
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 25,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "normal",
-                                                            "row": 2
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 28,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 5
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 3
-                                                }
-                                    ]
-                        }
+        },
+        '5-3': {
+            id: '5-3',
+            world: 5,
+            title: '第 5-3 关：云梯攻城 (扶梯僵尸登场)',
+            bg: 'assets/backgrounds/roof_viewport.jpg',
+            isRoof: true,
+            initialPotsCols: [0, 1, 2],
+            activeRows: [0, 1, 2, 3, 4],
+            allowedPlants: ['sunflower', 'flowerpot', 'cabbagepult', 'kernelpult', 'garlic', 'wallnut', 'jalapeno', 'squash'],
+            rewardPlant: 'melonpult',
+            rewardText: '恭喜解锁：西瓜投手！投掷重型西瓜造成80点重击与3x3范围群伤溅射！',
+            waves: [
+                { delay: 20, zombies: [{ type: 'conehead', row: 2 }] },
+                { delay: 22, zombies: [{ type: 'ladder', row: 1 }] },
+                { delay: 24, zombies: [{ type: 'ladder', row: 3 }, { type: 'bungee', row: 2 }] },
+                { delay: 27, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'ladder', row: 0 },
+                    { type: 'ladder', row: 4 },
+                    { type: 'buckethead', row: 2 },
+                    { type: 'bungee', row: 1 }
+                ]}
             ]
-}        ,
-        "4-4": {
-            "id": "4-4",
-            "world": 4,
-            "title": "第 4-4 关：南瓜甲胄",
-            "bg": "assets/backgrounds/fog_viewport.jpg",
-            "isPool": true,
-            "isFog": true,
-            "rowCount": 6,
-            "waterRows": [
-                        2,
-                        3
-            ],
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5
-            ],
-            "allowedPlants": [
-                        "puffshroom",
-                        "sunshroom",
-                        "seashroom",
-                        "starfruit",
-                        "pumpkin",
-                        "lilypad"
-            ],
-            "rewardPlant": "magnetshroom",
-            "rewardText": "恭喜解锁：磁力菇！吸走僵尸的铁桶、铁门与头盔！",
-            "waves": [
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 1
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "zombies": [
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 25,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 5
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 28,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 3
-                                                }
-                                    ]
-                        }
+        },
+        '5-4': {
+            id: '5-4',
+            world: 5,
+            title: '第 5-4 关：碧玉飞瓜 (投石车僵尸登场)',
+            bg: 'assets/backgrounds/roof_viewport.jpg',
+            isRoof: true,
+            initialPotsCols: [0, 1, 2],
+            activeRows: [0, 1, 2, 3, 4],
+            allowedPlants: ['sunflower', 'flowerpot', 'melonpult', 'kernelpult', 'cabbagepult', 'squash', 'tallnut', 'jalapeno'],
+            rewardPlant: 'tallnut',
+            rewardText: '西瓜重炮就位！当心空降蹦极突袭！',
+            waves: [
+                { delay: 20, zombies: [{ type: 'pogo', row: 1 }] },
+                { delay: 22, zombies: [{ type: 'catapult', row: 2 }] },
+                { delay: 24, zombies: [{ type: 'ladder', row: 4 }, { type: 'catapult', row: 0 }] },
+                { delay: 27, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'catapult', row: 1 },
+                    { type: 'catapult', row: 3 },
+                    { type: 'pogo', row: 0 },
+                    { type: 'ladder', row: 4 }
+                ]}
             ]
-}        ,
-        "4-5": {
-            "id": "4-5",
-            "world": 4,
-            "title": "第 4-5 关：磁力神威",
-            "bg": "assets/backgrounds/fog_viewport.jpg",
-            "isPool": true,
-            "isFog": true,
-            "rowCount": 6,
-            "waterRows": [
-                        2,
-                        3
-            ],
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5
-            ],
-            "allowedPlants": [
-                        "puffshroom",
-                        "sunshroom",
-                        "seashroom",
-                        "starfruit",
-                        "pumpkin",
-                        "magnetshroom",
-                        "lilypad"
-            ],
-            "rewardPlant": "blover",
-            "rewardText": "恭喜解锁：三叶草！瞬间刮起狂风吹散浓雾！",
-            "waves": [
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 1
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 20,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "zombies": [
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 0
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 28,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 5
-                                                }
-                                    ]
-                        }
+        },
+        '5-5': {
+            id: '5-5',
+            world: 5,
+            title: '第 5-5 关：蹦极闪电战 (屋顶传送带特训)',
+            bg: 'assets/backgrounds/roof_viewport.jpg',
+            isRoof: true,
+            initialPotsCols: [0, 1, 2],
+            isConveyorBelt: true,
+            conveyorCards: ['flowerpot', 'cabbagepult', 'kernelpult', 'melonpult', 'cherrybomb', 'jalapeno', 'garlic'],
+            activeRows: [0, 1, 2, 3, 4],
+            allowedPlants: ['flowerpot', 'cabbagepult', 'kernelpult', 'melonpult', 'cherrybomb', 'jalapeno', 'garlic'],
+            rewardPlant: 'squash',
+            rewardText: '完美击退蹦极空降团！',
+            waves: [
+                { delay: 14, zombies: [{ type: 'conehead', row: 2 }, { type: 'bungee', row: 1 }] },
+                { delay: 17, zombies: [{ type: 'ladder', row: 0 }, { type: 'bungee', row: 3 }] },
+                { delay: 19, zombies: [{ type: 'catapult', row: 4 }, { type: 'buckethead', row: 2 }] },
+                { delay: 22, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'bungee', row: 0 },
+                    { type: 'bungee', row: 2 },
+                    { type: 'bungee', row: 4 },
+                    { type: 'ladder', row: 1 },
+                    { type: 'catapult', row: 3 }
+                ]}
             ]
-}        ,
-        "4-6": {
-            "id": "4-6",
-            "world": 4,
-            "title": "第 4-6 关：狂风骤起",
-            "bg": "assets/backgrounds/fog_viewport.jpg",
-            "isPool": true,
-            "isFog": true,
-            "rowCount": 6,
-            "waterRows": [
-                        2,
-                        3
-            ],
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5
-            ],
-            "allowedPlants": [
-                        "puffshroom",
-                        "sunshroom",
-                        "seashroom",
-                        "starfruit",
-                        "pumpkin",
-                        "magnetshroom",
-                        "blover",
-                        "lilypad"
-            ],
-            "rewardPlant": "coffeebean",
-            "rewardText": "迷雾中风雷涌动！",
-            "waves": [
-                        {
-                                    "delay": 16,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 5
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 2
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 3
-                                                },
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 4
-                                                }
-                                    ]
-                        }
+        },
+        '5-6': {
+            id: '5-6',
+            world: 5,
+            title: '第 5-6 关：天台重围',
+            bg: 'assets/backgrounds/roof_viewport.jpg',
+            isRoof: true,
+            initialPotsCols: [0, 1, 2],
+            activeRows: [0, 1, 2, 3, 4],
+            allowedPlants: ['sunflower', 'flowerpot', 'melonpult', 'kernelpult', 'cabbagepult', 'tallnut', 'squash', 'jalapeno'],
+            rewardPlant: 'jalapeno',
+            rewardText: '天台防线稳如泰山！',
+            waves: [
+                { delay: 20, zombies: [{ type: 'catapult', row: 1 }] },
+                { delay: 22, zombies: [{ type: 'ladder', row: 3 }, { type: 'bungee', row: 2 }] },
+                { delay: 25, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'catapult', row: 0 },
+                    { type: 'catapult', row: 4 },
+                    { type: 'ladder', row: 2 },
+                    { type: 'football', row: 1 }
+                ]}
             ]
-}        ,
-        "4-7": {
-            "id": "4-7",
-            "world": 4,
-            "title": "第 4-7 关：雾里看花",
-            "bg": "assets/backgrounds/fog_viewport.jpg",
-            "isPool": true,
-            "isFog": true,
-            "rowCount": 6,
-            "waterRows": [
-                        2,
-                        3
-            ],
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5
-            ],
-            "allowedPlants": [
-                        "puffshroom",
-                        "sunshroom",
-                        "seashroom",
-                        "starfruit",
-                        "pumpkin",
-                        "magnetshroom",
-                        "blover",
-                        "lilypad"
-            ],
-            "rewardPlant": "doomshroom",
-            "rewardText": "阵线坚如钢铁！",
-            "waves": [
-                        {
-                                    "delay": 16,
-                                    "zombies": [
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 3
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 5
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 4
-                                                }
-                                    ]
-                        }
+        },
+        '5-7': {
+            id: '5-7',
+            world: 5,
+            title: '第 5-7 关：重炮齐鸣',
+            bg: 'assets/backgrounds/roof_viewport.jpg',
+            isRoof: true,
+            initialPotsCols: [0, 1, 2],
+            activeRows: [0, 1, 2, 3, 4],
+            allowedPlants: ['sunflower', 'flowerpot', 'melonpult', 'kernelpult', 'tallnut', 'pumpkin', 'jalapeno', 'cherrybomb'],
+            rewardPlant: 'cherrybomb',
+            rewardText: '大地正在震颤……巨人僵尸即将逼近！',
+            waves: [
+                { delay: 18, zombies: [{ type: 'ladder', row: 1 }, { type: 'bungee', row: 3 }] },
+                { delay: 20, zombies: [{ type: 'catapult', row: 2 }, { type: 'pogo', row: 0 }] },
+                { delay: 24, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'catapult', row: 0 },
+                    { type: 'catapult', row: 4 },
+                    { type: 'ladder', row: 1 },
+                    { type: 'ladder', row: 3 },
+                    { type: 'bungee', row: 2 }
+                ]}
             ]
-}        ,
-        "4-8": {
-            "id": "4-8",
-            "world": 4,
-            "title": "第 4-8 关：迷雾暗流",
-            "bg": "assets/backgrounds/fog_viewport.jpg",
-            "isPool": true,
-            "isFog": true,
-            "rowCount": 6,
-            "waterRows": [
-                        2,
-                        3
-            ],
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5
-            ],
-            "allowedPlants": [
-                        "puffshroom",
-                        "sunshroom",
-                        "seashroom",
-                        "starfruit",
-                        "pumpkin",
-                        "magnetshroom",
-                        "blover",
-                        "lilypad"
-            ],
-            "rewardPlant": "jalapeno",
-            "rewardText": "暗流汹涌！向终极试炼进发！",
-            "waves": [
-                        {
-                                    "delay": 16,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 5
-                                                }
-                                    ]
-                        }
+        },
+        '5-8': {
+            id: '5-8',
+            world: 5,
+            title: '第 5-8 关：巨神震撼 (伽刚特尔巨人登场)',
+            bg: 'assets/backgrounds/roof_viewport.jpg',
+            isRoof: true,
+            initialPotsCols: [0, 1, 2],
+            activeRows: [0, 1, 2, 3, 4],
+            allowedPlants: ['sunflower', 'flowerpot', 'melonpult', 'kernelpult', 'squash', 'jalapeno', 'cherrybomb', 'tallnut'],
+            rewardPlant: 'doomshroom',
+            rewardText: '成功击倒伽刚特尔巨人！准备迎接决战前夜！',
+            waves: [
+                { delay: 20, zombies: [{ type: 'conehead', row: 1 }, { type: 'conehead', row: 3 }] },
+                { delay: 24, zombies: [{ type: 'gargantuar', row: 2 }] },
+                { delay: 25, zombies: [{ type: 'catapult', row: 0 }, { type: 'ladder', row: 4 }] },
+                { delay: 28, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'gargantuar', row: 2 },
+                    { type: 'bungee', row: 1 },
+                    { type: 'catapult', row: 4 },
+                    { type: 'buckethead', row: 0 }
+                ]}
             ]
-}        ,
-        "4-9": {
-            "id": "4-9",
-            "world": 4,
-            "title": "第 4-9 关：终战前夕",
-            "bg": "assets/backgrounds/fog_viewport.jpg",
-            "isPool": true,
-            "isFog": true,
-            "rowCount": 6,
-            "waterRows": [
-                        2,
-                        3
-            ],
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5
-            ],
-            "allowedPlants": [
-                        "puffshroom",
-                        "sunshroom",
-                        "seashroom",
-                        "starfruit",
-                        "pumpkin",
-                        "magnetshroom",
-                        "blover",
-                        "lilypad"
-            ],
-            "rewardPlant": "cherrybomb",
-            "rewardText": "浓雾即将消散！准备大决战！",
-            "waves": [
-                        {
-                                    "delay": 16,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 3
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 3
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 5
-                                                },
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 4
-                                                }
-                                    ]
-                        }
+        },
+        '5-9': {
+            id: '5-9',
+            world: 5,
+            title: '第 5-9 关：决战前夜 (全精英军团集结)',
+            bg: 'assets/backgrounds/roof_viewport.jpg',
+            isRoof: true,
+            initialPotsCols: [0, 1, 2],
+            activeRows: [0, 1, 2, 3, 4],
+            allowedPlants: ['sunflower', 'flowerpot', 'melonpult', 'kernelpult', 'squash', 'jalapeno', 'cherrybomb', 'tallnut'],
+            rewardPlant: 'note',
+            rewardText: '发现了终极战书：“天台最终大决战即将打响！”',
+            waves: [
+                { delay: 18, zombies: [{ type: 'ladder', row: 1 }, { type: 'pogo', row: 3 }] },
+                { delay: 22, zombies: [{ type: 'catapult', row: 0 }, { type: 'football', row: 4 }] },
+                { delay: 24, zombies: [{ type: 'gargantuar', row: 2 }, { type: 'bungee', row: 1 }] },
+                { delay: 28, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'gargantuar', row: 1 },
+                    { type: 'gargantuar', row: 3 },
+                    { type: 'catapult', row: 0 },
+                    { type: 'ladder', row: 4 },
+                    { type: 'bungee', row: 2 },
+                    { type: 'football', row: 2 }
+                ]}
             ]
-}        ,
-        "4-10": {
-            "id": "4-10",
-            "world": 4,
-            "title": "第 4-10 关：浓雾大决战 (传送带终极大试炼)",
-            "bg": "assets/backgrounds/fog_viewport.jpg",
-            "isPool": true,
-            "isFog": true,
-            "rowCount": 6,
-            "waterRows": [
-                        2,
-                        3
-            ],
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5
-            ],
-            "isConveyorBelt": true,
-            "conveyorCards": [
-                        "starfruit",
-                        "fumeshroom",
-                        "puffshroom",
-                        "seashroom",
-                        "pumpkin",
-                        "magnetshroom",
-                        "blover",
-                        "lilypad",
-                        "hypnoshroom"
-            ],
-            "allowedPlants": [
-                        "starfruit",
-                        "fumeshroom",
-                        "puffshroom",
-                        "seashroom",
-                        "pumpkin",
-                        "magnetshroom",
-                        "blover",
-                        "lilypad",
-                        "hypnoshroom"
-            ],
-            "rewardPlant": "trophy_fog",
-            "rewardText": "🎉 彻底驱散无尽浓雾！荣获第四大关荣誉勋章【紫晶幽夜向日葵】！🏆",
-            "waves": [
-                        {
-                                    "delay": 15,
-                                    "zombies": [
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 1
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 2
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 5
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 25,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 3
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 5
-                                                }
-                                    ]
-                        }
+        },
+        '5-10': {
+            id: '5-10',
+            world: 5,
+            title: '第 5-10 关：屋顶终极大决战 (全通关最终试炼)',
+            bg: 'assets/backgrounds/roof_viewport.jpg',
+            isRoof: true,
+            initialPotsCols: [0, 1, 2, 3],
+            isConveyorBelt: true,
+            conveyorCards: ['flowerpot', 'melonpult', 'kernelpult', 'cabbagepult', 'jalapeno', 'squash', 'cherrybomb', 'tallnut'],
+            activeRows: [0, 1, 2, 3, 4],
+            allowedPlants: ['flowerpot', 'melonpult', 'kernelpult', 'cabbagepult', 'jalapeno', 'squash', 'cherrybomb', 'tallnut'],
+            rewardPlant: 'trophy_roof',
+            rewardText: '🎉 恭喜通关全部五大世界！荣获至尊通关大奖杯【黄金向日葵奖杯】！🏆🌻',
+            waves: [
+                { delay: 14, zombies: [{ type: 'conehead', row: 2 }, { type: 'bungee', row: 1 }] },
+                { delay: 17, zombies: [{ type: 'catapult', row: 0 }, { type: 'ladder', row: 3 }] },
+                { delay: 20, zombies: [{ type: 'gargantuar', row: 2 }, { type: 'football', row: 4 }] },
+                { delay: 24, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'gargantuar', row: 1 },
+                    { type: 'catapult', row: 3 },
+                    { type: 'ladder', row: 0 },
+                    { type: 'bungee', row: 4 },
+                    { type: 'football', row: 2 }
+                ]},
+                { delay: 28, isFlag: true, zombies: [
+                    { type: 'flag', row: 2 },
+                    { type: 'gargantuar', row: 0 },
+                    { type: 'gargantuar', row: 3 },
+                    { type: 'catapult', row: 1 },
+                    { type: 'catapult', row: 4 },
+                    { type: 'bungee', row: 2 },
+                    { type: 'ladder', row: 2 }
+                ]}
             ]
-}        ,
-        "5-1": {
-            "id": "5-1",
-            "world": 5,
-            "title": "第 5-1 关：登高远望 (屋顶初战)",
-            "bg": "assets/backgrounds/roof_viewport.jpg",
-            "isRoof": true,
-            "rowCount": 5,
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4
-            ],
-            "allowedPlants": [
-                        "flowerpot",
-                        "cabbagepult",
-                        "sunflower",
-                        "wallnut",
-                        "repeater"
-            ],
-            "rewardPlant": "kernelpult",
-            "rewardText": "恭喜解锁：玉米投手！投掷玉米与定身黄油！",
-            "waves": [
-                        {
-                                    "delay": 20,
-                                    "zombies": [
-                                                {
-                                                            "type": "normal",
-                                                            "row": 2
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "zombies": [
-                                                {
-                                                            "type": "normal",
-                                                            "row": 1
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 25,
-                                    "zombies": [
-                                                {
-                                                            "type": "conehead",
-                                                            "row": 3
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 28,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "conehead",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "normal",
-                                                            "row": 4
-                                                }
-                                    ]
-                        }
-            ]
-}        ,
-        "5-2": {
-            "id": "5-2",
-            "world": 5,
-            "title": "第 5-2 关：黄油定身",
-            "bg": "assets/backgrounds/roof_viewport.jpg",
-            "isRoof": true,
-            "rowCount": 5,
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4
-            ],
-            "allowedPlants": [
-                        "flowerpot",
-                        "cabbagepult",
-                        "kernelpult",
-                        "sunflower",
-                        "wallnut"
-            ],
-            "rewardPlant": "garlic",
-            "rewardText": "恭喜解锁：大蒜！让僵尸换行避开！",
-            "waves": [
-                        {
-                                    "delay": 20,
-                                    "zombies": [
-                                                {
-                                                            "type": "normal",
-                                                            "row": 1
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "zombies": [
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 3
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 25,
-                                    "zombies": [
-                                                {
-                                                            "type": "conehead",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 28,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "conehead",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 3
-                                                },
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 4
-                                                }
-                                    ]
-                        }
-            ]
-}        ,
-        "5-3": {
-            "id": "5-3",
-            "world": 5,
-            "title": "第 5-3 关：辛辣换道",
-            "bg": "assets/backgrounds/roof_viewport.jpg",
-            "isRoof": true,
-            "rowCount": 5,
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4
-            ],
-            "allowedPlants": [
-                        "flowerpot",
-                        "cabbagepult",
-                        "kernelpult",
-                        "garlic",
-                        "sunflower",
-                        "wallnut"
-            ],
-            "rewardPlant": "melonpult",
-            "rewardText": "恭喜解锁：西瓜投手！超强80伤害与群伤溅射！",
-            "waves": [
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "conehead",
-                                                            "row": 2
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "zombies": [
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 1
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 25,
-                                    "zombies": [
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 3
-                                                },
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 0
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 28,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                }
-                                    ]
-                        }
-            ]
-}        ,
-        "5-4": {
-            "id": "5-4",
-            "world": 5,
-            "title": "第 5-4 关：碧玉飞瓜",
-            "bg": "assets/backgrounds/roof_viewport.jpg",
-            "isRoof": true,
-            "rowCount": 5,
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4
-            ],
-            "allowedPlants": [
-                        "flowerpot",
-                        "cabbagepult",
-                        "kernelpult",
-                        "garlic",
-                        "melonpult",
-                        "sunflower",
-                        "wallnut"
-            ],
-            "rewardPlant": "tallnut",
-            "rewardText": "高空重炮防线大成！",
-            "waves": [
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "zombies": [
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 3
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 25,
-                                    "zombies": [
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 28,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 3
-                                                }
-                                    ]
-                        }
-            ]
-}        ,
-        "5-5": {
-            "id": "5-5",
-            "world": 5,
-            "title": "第 5-5 关：瓦顶坚壁",
-            "bg": "assets/backgrounds/roof_viewport.jpg",
-            "isRoof": true,
-            "rowCount": 5,
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4
-            ],
-            "allowedPlants": [
-                        "flowerpot",
-                        "cabbagepult",
-                        "kernelpult",
-                        "melonpult",
-                        "garlic",
-                        "tallnut",
-                        "sunflower"
-            ],
-            "rewardPlant": "squash",
-            "rewardText": "防守密不透风！",
-            "waves": [
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "polevault",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 20,
-                                    "zombies": [
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 2
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 3
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 28,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 3
-                                                }
-                                    ]
-                        }
-            ]
-}        ,
-        "5-6": {
-            "id": "5-6",
-            "world": 5,
-            "title": "第 5-6 关：天台交锋",
-            "bg": "assets/backgrounds/roof_viewport.jpg",
-            "isRoof": true,
-            "rowCount": 5,
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4
-            ],
-            "allowedPlants": [
-                        "flowerpot",
-                        "cabbagepult",
-                        "kernelpult",
-                        "melonpult",
-                        "garlic",
-                        "tallnut",
-                        "sunflower"
-            ],
-            "rewardPlant": "jalapeno",
-            "rewardText": "横扫强敌！",
-            "waves": [
-                        {
-                                    "delay": 16,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 3
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 4
-                                                }
-                                    ]
-                        }
-            ]
-}        ,
-        "5-7": {
-            "id": "5-7",
-            "world": 5,
-            "title": "第 5-7 关：重炮齐鸣",
-            "bg": "assets/backgrounds/roof_viewport.jpg",
-            "isRoof": true,
-            "rowCount": 5,
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4
-            ],
-            "allowedPlants": [
-                        "flowerpot",
-                        "cabbagepult",
-                        "kernelpult",
-                        "melonpult",
-                        "garlic",
-                        "tallnut",
-                        "sunflower"
-            ],
-            "rewardPlant": "cherrybomb",
-            "rewardText": "火力覆盖全场！",
-            "waves": [
-                        {
-                                    "delay": 16,
-                                    "zombies": [
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 3
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 3
-                                                }
-                                    ]
-                        }
-            ]
-}        ,
-        "5-8": {
-            "id": "5-8",
-            "world": 5,
-            "title": "第 5-8 关：决胜屋脊",
-            "bg": "assets/backgrounds/roof_viewport.jpg",
-            "isRoof": true,
-            "rowCount": 5,
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4
-            ],
-            "allowedPlants": [
-                        "flowerpot",
-                        "cabbagepult",
-                        "kernelpult",
-                        "melonpult",
-                        "garlic",
-                        "tallnut",
-                        "sunflower"
-            ],
-            "rewardPlant": "torchwood",
-            "rewardText": "胜利近在咫尺！",
-            "waves": [
-                        {
-                                    "delay": 16,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 3
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 3
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 4
-                                                }
-                                    ]
-                        }
-            ]
-}        ,
-        "5-9": {
-            "id": "5-9",
-            "world": 5,
-            "title": "第 5-9 关：决战前夜",
-            "bg": "assets/backgrounds/roof_viewport.jpg",
-            "isRoof": true,
-            "rowCount": 5,
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4
-            ],
-            "allowedPlants": [
-                        "flowerpot",
-                        "cabbagepult",
-                        "kernelpult",
-                        "melonpult",
-                        "garlic",
-                        "tallnut",
-                        "sunflower"
-            ],
-            "rewardPlant": "starfruit",
-            "rewardText": "全军集结，准备终极大决战！",
-            "waves": [
-                        {
-                                    "delay": 15,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 3
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                }
-                                    ]
-                        }
-            ]
-}        ,
-        "5-10": {
-            "id": "5-10",
-            "world": 5,
-            "title": "第 5-10 关：屋顶终极大决战 (全通关最终试炼)",
-            "bg": "assets/backgrounds/roof_viewport.jpg",
-            "isRoof": true,
-            "rowCount": 5,
-            "activeRows": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4
-            ],
-            "isConveyorBelt": true,
-            "conveyorCards": [
-                        "flowerpot",
-                        "melonpult",
-                        "kernelpult",
-                        "cabbagepult",
-                        "tallnut",
-                        "squash",
-                        "jalapeno",
-                        "cherrybomb",
-                        "garlic"
-            ],
-            "allowedPlants": [
-                        "flowerpot",
-                        "melonpult",
-                        "kernelpult",
-                        "cabbagepult",
-                        "tallnut",
-                        "squash",
-                        "jalapeno",
-                        "cherrybomb",
-                        "garlic"
-            ],
-            "rewardPlant": "trophy_roof",
-            "rewardText": "👑 全通关大满贯！终极守护成功！荣获全游戏最高荣誉【黄金向日葵大奖杯】！🏆✨",
-            "waves": [
-                        {
-                                    "delay": 15,
-                                    "zombies": [
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 18,
-                                    "zombies": [
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 3
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 2
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 22,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "screendoor",
-                                                            "row": 3
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 25,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 3
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                }
-                                    ]
-                        },
-                        {
-                                    "delay": 28,
-                                    "isFlag": true,
-                                    "zombies": [
-                                                {
-                                                            "type": "flag",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 1
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 2
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 3
-                                                },
-                                                {
-                                                            "type": "football",
-                                                            "row": 4
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 0
-                                                },
-                                                {
-                                                            "type": "buckethead",
-                                                            "row": 4
-                                                }
-                                    ]
-                        }
-            ]
-}
+        }
     }
 };
 

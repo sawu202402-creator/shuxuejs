@@ -196,21 +196,33 @@ class GameApp {
             'assets/projectiles/fire_pea.gif',
             'assets/projectiles/jalapeno_fire.gif',
             'assets/ui/lawnmower.png',
+            'assets/ui/pool_cleaner.png',
+            'assets/ui/pool_cleaner_water.png',
+            'assets/ui/roof_cleaner.png',
+            'assets/ui/conveyor_track.png',
             'assets/ui/mallet.png',
             'assets/ui/shovel.png',
             'assets/ui/sun.gif',
+            'assets/projectiles/cactus_thorn.png',
+            'assets/projectiles/butter_hat.png',
+            'assets/projectiles/basketball.png',
             'assets/zombies/cone_drop.png',
             'assets/zombies/bucket_drop.png',
             'assets/zombies/screendoor_drop.png',
-            'assets/zombies/football_drop.png'
+            'assets/zombies/football_drop.png',
+            'assets/zombies/jackbox_drop.png',
+            'assets/zombies/pickaxe_drop.png',
+            'assets/zombies/pogo_drop.png',
+            'assets/zombies/ladder_drop.png'
         ];
 
-        // 加入所有僵尸动画及状态变体 (含第二大关原版僵尸精灵)
+        // 加入所有僵尸动画及状态变体 (含第 1~5 大关全部僵尸精灵)
         Object.values(GAME_CONFIG.zombies).forEach(z => {
             if (Array.isArray(z.walkAnims)) z.walkAnims.forEach(a => a && assetPaths.push(a));
             ['attackAnim', 'headAnim', 'dieAnim', 'lostPaperAnim', 'rageAnim', 'rageAttackAnim',
              'noHelmetWalkAnim', 'noHelmetAttackAnim', 'moonwalkAnim', 'summonAnim',
-             'runAnim', 'jumpAnim', 'walkAnim', 'lostHeadWalkAnim', 'lostHeadAttackAnim'].forEach(k => {
+             'runAnim', 'jumpAnim', 'walkAnim', 'rideAnim', 'swimAnim', 'digAnim', 'surfacedWalkAnim',
+             'lostHeadWalkAnim', 'lostHeadAttackAnim'].forEach(k => {
                 if (z[k]) assetPaths.push(z[k]);
             });
         });
@@ -220,6 +232,7 @@ class GameApp {
             if (p.anim) assetPaths.push(p.anim);
             if (p.attackAnim) assetPaths.push(p.attackAnim);
             if (p.digestAnim) assetPaths.push(p.digestAnim);
+            if (p.cooldownAnim) assetPaths.push(p.cooldownAnim);
             if (p.icon) assetPaths.push(p.icon);
             if (p.crack1Anim) assetPaths.push(p.crack1Anim);
             if (p.crack2Anim) assetPaths.push(p.crack2Anim);
@@ -275,9 +288,27 @@ class GameApp {
             this.pvzEngine.render();
             this.updateHUD();
             this.updateCardCooldowns();
+            this.updateConveyorAnimation();
         }
 
         requestAnimationFrame((t) => this.loop(t));
+    }
+
+    updateConveyorAnimation() {
+        if (!this.pvzEngine || !this.pvzEngine.levelConfig.isConveyorBelt || !this.dom.cardsList) return;
+        const trackEl = this.dom.cardsList.querySelector('.conveyor-belt-track');
+        if (trackEl) {
+            const offset = this.pvzEngine.conveyorTrackOffset || 0;
+            trackEl.style.backgroundPosition = `-${offset.toFixed(1)}px 0px`;
+        }
+        const items = this.pvzEngine.conveyorItems || [];
+        items.forEach((item, idx) => {
+            const cardEl = this.dom.cardsList.querySelector(`.conveyor-card[data-uid="${item.uid}"]`);
+            if (cardEl) {
+                cardEl.style.setProperty('--card-x', `${item.x.toFixed(1)}px`);
+                cardEl.setAttribute('data-conveyor-idx', idx);
+            }
+        });
     }
 
     updateHUD() {
@@ -332,7 +363,14 @@ class GameApp {
                 }
             }
 
-            if (this.pvzEngine.selectedCard === pId) {
+            if (this.pvzEngine.levelConfig.isConveyorBelt) {
+                const cIdx = parseInt(cardEl.getAttribute('data-conveyor-idx'), 10);
+                if (this.pvzEngine.selectedCard === pId && this.pvzEngine.selectedConveyorIdx === cIdx) {
+                    cardEl.classList.add('selected');
+                } else {
+                    cardEl.classList.remove('selected');
+                }
+            } else if (this.pvzEngine.selectedCard === pId) {
                 cardEl.classList.add('selected');
             } else {
                 cardEl.classList.remove('selected');
@@ -373,10 +411,20 @@ class GameApp {
             this.dom.btnOpenSeedChooser.style.display = pool.length > 8 ? 'flex' : 'none';
         }
 
-        // 传送带关卡 (如 1-5 坚果保龄球、1-10/2-10 决战)：展示动态输送的传送带卡片队列
-        if (this.pvzEngine.levelConfig.isConveyorBelt) {
-            const beltCards = this.pvzEngine.conveyorBelt || [];
-            beltCards.forEach((pId, idx) => {
+        const isConveyor = !!this.pvzEngine.levelConfig.isConveyorBelt;
+        this.dom.cardsList.classList.toggle('conveyor-mode', isConveyor);
+
+        // 传送带关卡 (如 1-5 坚果保龄球、3-5、5-5、各章 X-10 决战)：展示机械滚动传送带与平滑滑入卡片
+        if (isConveyor) {
+            const track = document.createElement('div');
+            track.className = 'conveyor-belt-track';
+            const offset = this.pvzEngine.conveyorTrackOffset || 0;
+            track.style.backgroundPosition = `-${offset.toFixed(1)}px 0px`;
+            this.dom.cardsList.appendChild(track);
+
+            const beltItems = this.pvzEngine.conveyorItems || [];
+            beltItems.forEach((item, idx) => {
+                const pId = item.type;
                 const conf = GAME_CONFIG.plants[pId];
                 if (!conf) return;
 
@@ -385,7 +433,9 @@ class GameApp {
                 const card = document.createElement('div');
                 card.className = `plant-card conveyor-card ${isSelected ? 'selected' : ''}`;
                 card.setAttribute('data-id', pId);
+                card.setAttribute('data-uid', item.uid);
                 card.setAttribute('data-conveyor-idx', idx);
+                card.style.setProperty('--card-x', `${item.x.toFixed(1)}px`);
                 card.setAttribute('title', `${conf.name} (传送带免费卡片)`);
                 card.innerHTML = `
                     <div class="card-cooldown-overlay"></div>
@@ -394,17 +444,18 @@ class GameApp {
                 `;
 
                 card.addEventListener('click', () => {
+                    const curIdx = parseInt(card.getAttribute('data-conveyor-idx'), 10);
                     soundEngine.playPlant();
-                    if (this.pvzEngine.selectedCard === pId && this.pvzEngine.selectedConveyorIdx === idx) {
+                    if (this.pvzEngine.selectedCard === pId && this.pvzEngine.selectedConveyorIdx === curIdx) {
                         this.pvzEngine.selectedCard = null;
                         this.pvzEngine.selectedConveyorIdx = null;
                     } else {
                         this.pvzEngine.selectedCard = pId;
-                        this.pvzEngine.selectedConveyorIdx = idx;
+                        this.pvzEngine.selectedConveyorIdx = curIdx;
                         this.pvzEngine.isShovelActive = false;
                         this.dom.shovelSlot.classList.remove('active');
                     }
-                    this.renderCardsList();
+                    this.updateCardCooldowns();
                 });
 
                 this.dom.cardsList.appendChild(card);

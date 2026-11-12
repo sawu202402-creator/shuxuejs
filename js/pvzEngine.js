@@ -14,6 +14,8 @@ export class PvzEngine {
         this.ctx = canvas.getContext('2d');
         this.entityLayer = entityLayer;
         this.sunLayer = (typeof document !== 'undefined') ? document.getElementById('sunLayer') : null;
+        this.fogCanvas = (typeof document !== 'undefined') ? document.getElementById('fogCanvas') : null;
+        this.fogCtx = this.fogCanvas ? this.fogCanvas.getContext('2d') : null;
         this.onStateChange = onStateChange;
 
         this.levelId = '1-1';
@@ -41,6 +43,9 @@ export class PvzEngine {
         this.craters = [];
         this.bowlingNuts = [];
         this.conveyorBelt = [];
+        this.conveyorItems = [];
+        this.conveyorUidSeq = 0;
+        this.conveyorTrackOffset = 0;
         this.conveyorTimer = 0;
         this.conveyorInterval = 3.2;
         this.selectedConveyorIdx = null;
@@ -90,30 +95,63 @@ export class PvzEngine {
         this.bindEvents();
     }
 
+    getSurfaceOffsetY(x) {
+        if (!this.isRoof) return 0;
+        if (x < 445) {
+            return (445 - Math.max(12, x)) * 0.262;
+        }
+        if (x <= 760) {
+            return 0;
+        }
+        return (x - 760) * 0.26;
+    }
+
     loadLevel(levelId) {
         this.levelId = levelId;
         this.levelConfig = GAME_CONFIG.levels[levelId] || GAME_CONFIG.levels['1-1'];
         this.sun = this.levelConfig.isConveyorBelt ? 0 : (this.levelConfig.initialSun ?? GAME_CONFIG.initialSun);
         this.lives = GAME_CONFIG.maxLives;
 
-        // 泳池关卡网格适配 (6行水陆系统)
-        if (this.levelConfig.isPool) {
-            this.rows = this.levelConfig.rowCount || 6;
-            this.cellH = 85;
-            this.gridStartY = 80;
-        } else {
-            this.rows = GAME_CONFIG.canvas.rows;
-            this.cellH = GAME_CONFIG.canvas.cellHeight;
-            this.gridStartY = GAME_CONFIG.canvas.gridStartY;
-        }
+        // 关卡环境与地形属性 (World 2 黑夜、World 3 泳池、World 4 浓雾泳池、World 5 倾斜屋顶)
+        this.isNight = this.levelConfig.world === 2 || this.levelConfig.world === 4;
+        this.isFog = !!this.levelConfig.isFog;
+        this.isRoof = !!this.levelConfig.isRoof;
+        this.fogClearTimer = 0;
         this.waterRows = this.levelConfig.waterRows || [];
 
-        // 清理实体图层中的旧 DOM
+        // 泳池 / 屋顶 / 草坪 网格坐标精确对位
+        if (this.levelConfig.isPool || this.waterRows.length > 0) {
+            this.rows = this.levelConfig.rowCount || 6;
+            this.cols = 9;
+            this.gridStartX = 80;
+            this.cellW = 80;
+            this.gridStartY = 82;
+            this.cellH = 85;
+        } else if (this.isRoof) {
+            this.rows = 5;
+            this.cols = 9;
+            this.gridStartX = 40;
+            this.cellW = 80;
+            this.gridStartY = 82;
+            this.cellH = 85;
+        } else {
+            this.rows = GAME_CONFIG.canvas.rows;
+            this.cols = GAME_CONFIG.canvas.cols;
+            this.gridStartX = GAME_CONFIG.canvas.gridStartX;
+            this.cellW = GAME_CONFIG.canvas.cellWidth;
+            this.gridStartY = GAME_CONFIG.canvas.gridStartY;
+            this.cellH = GAME_CONFIG.canvas.cellHeight;
+        }
+
+        // 清理实体图层中的旧 DOM 与前景浓雾画布
         if (this.entityLayer) {
             this.entityLayer.innerHTML = '';
         }
         if (this.sunLayer) {
             this.sunLayer.innerHTML = '';
+        }
+        if (this.fogCtx && this.fogCanvas) {
+            this.fogCtx.clearRect(0, 0, this.fogCanvas.width, this.fogCanvas.height);
         }
         this.suns.forEach(s => s.destroy());
 
@@ -125,32 +163,49 @@ export class PvzEngine {
         this.suns = [];
         this.floatingTexts = [];
 
-        // 关卡环境与属性 (World 2 黑夜、World 4 浓雾夜间)
-        this.isNight = this.levelConfig.world === 2 || this.levelConfig.world === 4;
-        this.isFog = !!this.levelConfig.isFog;
-        this.isRoof = !!this.levelConfig.isRoof;
-        this.fogClearTimer = 0;
-
-        // 初始化黑夜/浓雾墓碑
-        this.tombstones = (this.levelConfig.tombstones || []).map(t => ({
-            row: t.row,
-            col: t.col,
-            x: this.gridStartX + t.col * this.cellW + this.cellW / 2,
-            y: this.gridStartY + t.row * this.cellH + this.cellH / 2
-        }));
+        // 初始化黑夜墓碑
+        this.tombstones = (this.levelConfig.tombstones || []).map(t => {
+            const pos = this.getGridCoords(t.col, t.row);
+            return {
+                row: t.row,
+                col: t.col,
+                x: pos.x,
+                y: pos.y
+            };
+        });
         this.craters = [];
 
-        // 初始化除草机
+        // 初始化各场景专属推车 (草坪除草机 / 泳池清洁车 / 屋顶推车)
         this.lawnMowers = [];
+        const isPoolStage = !!(this.levelConfig.isPool || this.waterRows.length > 0);
         this.levelConfig.activeRows.forEach(row => {
+            const cleanerType = this.isRoof
+                ? 'roof'
+                : (isPoolStage && this.waterRows.includes(row) ? 'pool' : 'lawn');
+            const startX = this.isRoof ? 18 : (isPoolStage ? 34 : 10);
+            const baseY = this.gridStartY + row * this.cellH + this.cellH / 2;
             this.lawnMowers.push({
                 row: row,
-                x: 10,
-                y: this.gridStartY + row * this.cellH + this.cellH / 2,
+                cleanerType: cleanerType,
+                x: startX,
+                baseY: baseY,
+                y: baseY + this.getSurfaceOffsetY(startX),
                 state: 'ready',
                 speed: 450
             });
         });
+
+        // 屋顶关卡开局预置花盆阵列 (原版默认左侧 3~4 列整齐摆放花盆)
+        if (this.isRoof) {
+            const potCols = this.levelConfig.initialPotsCols || [0, 1, 2];
+            this.levelConfig.activeRows.forEach(row => {
+                potCols.forEach(col => {
+                    const pos = this.getGridCoords(col, row);
+                    const pot = createPlant('flowerpot', row, col, pos.x, pos.y, this.entityLayer, this.isNight);
+                    this.plants.push(pot);
+                });
+            });
+        }
 
         // 初始化本关出战卡组与冷却表
         this.activePlants = [...(this.levelConfig.allowedPlants || ['peashooter'])];
@@ -190,20 +245,23 @@ export class PvzEngine {
         this.isBowling = !!this.levelConfig.isBowling;
         this.bowlingNuts = [];
         this.conveyorBelt = [];
+        this.conveyorItems = [];
+        this.conveyorUidSeq = 0;
+        this.conveyorTrackOffset = 0;
         this.conveyorTimer = 0;
         this.conveyorInterval = this.isBowling ? 2.5 : 3.5;
 
-        // 初始装载传送带卡片 (上料 2~3 张)
+        // 初始装载传送带卡片 (从右侧入口缓缓滑入)
         if (this.levelConfig.isConveyorBelt) {
             if (this.isBowling) {
-                this.spawnConveyorCard('bowling_nut');
-                this.spawnConveyorCard('bowling_nut');
-                this.spawnConveyorCard('bowling_rednut');
+                this.spawnConveyorCard('bowling_nut', 360);
+                this.spawnConveyorCard('bowling_nut', 430);
+                this.spawnConveyorCard('bowling_rednut', 500);
             } else {
                 const pool = this.levelConfig.conveyorCards || this.levelConfig.allowedPlants || ['peashooter'];
                 if (pool && pool.length > 0) {
-                    this.spawnConveyorCard(pool[0]);
-                    this.spawnConveyorCard(pool[1] || pool[0]);
+                    this.spawnConveyorCard(pool[0], 390);
+                    this.spawnConveyorCard(pool[1] || pool[0], 470);
                 }
             }
         }
@@ -226,10 +284,10 @@ export class PvzEngine {
         }
     }
 
-    spawnConveyorCard(specificType = null) {
+    spawnConveyorCard(specificType = null, initialX = null) {
         if (!this.levelConfig.isConveyorBelt) return;
-        if (!this.conveyorBelt) this.conveyorBelt = [];
-        if (this.conveyorBelt.length >= 7) return;
+        if (!this.conveyorItems) this.conveyorItems = [];
+        if (this.conveyorItems.length >= 8) return;
 
         let type = specificType;
         if (!type) {
@@ -241,22 +299,31 @@ export class PvzEngine {
             }
         }
 
-        this.conveyorBelt.push(type);
+        const lastX = this.conveyorItems.length > 0 ? this.conveyorItems[this.conveyorItems.length - 1].x : 0;
+        const spawnX = initialX !== null ? initialX : Math.max(515, lastX + 58);
+        this.conveyorUidSeq = (this.conveyorUidSeq || 0) + 1;
+        this.conveyorItems.push({
+            uid: `conv_${this.conveyorUidSeq}`,
+            type: type,
+            x: spawnX
+        });
+        this.conveyorBelt = this.conveyorItems.map(it => it.type);
         if (this.onStateChange) {
             this.onStateChange('conveyor_updated', this.conveyorBelt);
         }
     }
 
     consumeConveyorCard(type, index = null) {
-        if (!this.conveyorBelt) return;
-        if (index !== null && index >= 0 && index < this.conveyorBelt.length && this.conveyorBelt[index] === type) {
-            this.conveyorBelt.splice(index, 1);
+        if (!this.conveyorItems) return;
+        if (index !== null && index >= 0 && index < this.conveyorItems.length && this.conveyorItems[index].type === type) {
+            this.conveyorItems.splice(index, 1);
         } else {
-            const idx = this.conveyorBelt.indexOf(type);
+            const idx = this.conveyorItems.findIndex(it => it.type === type);
             if (idx !== -1) {
-                this.conveyorBelt.splice(idx, 1);
+                this.conveyorItems.splice(idx, 1);
             }
         }
+        this.conveyorBelt = this.conveyorItems.map(it => it.type);
         this.selectedConveyorIdx = null;
         if (this.onStateChange) {
             this.onStateChange('conveyor_updated', this.conveyorBelt);
@@ -370,19 +437,17 @@ export class PvzEngine {
             return;
         }
 
-        // 铲子模式 (若睡莲上有植物，优先铲除上面的植物；若只剩睡莲，则铲除睡莲)
+        // 铲子模式 (优先级：南瓜外罩 -> 常规植物 -> 花盆/睡莲底座)
         if (this.isShovelActive) {
-            const topPlant = this.plants.find(p => p.row === cell.row && p.col === cell.col && p.type !== 'lilypad' && !p.isDead);
-            const lilyPlant = this.plants.find(p => p.row === cell.row && p.col === cell.col && p.type === 'lilypad' && !p.isDead);
-            const targetP = topPlant || lilyPlant;
+            const pumpkinPlant = this.plants.find(p => p.row === cell.row && p.col === cell.col && p.type === 'pumpkin' && !p.isDead);
+            const mainPlant = this.plants.find(p => p.row === cell.row && p.col === cell.col && !['lilypad', 'flowerpot', 'pumpkin'].includes(p.type) && !p.isDead);
+            const basePlant = this.plants.find(p => p.row === cell.row && p.col === cell.col && (p.type === 'lilypad' || p.type === 'flowerpot') && !p.isDead);
+            const targetP = pumpkinPlant || mainPlant || basePlant;
             if (targetP) {
                 const pIdx = this.plants.indexOf(targetP);
                 if (pIdx !== -1) {
                     targetP.destroy();
                     this.plants.splice(pIdx, 1);
-                    if (topPlant && lilyPlant) {
-                        lilyPlant.carriedPlant = null;
-                    }
                     soundEngine.playPlant();
                     this.floatingTexts.push(new FloatingText(x, y, '🪓 已铲除', '#bdc3c7', 16));
                 }
@@ -488,7 +553,11 @@ export class PvzEngine {
                     return;
                 }
             } else if (this.isRoof) {
-                // 2. 屋顶关卡种植规则 (必须有花盆底座)
+                // 2. 屋顶关卡种植规则 (必须有花盆底座，且地刺无法种在屋顶花盆中)
+                if (this.selectedCard === 'spikeweed') {
+                    this.floatingTexts.push(new FloatingText(x, y, '🚫 地刺只能直接种在草地/陆地上!', '#e67e22', 18));
+                    return;
+                }
                 if (this.selectedCard === 'flowerpot') {
                     if (potOnCell) {
                         this.floatingTexts.push(new FloatingText(x, y, '🪴 此处已有花盆', '#e67e22', 16));
@@ -506,6 +575,10 @@ export class PvzEngine {
                 }
             } else if (isWaterRow) {
                 // 3. 水路种植检测
+                if (this.selectedCard === 'spikeweed') {
+                    this.floatingTexts.push(new FloatingText(x, y, '🚫 地刺不能种在水路睡莲上!', '#3498db', 18));
+                    return;
+                }
                 if (this.selectedCard === 'seashroom') {
                     // 海蘑菇水生植物，直接种在水中，不需要睡莲
                     if (lilyOnCell || normalPlantOnCell) {
@@ -574,7 +647,8 @@ export class PvzEngine {
                 if (plantObj.domElement) {
                     plantObj.domElement.classList.add('planted-on-pot');
                     plantObj.domElement.style.zIndex = '15';
-                    plantObj.domElement.style.top = `${gridPos.y - 48}px`;
+                    const potLift = this.selectedCard === 'tallnut' ? 74 : (this.selectedCard === 'chomper' ? 70 : 54);
+                    plantObj.domElement.style.top = `${gridPos.y - potLift}px`;
                 }
             }
             this.plants.push(plantObj);
@@ -606,19 +680,22 @@ export class PvzEngine {
     }
 
     getCellAt(canvasX, canvasY) {
-        if (canvasX < this.gridStartX || canvasX > this.gridStartX + this.cols * this.cellW ||
-            canvasY < this.gridStartY || canvasY > this.gridStartY + this.rows * this.cellH) {
+        const slopeY = this.getSurfaceOffsetY(canvasX);
+        const adjY = canvasY - slopeY;
+        if (canvasX < this.gridStartX || canvasX >= this.gridStartX + this.cols * this.cellW ||
+            adjY < this.gridStartY || adjY >= this.gridStartY + this.rows * this.cellH) {
             return null;
         }
         const col = Math.floor((canvasX - this.gridStartX) / this.cellW);
-        const row = Math.floor((canvasY - this.gridStartY) / this.cellH);
+        const row = Math.floor((adjY - this.gridStartY) / this.cellH);
         return { col, row };
     }
 
     getGridCoords(col, row) {
+        const x = this.gridStartX + col * this.cellW + this.cellW / 2;
         return {
-            x: this.gridStartX + col * this.cellW + this.cellW / 2,
-            y: this.gridStartY + row * this.cellH + this.cellH / 2
+            x: x,
+            y: this.gridStartY + row * this.cellH + this.cellH / 2 + this.getSurfaceOffsetY(x)
         };
     }
 
@@ -769,10 +846,20 @@ export class PvzEngine {
             this.craters = this.craters.filter(c => c.lifespan > 0);
         }
 
-        // 传送带自动输送卡片
+        // 传送带机械履带滚动与卡片平滑左移堆叠动画
         if (this.levelConfig.isConveyorBelt) {
+            this.conveyorTrackOffset = (this.conveyorTrackOffset + dt * 76) % 40;
+            if (this.conveyorItems && this.conveyorItems.length > 0) {
+                for (let i = 0; i < this.conveyorItems.length; i++) {
+                    const minSlotX = i === 0 ? 6 : (this.conveyorItems[i - 1].x + 54);
+                    const targetX = Math.max(6 + i * 54, minSlotX);
+                    if (this.conveyorItems[i].x > targetX) {
+                        this.conveyorItems[i].x = Math.max(targetX, this.conveyorItems[i].x - dt * 92);
+                    }
+                }
+            }
             this.conveyorTimer += dt;
-            if (this.conveyorTimer >= this.conveyorInterval && this.conveyorBelt.length < 6) {
+            if (this.conveyorTimer >= this.conveyorInterval && this.conveyorItems.length < 7) {
                 this.conveyorTimer = 0;
                 this.spawnConveyorCard();
             }
@@ -855,8 +942,23 @@ export class PvzEngine {
             });
             return;
         }
+        const activeRows = this.levelConfig.activeRows || [0, 1, 2, 3, 4];
+        const waterRows = this.waterRows || [];
+        const landRows = activeRows.filter(r => !waterRows.includes(r));
+
         currentWave.zombies.forEach(zData => {
-            const zombie = new Zombie(zData.type, zData.row, 900 + Math.random() * 40, this.entityLayer);
+            const zConf = GAME_CONFIG.zombies[zData.type] || GAME_CONFIG.zombies.normal;
+            let spawnRow = zData.row;
+            if (!activeRows.includes(spawnRow)) {
+                spawnRow = activeRows[Math.floor(Math.random() * activeRows.length)];
+            }
+            if (zConf.isAquatic && waterRows.length > 0 && !waterRows.includes(spawnRow)) {
+                spawnRow = waterRows[Math.floor(Math.random() * waterRows.length)];
+            } else if (!zConf.isAquatic && !zConf.isFlying && zData.type !== 'bungee' && waterRows.includes(spawnRow) && landRows.length > 0) {
+                spawnRow = landRows[Math.floor(Math.random() * landRows.length)];
+            }
+            const startX = zData.type === 'bungee' ? 500 : (900 + Math.random() * 45);
+            const zombie = new Zombie(zData.type, spawnRow, startX, this.entityLayer);
             this.zombies.push(zombie);
         });
     }
@@ -955,12 +1057,17 @@ export class PvzEngine {
         this.lawnMowers.forEach(mower => {
             if (mower.state === 'active') {
                 mower.x += mower.speed * dt;
+                mower.y = mower.baseY + this.getSurfaceOffsetY(mower.x);
                 this.zombies.forEach(z => {
-                    if (!z.isDead && z.row === mower.row && Math.abs(z.x - mower.x) <= 45) {
-                        z.takeDamage(9999);
+                    if (!z.isDead && !z.isDying && z.type !== 'bungee' && z.row === mower.row && Math.abs(z.x - mower.x) <= 46) {
+                        if (typeof z.mowerDie === 'function') {
+                            z.mowerDie();
+                        } else {
+                            z.die();
+                        }
                     }
                 });
-                if (mower.x > 900) {
+                if (mower.x > 910) {
                     mower.state = 'gone';
                 }
             }
@@ -970,20 +1077,26 @@ export class PvzEngine {
     checkBulletCollisions() {
         this.projectiles.forEach(bullet => {
             if (bullet.isDead) return;
-            // 抛物线投掷物由其自身在到达落点时进行爆炸/命中结算
-            if (bullet.isLobbed) return;
+            // 抛物线投掷物与穿透烟雾由其自身结算
+            if (bullet.isLobbed || typeof bullet.hitZombies !== 'undefined') return;
 
-            // 屋顶斜坡机制：左侧斜坡发射的直线直射子弹越不过屋脊 (x >= 440)
-            if (this.isRoof && bullet.startX < 440 && bullet.x >= 440) {
-                bullet.isDead = true;
-                this.hitSplats.push(new HitSplat(440, bullet.y, bullet.type));
-                return;
+            // 屋顶斜坡阻挡机制：种植在左侧斜坡 (startX < 385) 的水平直射子弹会被升起的屋脊瓦面挡住！
+            if (this.isRoof && bullet.type !== 'star' && bullet.speed > 0 && bullet.startX < 385) {
+                const roofBlockX = Math.min(445, bullet.startX + 150);
+                if (bullet.x >= roofBlockX) {
+                    bullet.isDead = true;
+                    this.hitSplats.push(new HitSplat(roofBlockX, bullet.y, bullet.type));
+                    return;
+                }
             }
 
             // 杨桃五向飞星 (2D 欧几里得距离碰撞)
             if (bullet.type === 'star') {
-                const hitZombie = this.zombies.find(z => 
-                    !z.isDead && !z.isHypnotized && Math.hypot(z.x - bullet.x, z.y - bullet.y) <= 28
+                const hitZombie = this.zombies.find(z =>
+                    !z.isDead && !z.isHypnotized &&
+                    !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+                    !(z.type === 'bungee' && z.bungeeOffsetY < -60) &&
+                    Math.hypot(z.x - bullet.x, z.y - bullet.y) <= 28
                 );
                 if (hitZombie) {
                     bullet.isDead = true;
@@ -994,12 +1107,21 @@ export class PvzEngine {
                 return;
             }
 
-            const hitZombie = this.zombies.find(z => 
-                z.row === bullet.row && !z.isDead && !z.isHypnotized && Math.abs(z.x - bullet.x) <= 24
-            );
+            const hitZombie = this.zombies.find(z => {
+                if (z.row !== bullet.row || z.isDead || z.isHypnotized) return false;
+                if (z.type === 'digger' && z.diggerPhase === 'digging') return false;
+                if (z.type === 'snorkel' && z.isSubmerged) return false;
+                if (z.type === 'bungee' && z.bungeeOffsetY < -60) return false;
+                if (z.isFlying && !(bullet.canHitFlying || bullet.type === 'thorn')) return false;
+                return Math.abs(z.x - bullet.x) <= 24;
+            });
             if (hitZombie) {
                 bullet.isDead = true;
-                hitZombie.takeDamage(bullet.damage, bullet.isSlow);
+                if (hitZombie.isFlying && (bullet.canHitFlying || bullet.type === 'thorn') && typeof hitZombie.popBalloon === 'function') {
+                    hitZombie.popBalloon(this);
+                } else {
+                    hitZombie.takeDamage(bullet.damage, bullet.isSlow);
+                }
                 this.hitSplats.push(new HitSplat(bullet.x, bullet.y, bullet.type));
                 soundEngine.playSplat();
             }
@@ -1007,17 +1129,22 @@ export class PvzEngine {
     }
 
     checkZombieBreach() {
+        const triggerLineX = Math.max(40, this.gridStartX - 4);
         this.zombies.forEach(z => {
-            if (z.isDead) return;
-            if (z.x <= 40) {
+            if (z.isDead || z.type === 'bungee' || (z.type === 'digger' && z.diggerPhase)) return;
+            if (z.x <= triggerLineX) {
                 const mower = this.lawnMowers.find(m => m.row === z.row);
                 if (mower && mower.state === 'ready') {
+                    if (z.isFlying && typeof z.popBalloon === 'function') {
+                        z.popBalloon(this);
+                    }
                     mower.state = 'active';
                     soundEngine.playMower();
-                    this.floatingTexts.push(new FloatingText(mower.x + 30, mower.y - 25, '🚜 启动出击!', '#27ae60', 18));
+                    const cleanerLabel = mower.cleanerType === 'pool' ? '🚤 泳池车出击!' : (mower.cleanerType === 'roof' ? '🧹 屋顶车出击!' : '🚜 启动出击!');
+                    this.floatingTexts.push(new FloatingText(mower.x + 35, mower.y - 25, cleanerLabel, '#27ae60', 18));
                 } else if (!mower || mower.state === 'gone') {
-                    if (z.x <= 10) {
-                        z.takeDamage(9999);
+                    if (z.x <= 10 && !z.isDying) {
+                        z.destroy();
                         this.lives--;
                         soundEngine.playLose();
                         this.floatingTexts.push(new FloatingText(30, z.y, '💔 突破防线 -1', '#e74c3c', 22));
@@ -1061,23 +1188,46 @@ export class PvzEngine {
             ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         }
 
-        // 2. 原版除草机渲染
-        const mowerImg = assetsLoader.getImage('assets/ui/lawnmower.png');
+        // 2. 原版场景推车渲染 (草坪除草机 / 泳池两栖清洁车 / 屋顶斜坡推车)
+        const lawnMowerImg = assetsLoader.getImage('assets/ui/lawnmower.png');
+        const poolCleanerImg = assetsLoader.getImage('assets/ui/pool_cleaner.png');
+        const poolWaterImg = assetsLoader.getImage('assets/ui/pool_cleaner_water.png');
+        const roofCleanerImg = assetsLoader.getImage('assets/ui/roof_cleaner.png');
+
         this.lawnMowers.forEach(mower => {
-            if (mower.state !== 'gone') {
-                if (mowerImg && mowerImg.complete) {
-                    ctx.drawImage(mowerImg, mower.x - 5, mower.y - 28, 70, 54);
+            if (mower.state === 'gone') return;
+            let cImg = lawnMowerImg;
+            if (mower.cleanerType === 'roof') {
+                cImg = roofCleanerImg || lawnMowerImg;
+            } else if (mower.cleanerType === 'pool') {
+                cImg = (mower.state === 'active' && mower.x >= this.gridStartX - 10)
+                    ? (poolWaterImg || poolCleanerImg || lawnMowerImg)
+                    : (poolCleanerImg || lawnMowerImg);
+            }
+
+            if (cImg && cImg.complete) {
+                ctx.save();
+                if (mower.cleanerType === 'roof') {
+                    const angle = mower.x < 445 ? -Math.atan(0.262) : (mower.x > 760 ? Math.atan(0.26) : 0);
+                    ctx.translate(mower.x + 28, mower.y);
+                    ctx.rotate(angle);
+                    ctx.drawImage(cImg, -34, -30, 68, 52);
+                } else if (mower.cleanerType === 'pool') {
+                    ctx.drawImage(cImg, mower.x - 6, mower.y - 26, 68, 52);
                 } else {
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.arc(mower.x + 15, mower.y, 20, 0, Math.PI * 2);
-                    ctx.fillStyle = mower.state === 'active' ? '#e74c3c' : '#7f8c8d';
-                    ctx.fill();
-                    ctx.strokeStyle = '#2c3e50';
-                    ctx.lineWidth = 3;
-                    ctx.stroke();
-                    ctx.restore();
+                    ctx.drawImage(cImg, mower.x - 5, mower.y - 28, 70, 54);
                 }
+                ctx.restore();
+            } else {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(mower.x + 15, mower.y, 20, 0, Math.PI * 2);
+                ctx.fillStyle = mower.state === 'active' ? '#e74c3c' : '#7f8c8d';
+                ctx.fill();
+                ctx.strokeStyle = '#2c3e50';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.restore();
             }
         });
 
@@ -1200,50 +1350,84 @@ export class PvzEngine {
             }
         }
 
-        // 4.5. 浓雾层渲染 (World 4 迷雾系统，第4-8列被夜雾笼罩)
-        if (this.isFog && this.fogClearTimer <= 0) {
-            ctx.save();
-            const fogGrad = ctx.createLinearGradient(320, 0, 880, 0);
-            fogGrad.addColorStop(0, 'rgba(15, 25, 40, 0.0)');
-            fogGrad.addColorStop(0.2, 'rgba(18, 30, 48, 0.65)');
-            fogGrad.addColorStop(0.45, 'rgba(18, 32, 50, 0.93)');
-            fogGrad.addColorStop(1.0, 'rgba(15, 26, 42, 0.97)');
-            ctx.fillStyle = fogGrad;
-            ctx.fillRect(320, 0, this.canvas.width - 320, this.canvas.height);
-
-            // 漂浮雾霭微粒光晕
-            ctx.fillStyle = 'rgba(200, 220, 240, 0.08)';
-            const time = Date.now() * 0.001;
-            for (let i = 0; i < 6; i++) {
-                const fx = 420 + ((i * 85 + time * 25) % 450);
-                const fy = 80 + (i * 90) % 500;
-                ctx.beginPath();
-                ctx.arc(fx, fy, 65, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.restore();
-        } else if (this.isFog && this.fogClearTimer > 0 && this.fogClearTimer < 2.0) {
-            // 三叶草吹散浓雾后，2秒渐进恢复
-            ctx.save();
-            const alpha = (2.0 - this.fogClearTimer) / 2.0;
-            const fogGrad = ctx.createLinearGradient(320, 0, 880, 0);
-            fogGrad.addColorStop(0, `rgba(15, 25, 40, 0.0)`);
-            fogGrad.addColorStop(0.45, `rgba(18, 32, 50, ${0.93 * alpha})`);
-            fogGrad.addColorStop(1.0, `rgba(15, 26, 42, ${0.97 * alpha})`);
-            ctx.fillStyle = fogGrad;
-            ctx.fillRect(320, 0, this.canvas.width - 320, this.canvas.height);
-            ctx.restore();
+        // 4.5. 前景浓雾与波次横幅层渲染 (绘制在 #fogCanvas 之上，真实笼罩右侧僵尸与植物，并支持路灯花/火炬树桩透光开洞)
+        const fgCtx = this.fogCtx || ctx;
+        if (this.fogCtx && this.fogCanvas) {
+            this.fogCtx.clearRect(0, 0, this.fogCanvas.width, this.fogCanvas.height);
         }
 
-        // 5. 大波僵尸横幅 (原版红金震撼警报横幅与全屏警示)
+        if (this.isFog) {
+            let fogAlpha = 0;
+            if (this.fogClearTimer <= 0) {
+                fogAlpha = 1.0;
+            } else if (this.fogClearTimer < 2.2) {
+                fogAlpha = (2.2 - this.fogClearTimer) / 2.2;
+            }
+
+            if (fogAlpha > 0.01) {
+                fgCtx.save();
+                const fogStartX = 360;
+                const fogGrad = fgCtx.createLinearGradient(fogStartX, 0, 860, 0);
+                fogGrad.addColorStop(0, 'rgba(182, 202, 224, 0.0)');
+                fogGrad.addColorStop(0.16, `rgba(176, 198, 222, ${0.72 * fogAlpha})`);
+                fogGrad.addColorStop(0.38, `rgba(166, 190, 216, ${0.95 * fogAlpha})`);
+                fogGrad.addColorStop(1.0, `rgba(148, 174, 204, ${0.98 * fogAlpha})`);
+                fgCtx.fillStyle = fogGrad;
+                fgCtx.fillRect(fogStartX, 0, this.canvas.width - fogStartX, this.canvas.height);
+
+                // 漂浮翻涌雾团纹理
+                const time = Date.now() * 0.0008;
+                fgCtx.fillStyle = `rgba(225, 238, 252, ${0.22 * fogAlpha})`;
+                for (let i = 0; i < 12; i++) {
+                    const fx = 410 + ((i * 73 + Math.sin(time + i) * 28) % 470);
+                    const fy = 75 + ((i * 83 + Math.cos(time * 0.9 + i) * 18) % 480);
+                    fgCtx.beginPath();
+                    fgCtx.arc(fx, fy, 56 + (i % 3) * 16, 0, Math.PI * 2);
+                    fgCtx.fill();
+                }
+
+                // 路灯花 (Plantern) 与火炬树桩 (Torchwood) 驱散周围浓雾视野
+                const lightPlants = this.plants.filter(
+                    p => !p.isDead && !p.isAsleep && (p.isLightSource || p.type === 'plantern' || p.type === 'torchwood')
+                );
+                if (lightPlants.length > 0 && this.fogCtx) {
+                    fgCtx.globalCompositeOperation = 'destination-out';
+                    lightPlants.forEach(lp => {
+                        const r = lp.lightRadius || (lp.type === 'torchwood' ? 115 : 205);
+                        const holeGrad = fgCtx.createRadialGradient(lp.x, lp.y, r * 0.32, lp.x, lp.y, r);
+                        holeGrad.addColorStop(0, 'rgba(0, 0, 0, 1.0)');
+                        holeGrad.addColorStop(0.68, 'rgba(0, 0, 0, 0.86)');
+                        holeGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+                        fgCtx.fillStyle = holeGrad;
+                        fgCtx.beginPath();
+                        fgCtx.arc(lp.x, lp.y, r, 0, Math.PI * 2);
+                        fgCtx.fill();
+                    });
+                    fgCtx.globalCompositeOperation = 'source-over';
+                    lightPlants.forEach(lp => {
+                        const r = lp.lightRadius || (lp.type === 'torchwood' ? 115 : 205);
+                        const warmGrad = fgCtx.createRadialGradient(lp.x, lp.y, 8, lp.x, lp.y, r * 0.85);
+                        warmGrad.addColorStop(0, 'rgba(255, 236, 150, 0.22)');
+                        warmGrad.addColorStop(1, 'rgba(255, 220, 120, 0.0)');
+                        fgCtx.fillStyle = warmGrad;
+                        fgCtx.beginPath();
+                        fgCtx.arc(lp.x, lp.y, r * 0.85, 0, Math.PI * 2);
+                        fgCtx.fill();
+                    });
+                }
+                fgCtx.restore();
+            }
+        }
+
+        // 5. 大波僵尸横幅 (原版红金震撼警报横幅与全屏警示，绘制在前景层最上方)
         if (this.flagWaveBannerTimer > 0) {
-            ctx.save();
+            fgCtx.save();
             const elapsed = 3.5 - this.flagWaveBannerTimer;
 
             // 全屏红色危机呼吸闪烁 (Red Alert Vignette)
             const flashAlpha = Math.max(0, Math.sin(elapsed * 7) * 0.18);
-            ctx.fillStyle = `rgba(220, 20, 20, ${flashAlpha})`;
-            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            fgCtx.fillStyle = `rgba(220, 20, 20, ${flashAlpha})`;
+            fgCtx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
             // 横幅居中与弹性呼吸
             const bannerY = 240;
@@ -1251,92 +1435,87 @@ export class PvzEngine {
             const centerY = bannerY + bannerH / 2;
             const scale = 1.0 + Math.sin(elapsed * 6.5) * 0.035;
 
-            ctx.translate(this.canvas.width / 2, centerY);
-            ctx.scale(scale, scale);
-            ctx.translate(-this.canvas.width / 2, -centerY);
+            fgCtx.translate(this.canvas.width / 2, centerY);
+            fgCtx.scale(scale, scale);
+            fgCtx.translate(-this.canvas.width / 2, -centerY);
 
             // 横幅背景：深血红至炽烈红的三段渐变 + 左右边缘暗角
-            const bgGrad = ctx.createLinearGradient(0, bannerY, 0, bannerY + bannerH);
+            const bgGrad = fgCtx.createLinearGradient(0, bannerY, 0, bannerY + bannerH);
             bgGrad.addColorStop(0, '#3a0202');
             bgGrad.addColorStop(0.18, '#850a0a');
             bgGrad.addColorStop(0.5, '#bd1010');
             bgGrad.addColorStop(0.82, '#850a0a');
             bgGrad.addColorStop(1, '#320202');
-            ctx.fillStyle = bgGrad;
-            ctx.fillRect(0, bannerY, this.canvas.width, bannerH);
+            fgCtx.fillStyle = bgGrad;
+            fgCtx.fillRect(0, bannerY, this.canvas.width, bannerH);
 
             // 左右边缘暗影羽化
-            const fadeLeft = ctx.createLinearGradient(0, bannerY, 120, bannerY);
+            const fadeLeft = fgCtx.createLinearGradient(0, bannerY, 120, bannerY);
             fadeLeft.addColorStop(0, 'rgba(10, 2, 2, 0.7)');
             fadeLeft.addColorStop(1, 'rgba(10, 2, 2, 0)');
-            ctx.fillStyle = fadeLeft;
-            ctx.fillRect(0, bannerY, 120, bannerH);
+            fgCtx.fillStyle = fadeLeft;
+            fgCtx.fillRect(0, bannerY, 120, bannerH);
 
-            const fadeRight = ctx.createLinearGradient(this.canvas.width - 120, bannerY, this.canvas.width, bannerY);
+            const fadeRight = fgCtx.createLinearGradient(this.canvas.width - 120, bannerY, this.canvas.width, bannerY);
             fadeRight.addColorStop(0, 'rgba(10, 2, 2, 0)');
             fadeRight.addColorStop(1, 'rgba(10, 2, 2, 0.7)');
-            ctx.fillStyle = fadeRight;
-            ctx.fillRect(this.canvas.width - 120, bannerY, 120, bannerH);
+            fgCtx.fillStyle = fadeRight;
+            fgCtx.fillRect(this.canvas.width - 120, bannerY, 120, bannerH);
 
             // 顶部与底部双重纯正镀金边框
-            ctx.strokeStyle = '#ffd700';
-            ctx.lineWidth = 3.5;
-            ctx.beginPath();
-            ctx.moveTo(0, bannerY);
-            ctx.lineTo(this.canvas.width, bannerY);
-            ctx.moveTo(0, bannerY + bannerH);
-            ctx.lineTo(this.canvas.width, bannerY + bannerH);
-            ctx.stroke();
+            fgCtx.strokeStyle = '#ffd700';
+            fgCtx.lineWidth = 3.5;
+            fgCtx.beginPath();
+            fgCtx.moveTo(0, bannerY);
+            fgCtx.lineTo(this.canvas.width, bannerY);
+            fgCtx.moveTo(0, bannerY + bannerH);
+            fgCtx.lineTo(this.canvas.width, bannerY + bannerH);
+            fgCtx.stroke();
 
             // 内缘精致金线
-            ctx.strokeStyle = '#b8860b';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(0, bannerY + 5);
-            ctx.lineTo(this.canvas.width, bannerY + 5);
-            ctx.moveTo(0, bannerY + bannerH - 5);
-            ctx.lineTo(this.canvas.width, bannerY + bannerH - 5);
-            ctx.stroke();
+            fgCtx.strokeStyle = '#b8860b';
+            fgCtx.lineWidth = 1.5;
+            fgCtx.beginPath();
+            fgCtx.moveTo(0, bannerY + 5);
+            fgCtx.lineTo(this.canvas.width, bannerY + 5);
+            fgCtx.moveTo(0, bannerY + bannerH - 5);
+            fgCtx.lineTo(this.canvas.width, bannerY + bannerH - 5);
+            fgCtx.stroke();
 
             // 边框金色菱形铆钉点缀
-            ctx.fillStyle = '#ffec8b';
+            fgCtx.fillStyle = '#ffec8b';
             for (let rx = 24; rx < this.canvas.width; rx += 48) {
-                // 顶钉
-                ctx.beginPath();
-                ctx.arc(rx, bannerY + 2.5, 2.5, 0, Math.PI * 2);
-                ctx.fill();
-                // 底钉
-                ctx.beginPath();
-                ctx.arc(rx, bannerY + bannerH - 2.5, 2.5, 0, Math.PI * 2);
-                ctx.fill();
+                fgCtx.beginPath();
+                fgCtx.arc(rx, bannerY + 2.5, 2.5, 0, Math.PI * 2);
+                fgCtx.fill();
+                fgCtx.beginPath();
+                fgCtx.arc(rx, bannerY + bannerH - 2.5, 2.5, 0, Math.PI * 2);
+                fgCtx.fill();
             }
 
             // 文字渲染：正统PVZ立体加粗描边 + 亮金向炽红渐变填充
-            ctx.font = '900 42px "Microsoft YaHei", "SimHei", "PingFang SC", "Arial Black", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
+            fgCtx.font = '900 42px "Microsoft YaHei", "SimHei", "PingFang SC", "Arial Black", sans-serif';
+            fgCtx.textAlign = 'center';
+            fgCtx.textBaseline = 'middle';
 
-            // 投影
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-            ctx.shadowBlur = 14;
-            ctx.shadowOffsetY = 4;
+            fgCtx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+            fgCtx.shadowBlur = 14;
+            fgCtx.shadowOffsetY = 4;
 
-            // 厚黑描边
-            ctx.strokeStyle = '#050202';
-            ctx.lineWidth = 9;
-            ctx.lineJoin = 'round';
-            ctx.strokeText(this.flagWaveText, this.canvas.width / 2, centerY);
+            fgCtx.strokeStyle = '#050202';
+            fgCtx.lineWidth = 9;
+            fgCtx.lineJoin = 'round';
+            fgCtx.strokeText(this.flagWaveText, this.canvas.width / 2, centerY);
 
-            // 亮金至烈火红渐变文字
-            const textGrad = ctx.createLinearGradient(0, centerY - 22, 0, centerY + 22);
+            const textGrad = fgCtx.createLinearGradient(0, centerY - 22, 0, centerY + 22);
             textGrad.addColorStop(0, '#fff48d');
             textGrad.addColorStop(0.35, '#ffcc00');
             textGrad.addColorStop(0.7, '#ff5a1f');
             textGrad.addColorStop(1, '#d81212');
-            ctx.fillStyle = textGrad;
-            ctx.fillText(this.flagWaveText, this.canvas.width / 2, centerY);
+            fgCtx.fillStyle = textGrad;
+            fgCtx.fillText(this.flagWaveText, this.canvas.width / 2, centerY);
 
-            ctx.restore();
+            fgCtx.restore();
         }
     }
 }

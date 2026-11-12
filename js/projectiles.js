@@ -5,7 +5,7 @@ import { assetsLoader } from './assetsLoader.js';
 import { soundEngine } from './audio.js';
 
 export class Projectile {
-    constructor(row, x, y, type = 'pea', damage = 20, isSlow = false, maxRange = 960) {
+    constructor(row, x, y, type = 'pea', damage = 20, isSlow = false, maxRange = 960, customSpeed = null) {
         this.row = row;
         this.startX = x;
         this.x = x;
@@ -14,7 +14,7 @@ export class Projectile {
         this.damage = damage;
         this.isSlow = isSlow;
         this.maxRange = maxRange;
-        this.speed = type === 'shroom' ? 320 : 360; // 像素/秒
+        this.speed = customSpeed !== null ? customSpeed : (type === 'shroom' ? 320 : (type === 'thorn' ? 420 : 360)); // 像素/秒
         this.radius = 12;
         this.isDead = false;
         this.isFire = type === 'fire_pea';
@@ -24,6 +24,8 @@ export class Projectile {
             this.anim = 'assets/projectiles/shroom_bullet.gif';
         } else if (type === 'fire_pea') {
             this.anim = 'assets/projectiles/fire_pea.gif';
+        } else if (type === 'thorn') {
+            this.anim = 'assets/projectiles/cactus_thorn.png';
         } else {
             this.anim = 'assets/projectiles/pea.gif';
         }
@@ -31,7 +33,7 @@ export class Projectile {
 
     update(dt) {
         this.x += this.speed * dt;
-        if (this.x > 960 || (this.x - this.startX) >= this.maxRange) {
+        if (this.x < -40 || this.x > 960 || Math.abs(this.x - this.startX) >= this.maxRange) {
             this.isDead = true;
         }
     }
@@ -40,7 +42,15 @@ export class Projectile {
         const img = assetsLoader.getImage(this.anim);
         if (this.isFire) {
             if (img && img.complete) {
-                ctx.drawImage(img, this.x - 24, this.y - 14, 48, 28);
+                ctx.save();
+                if (this.speed < 0) {
+                    ctx.translate(this.x, this.y);
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(img, -24, -14, 48, 28);
+                } else {
+                    ctx.drawImage(img, this.x - 24, this.y - 14, 48, 28);
+                }
+                ctx.restore();
             } else {
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, 14, 0, Math.PI * 2);
@@ -51,7 +61,14 @@ export class Projectile {
         }
 
         if (img && img.complete) {
-            ctx.drawImage(img, this.x - 14, this.y - 14, 28, 28);
+            if (this.type === 'shroom') {
+                // 原版 66x32 紫色孢子弹：球体中心在右侧 (45, 10.5)，左侧带紫色拖尾烟雾
+                ctx.drawImage(img, this.x - 33, this.y - 8, 48, 23);
+            } else if (this.type === 'thorn') {
+                ctx.drawImage(img, this.x - 15, this.y - 8, 30, 16);
+            } else {
+                ctx.drawImage(img, this.x - 14, this.y - 14, 28, 28);
+            }
         } else {
             // 兜底绘制球形子弹
             ctx.beginPath();
@@ -557,22 +574,25 @@ export class StarProjectile {
     }
 }
 
-// 抛物线投掷物 (卷心菜、玉米粒、黄油、西瓜)
+// 抛物线投掷物 (卷心菜、玉米粒、黄油、西瓜、投石车篮球)
 export class LobbedProjectile {
-    constructor(row, startX, startY, targetZombie, type = 'cabbage', damage = 40) {
+    constructor(row, startX, startY, targetEntity, type = 'cabbage', damage = 40) {
         this.row = row;
         this.startX = startX;
         this.startY = startY;
         this.x = startX;
         this.y = startY;
-        this.targetZombie = targetZombie;
-        this.targetX = targetZombie ? targetZombie.x : startX + 320;
-        this.targetY = startY;
         this.type = type;
         this.damage = damage;
+        this.isEnemyBasketball = (type === 'basketball');
+        this.targetZombie = this.isEnemyBasketball ? null : targetEntity;
+        this.targetPlant = this.isEnemyBasketball ? targetEntity : null;
+        this.targetX = targetEntity ? targetEntity.x : (this.isEnemyBasketball ? startX - 320 : startX + 320);
+        this.targetY = targetEntity ? (targetEntity.y - 12) : startY;
         this.t = 0;
-        this.duration = 0.95; // 0.95秒高抛物线
-        this.arcHeight = 135;
+        this.duration = this.isEnemyBasketball ? 1.05 : 0.92; // 高抛物线飞行时长
+        this.arcHeight = this.isEnemyBasketball ? 145 : 135;
+        this.rotation = 0;
         this.isDead = false;
         this.isLobbed = true;
 
@@ -582,6 +602,8 @@ export class LobbedProjectile {
             this.anim = 'assets/projectiles/corn.png';
         } else if (type === 'melon') {
             this.anim = 'assets/projectiles/melon.png';
+        } else if (type === 'basketball') {
+            this.anim = 'assets/projectiles/basketball.png';
         } else {
             this.anim = 'assets/projectiles/cabbage.png';
         }
@@ -589,8 +611,13 @@ export class LobbedProjectile {
 
     update(dt, engine) {
         this.t += dt / this.duration;
+        this.rotation += dt * 7;
         if (this.targetZombie && !this.targetZombie.isDead) {
             this.targetX = this.targetZombie.x;
+            this.targetY = this.targetZombie.y - 12;
+        } else if (this.targetPlant && !this.targetPlant.isDead) {
+            this.targetX = this.targetPlant.x;
+            this.targetY = this.targetPlant.y - 8;
         }
 
         const t = Math.min(1.0, this.t);
@@ -608,11 +635,28 @@ export class LobbedProjectile {
     onImpact(engine) {
         if (!engine) return;
 
+        if (this.isEnemyBasketball) {
+            soundEngine.playSplat();
+            if (this.targetPlant && !this.targetPlant.isDead) {
+                // 若该格套有南瓜头，优先砸伤南瓜头
+                const pumpkin = engine.plants ? engine.plants.find(
+                    p => !p.isDead && p.col === this.targetPlant.col && p.row === this.targetPlant.row && p.isPumpkinShell
+                ) : null;
+                if (pumpkin) {
+                    pumpkin.takeDamage(this.damage);
+                } else {
+                    this.targetPlant.takeDamage(this.damage);
+                }
+            }
+            engine.hitSplats.push(new HitSplat(this.x, this.y, 'pea'));
+            return;
+        }
+
         if (this.type === 'melon') {
             soundEngine.playBoom();
             // 西瓜造成 80 直接伤害 + 周围 3x3 溅射 26 伤害
             engine.zombies.forEach(z => {
-                if (!z.isDead && Math.abs(z.row - this.row) <= 1 && Math.abs(z.x - this.targetX) <= 85) {
+                if (!z.isDead && !z.isHypnotized && Math.abs(z.row - this.row) <= 1 && Math.abs(z.x - this.targetX) <= 85) {
                     const dmg = (z.row === this.row && Math.abs(z.x - this.targetX) <= 35) ? this.damage : 26;
                     z.takeDamage(dmg);
                 }
@@ -622,8 +666,12 @@ export class LobbedProjectile {
             soundEngine.playSplat();
             if (this.targetZombie && !this.targetZombie.isDead) {
                 this.targetZombie.takeDamage(this.damage);
-                this.targetZombie.freezeTimer = 4.0;
-                engine.floatingTexts.push(new FloatingText(this.targetZombie.x, this.targetZombie.y - 40, '🧈 黄油盖脸! 定身4秒!', '#f39c12', 20));
+                if (typeof this.targetZombie.applyButter === 'function') {
+                    this.targetZombie.applyButter(4.0);
+                } else {
+                    this.targetZombie.freezeTimer = 4.0;
+                }
+                engine.floatingTexts.push(new FloatingText(this.targetZombie.x, this.targetZombie.y - 40, '🧈 黄油定身!', '#f39c12', 19));
             }
         } else {
             soundEngine.playSplat();
@@ -636,15 +684,19 @@ export class LobbedProjectile {
 
     render(ctx) {
         const img = assetsLoader.getImage(this.anim);
-        const size = this.type === 'melon' ? 36 : (this.type === 'butter' ? 32 : 28);
+        const size = this.type === 'melon' ? 36 : (this.type === 'butter' ? 32 : (this.type === 'basketball' ? 30 : 28));
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
         if (img && img.complete) {
-            ctx.drawImage(img, this.x - size / 2, this.y - size / 2, size, size);
+            ctx.drawImage(img, -size / 2, -size / 2, size, size);
         } else {
             ctx.beginPath();
-            ctx.arc(this.x, this.y, 12, 0, Math.PI * 2);
-            ctx.fillStyle = this.type === 'butter' ? '#f1c40f' : (this.type === 'melon' ? '#27ae60' : '#2ecc71');
+            ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            ctx.fillStyle = this.type === 'butter' ? '#f1c40f' : (this.type === 'basketball' ? '#e67e22' : (this.type === 'melon' ? '#27ae60' : '#2ecc71'));
             ctx.fill();
         }
+        ctx.restore();
     }
 }
 

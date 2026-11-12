@@ -24,7 +24,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20261112_world2_fix2">
+    <link rel="stylesheet" href="css/style.css?v=20261112_full_pvz1">
 </head>
 <body>
 
@@ -113,6 +113,9 @@
 
                     <!-- 实体动画图层: 托管 60fps 动态 GIF (植物呼吸、向日葵微笑、僵尸走步与啃咬、断头) -->
                     <div id="entityLayer" class="entity-layer"></div>
+
+                    <!-- 前景浓雾与波次横幅图层: 覆盖在实体层上方 (z-index: 45)，保证第 4 大关浓雾真实遮挡植物与僵尸，并支持路灯花透光开洞 -->
+                    <canvas id="fogCanvas" class="fog-layer" width="900" height="600"></canvas>
 
                     <!-- 前景阳光图层: 保证阳光始终位于植物和僵尸最前方 (z-index: 60) -->
                     <div id="sunLayer" class="sun-layer"></div>
@@ -430,6 +433,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20261112_world2_fix2"></script>
+    <script type="module" src="js/main.js?v=20261112_full_pvz1"></script>
 </body>
 </html>
