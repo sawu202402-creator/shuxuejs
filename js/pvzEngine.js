@@ -1,12 +1,12 @@
 /**
  * pvzEngine.js - 核心战场循环、波次推进、除草机与 DOM 实体混合架构
  */
-import { GAME_CONFIG } from './config.js?v=20261112_v6';
-import { assetsLoader } from './assetsLoader.js?v=20261112_v6';
-import { soundEngine } from './audio.js?v=20261112_v6';
-import { createPlant } from './plants.js?v=20261112_v6';
-import { Zombie } from './zombies.js?v=20261112_v6';
-import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261112_v6';
+import { GAME_CONFIG } from './config.js?v=20261112_v7';
+import { assetsLoader } from './assetsLoader.js?v=20261112_v7';
+import { soundEngine } from './audio.js?v=20261112_v7';
+import { createPlant } from './plants.js?v=20261112_v7';
+import { Zombie } from './zombies.js?v=20261112_v7';
+import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261112_v7';
 
 export class PvzEngine {
     constructor(canvas, entityLayer, onStateChange = null) {

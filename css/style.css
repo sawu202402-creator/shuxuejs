@@ -785,18 +785,18 @@ body {
     height: 164px;
 }
 
-/* 伽刚特尔巨人僵尸 巨无霸规格 */
+/* 伽刚特尔巨人僵尸 巨无霸规格 (240x210 画布，脚底与常规网格完全对齐并留足高举电线杆空间) */
 .zombie-entity.zombie-gargantuar {
-    width: 220px;
-    height: 190px;
-    margin-left: -27px;
-    margin-top: -46px;
+    width: 240px;
+    height: 210px;
+    margin-left: -37px;
+    margin-top: -66px;
     z-index: 22;
 }
 
 .zombie-entity.zombie-gargantuar .zombie-gif {
-    width: 220px;
-    height: 190px;
+    width: 240px;
+    height: 210px;
 }
 
 /* 气球僵尸、蹦极僵尸、跳跳僵尸规格 */
@@ -817,6 +817,24 @@ body {
     height: 180px;
     margin-top: -36px;
     z-index: 30;
+}
+
+.zombie-entity.zombie-bungee::before {
+    content: '';
+    position: absolute;
+    left: 103px;
+    top: -520px;
+    width: 5px;
+    height: 524px;
+    background: #eef2f6;
+    border-left: 1.5px solid #181a1c;
+    border-right: 1.5px solid #181a1c;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.zombie-entity.zombie-bungee.charred-die::before {
+    display: none;
 }
 
 .zombie-entity.zombie-bungee .zombie-gif {

@@ -1,9 +1,9 @@
 /**
  * zombies.js - 原版 1:1 僵尸实体系统与 DOM 60fps 动态 GIF 动画层 (完整支持第 1~5 大关全兵种与屋顶斜坡)
  */
-import { GAME_CONFIG } from './config.js?v=20261112_v6';
-import { soundEngine } from './audio.js?v=20261112_v6';
-import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261112_v6';
+import { GAME_CONFIG } from './config.js?v=20261112_v7';
+import { soundEngine } from './audio.js?v=20261112_v7';
+import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261112_v7';
 
 export class Zombie {
     constructor(type = 'normal', row = 2, startX = 900, entityLayer = null) {
@@ -194,24 +194,25 @@ export class Zombie {
             this.attackAnim = this.config.noHelmetAttackAnim || 'assets/zombies/football_nohelmet_attack.gif';
             this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
         } else if (this.type === 'digger') {
-            // 矿工镐被磁力菇吸走：若在地下掘进则立即钻出地面！
+            // 矿工镐被磁力菇吸走：切换无镐行走/啃食动画，若在地下掘进则立即钻出地面！
+            this.walkAnim = this.config.noShieldWalkAnim || 'assets/zombies/digger_nopick_walk.gif';
+            this.attackAnim = this.config.noShieldAttackAnim || 'assets/zombies/digger_nopick_attack.gif';
             if (this.diggerPhase === 'digging') {
                 this.diggerPhase = 'dizzy';
                 this.diggerDizzyTimer = 0.85;
                 this.speed = this.config.walkSpeed || 18;
-                this.walkAnim = this.config.surfacedWalkAnim || 'assets/zombies/digger_walk.gif';
-                this.setAnim(this.walkAnim);
             }
+            this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
         } else if (this.type === 'pogo') {
             this.speed = this.config.walkSpeed || 18;
             if (this.domElement) this.domElement.classList.remove('zombie-pogo');
-            this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
-            this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
+            this.walkAnim = this.config.noShieldWalkAnim || 'assets/zombies/pogo_walk.gif';
+            this.attackAnim = this.config.noShieldAttackAnim || 'assets/zombies/pogo_attack.gif';
             this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
         } else if (this.type === 'ladder') {
             this.speed = this.config.walkSpeed || 18;
-            this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
-            this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
+            this.walkAnim = this.config.noShieldWalkAnim || 'assets/zombies/ladder_noladder_walk.gif';
+            this.attackAnim = this.config.noShieldAttackAnim || 'assets/zombies/ladder_noladder_attack.gif';
             this.setAnim(this.state === 'attack' ? this.attackAnim : this.walkAnim);
         } else if (this.type === 'jackinthebox') {
             this.speed = 20;
@@ -232,8 +233,8 @@ export class Zombie {
         if (this.domElement) {
             this.domElement.classList.remove('zombie-balloon');
         }
-        this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
-        this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
+        this.walkAnim = this.config.groundWalkAnim || 'assets/zombies/balloon_walk.gif';
+        this.attackAnim = this.config.attackAnim || 'assets/zombies/balloon_attack.gif';
         this.setAnim(this.walkAnim);
         soundEngine.playSplat();
         if (engine && engine.floatingTexts) {
@@ -448,10 +449,10 @@ export class Zombie {
 
         if (this.isVehicle) {
             soundEngine.playBoom();
-            if (this.type === 'zomboni' && this.dieAnim) {
-                this.dyingDuration = 1.9;
+            if ((this.type === 'zomboni' || this.type === 'catapult') && this.dieAnim) {
+                this.dyingDuration = this.type === 'zomboni' ? 1.9 : 1.5;
                 this.setAnim(this.dieAnim);
-                setTimeout(() => this.destroy(), 1900);
+                setTimeout(() => this.destroy(), this.dyingDuration * 1000);
             } else {
                 this.dyingDuration = 0.55;
                 if (this.domElement) {
@@ -733,11 +734,13 @@ export class Zombie {
                     engine.floatingTexts.push(new FloatingText(this.x, this.y - 50, '🪂 蹦极偷袭!', '#e67e22', 20));
                 }
             } else if (this.bungeePhase === 'descending') {
+                this.setAnim(this.config.walkAnims[0]);
                 this.bungeeOffsetY = Math.min(0, this.bungeeOffsetY + 430 * dt);
                 if (this.bungeeOffsetY >= 0) {
                     this.bungeeOffsetY = 0;
                     this.bungeePhase = 'grabbing';
                     this.bungeeTimer = 2.8;
+                    this.setAnim(this.config.grabAnim || 'assets/zombies/bungee_grab.gif');
                 }
             } else if (this.bungeePhase === 'grabbing') {
                 this.bungeeTimer -= dt;
@@ -755,6 +758,7 @@ export class Zombie {
                         }
                     }
                     this.bungeePhase = 'ascending';
+                    this.setAnim(this.config.walkAnims[0]);
                 }
             } else if (this.bungeePhase === 'ascending') {
                 this.bungeeOffsetY -= 460 * dt;
@@ -870,9 +874,18 @@ export class Zombie {
 
         // ================= 5. 投石车僵尸远程抛投篮球与碾压 =================
         if (this.type === 'catapult' && engine) {
+            if (this.catapultShootAnimTimer > 0) {
+                this.catapultShootAnimTimer -= dt;
+                if (this.catapultShootAnimTimer <= 0) {
+                    this.setAnim(this.config.walkAnims[0]);
+                }
+            }
             const rowPlants = engine.plants.filter(p => p.row === this.row && !p.isDead && !p.isFlat);
             if (this.x > 690 || this.basketballs <= 0 || rowPlants.length === 0) {
                 // 向前行驶并碾压非地刺植物
+                if (!this.catapultShootAnimTimer || this.catapultShootAnimTimer <= 0) {
+                    this.setAnim(this.config.walkAnims[0]);
+                }
                 this.x -= this.speed * dt;
                 const crushPlant = this.findTargetPlant(engine, false);
                 if (crushPlant) {
@@ -885,11 +898,13 @@ export class Zombie {
                 if (this.catapultTimer <= 0) {
                     this.catapultTimer = 2.8;
                     this.basketballs--;
+                    this.catapultShootAnimTimer = 0.85;
+                    this.setAnim(this.config.shootAnim || 'assets/zombies/catapult_shoot.gif');
                     rowPlants.sort((a, b) => a.x - b.x);
                     const targetP = rowPlants[0];
                     soundEngine.playShoot();
                     engine.projectiles.push(
-                        new LobbedProjectile(this.row, this.x - 16, this.y - 44, targetP, 'basketball', 75)
+                        new LobbedProjectile(this.row, this.x + 12, this.y - 54, targetP, 'basketball', 75)
                     );
                 }
             }
@@ -1033,9 +1048,12 @@ export class Zombie {
             return;
         }
 
-        // 伽刚特尔巨人半血投掷小鬼僵尸
+        // 伽刚特尔巨人半血投掷小鬼僵尸（投掷后背篓内小鬼同步消失！）
         if (this.type === 'gargantuar' && !this.hasThrownImp && this.hp <= this.maxTotalHp * 0.5 && this.x > 340 && engine) {
             this.hasThrownImp = true;
+            this.walkAnim = this.config.noImpWalkAnim || this.walkAnim;
+            this.attackAnim = this.config.noImpAttackAnim || this.attackAnim;
+            this.setAnim(this.state === 'smashing' ? this.attackAnim : this.walkAnim);
             const landX = Math.max((engine.gridStartX || 40) + 140, this.x - 230);
             const imp = new Zombie('imp', this.row, landX, this.entityLayer);
             engine.zombies.push(imp);
@@ -1161,8 +1179,8 @@ export class Zombie {
                 this.armorHp = 0;
                 this.hasShield = false;
                 this.speed = this.config.walkSpeed || 18;
-                this.walkAnim = GAME_CONFIG.zombies.normal.walkAnims[0];
-                this.attackAnim = GAME_CONFIG.zombies.normal.attackAnim;
+                this.walkAnim = this.config.noShieldWalkAnim || 'assets/zombies/ladder_noladder_walk.gif';
+                this.attackAnim = this.config.noShieldAttackAnim || 'assets/zombies/ladder_noladder_attack.gif';
                 this.setAnim(this.walkAnim);
                 this.x = targetPlant.x - 40;
                 soundEngine.playSplat();
@@ -1176,7 +1194,7 @@ export class Zombie {
             // 4. 伽刚特尔巨人挥杆重击秒杀植物
             if (this.type === 'gargantuar') {
                 this.state = 'smashing';
-                this.smashTimer = 0.85;
+                this.smashTimer = 0.90;
                 this.smashTarget = targetPlant;
                 this.setAnim(this.attackAnim);
                 this.updateDOMPosition(engine);

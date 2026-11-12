@@ -1,8 +1,8 @@
 /**
  * projectiles.js - 子弹、投掷物、爆炸粒子、飘字与阳光飞行动画系统
  */
-import { assetsLoader } from './assetsLoader.js?v=20261112_v6';
-import { soundEngine } from './audio.js?v=20261112_v6';
+import { assetsLoader } from './assetsLoader.js?v=20261112_v7';
+import { soundEngine } from './audio.js?v=20261112_v7';
 
 export class Projectile {
     constructor(row, x, y, type = 'pea', damage = 20, isSlow = false, maxRange = 960, customSpeed = null) {

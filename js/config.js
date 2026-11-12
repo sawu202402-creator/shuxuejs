@@ -967,9 +967,10 @@ export const GAME_CONFIG = {
             score: 420,
             isFlying: true,
             walkAnims: ['assets/zombies/balloon_fly.gif'],
-            attackAnim: 'assets/zombies/zombie_attack.gif',
+            groundWalkAnim: 'assets/zombies/balloon_walk.gif',
+            attackAnim: 'assets/zombies/balloon_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_die.gif'
+            dieAnim: 'assets/zombies/balloon_die.gif'
         },
         digger: {
             id: 'digger',
@@ -987,10 +988,12 @@ export const GAME_CONFIG = {
             shieldType: 'pickaxe',
             digAnim: 'assets/zombies/digger_dig.gif',
             surfacedWalkAnim: 'assets/zombies/digger_walk.gif',
+            noShieldWalkAnim: 'assets/zombies/digger_nopick_walk.gif',
+            noShieldAttackAnim: 'assets/zombies/digger_nopick_attack.gif',
             walkAnims: ['assets/zombies/digger_dig.gif'],
             attackAnim: 'assets/zombies/digger_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_die.gif'
+            dieAnim: 'assets/zombies/digger_die.gif'
         },
         pogo: {
             id: 'pogo',
@@ -1007,9 +1010,11 @@ export const GAME_CONFIG = {
             hasShield: true,
             shieldType: 'pogo',
             walkAnims: ['assets/zombies/pogo_bounce.gif'],
-            attackAnim: 'assets/zombies/zombie_attack.gif',
+            noShieldWalkAnim: 'assets/zombies/pogo_walk.gif',
+            noShieldAttackAnim: 'assets/zombies/pogo_attack.gif',
+            attackAnim: 'assets/zombies/pogo_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_die.gif'
+            dieAnim: 'assets/zombies/pogo_die.gif'
         },
         bungee: {
             id: 'bungee',
@@ -1023,7 +1028,8 @@ export const GAME_CONFIG = {
             biteDamage: 0,
             score: 400,
             walkAnims: ['assets/zombies/bungee_drop.gif'],
-            attackAnim: 'assets/zombies/bungee_drop.gif',
+            grabAnim: 'assets/zombies/bungee_grab.gif',
+            attackAnim: 'assets/zombies/bungee_grab.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
             dieAnim: 'assets/zombies/zombie_die.gif'
         },
@@ -1043,8 +1049,10 @@ export const GAME_CONFIG = {
             shieldType: 'ladder',
             walkAnims: ['assets/zombies/ladder_walk.gif'],
             attackAnim: 'assets/zombies/ladder_attack.gif',
+            noShieldWalkAnim: 'assets/zombies/ladder_noladder_walk.gif',
+            noShieldAttackAnim: 'assets/zombies/ladder_noladder_attack.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_die.gif'
+            dieAnim: 'assets/zombies/ladder_die.gif'
         },
         catapult: {
             id: 'catapult',
@@ -1059,9 +1067,10 @@ export const GAME_CONFIG = {
             score: 720,
             isVehicle: true,
             walkAnims: ['assets/zombies/catapult_drive.gif'],
-            attackAnim: 'assets/zombies/catapult_drive.gif',
+            shootAnim: 'assets/zombies/catapult_shoot.gif',
+            attackAnim: 'assets/zombies/catapult_shoot.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/zombie_charred.gif'
+            dieAnim: 'assets/zombies/catapult_die.gif'
         },
         gargantuar: {
             id: 'gargantuar',
@@ -1076,8 +1085,10 @@ export const GAME_CONFIG = {
             score: 1500,
             walkAnims: ['assets/zombies/gargantuar_walk.gif'],
             attackAnim: 'assets/zombies/gargantuar_smash.gif',
+            noImpWalkAnim: 'assets/zombies/gargantuar_noimp_walk.gif',
+            noImpAttackAnim: 'assets/zombies/gargantuar_noimp_smash.gif',
             headAnim: 'assets/zombies/zombie_head.gif',
-            dieAnim: 'assets/zombies/football_die.gif'
+            dieAnim: 'assets/zombies/gargantuar_die.gif'
         },
         imp: {
             id: 'imp',
