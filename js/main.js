@@ -2,14 +2,14 @@
  * main.js - 游戏全局协调控制器、事件总线与主循环
  * 深度融合原版 1:1 植物大战僵尸战场与儿童趣味心算学习引擎
  */
-import { GAME_CONFIG, AVATAR_LIST, DIFFICULTY_PRESETS } from './config.js?v=20261112_v9';
-import { assetsLoader } from './assetsLoader.js?v=20261112_v9';
-import { soundEngine } from './audio.js?v=20261112_v9';
-import { mathEngine } from './mathEngine.js?v=20261112_v9';
-import { profileManager } from './profileManager.js?v=20261112_v9';
-import { PvzEngine } from './pvzEngine.js?v=20261112_v9';
-import { createPlant } from './plants.js?v=20261112_v9';
-import { Zombie } from './zombies.js?v=20261112_v9';
+import { GAME_CONFIG, AVATAR_LIST, DIFFICULTY_PRESETS } from './config.js?v=20261113_v1';
+import { assetsLoader } from './assetsLoader.js?v=20261113_v1';
+import { soundEngine } from './audio.js?v=20261113_v1';
+import { mathEngine } from './mathEngine.js?v=20261113_v1';
+import { profileManager } from './profileManager.js?v=20261113_v1';
+import { PvzEngine } from './pvzEngine.js?v=20261113_v1';
+import { createPlant } from './plants.js?v=20261113_v1';
+import { Zombie } from './zombies.js?v=20261113_v1';
 
 window.createPlant = createPlant;
 window.Zombie = Zombie;
@@ -23,6 +23,10 @@ class GameApp {
         this.soundEngine = soundEngine;
         this.inputBuffer = '';
         this.lastTime = performance.now();
+        this._hudCache = {};
+        this._cardDomCache = [];
+        this._conveyorTrackEl = null;
+        this._conveyorUidMap = new Map();
 
         // 档案弹窗内部编辑暂存状态
         this.editingKidId = null; // null 表示编辑当前选中孩子
@@ -151,109 +155,115 @@ class GameApp {
         this.init();
     }
 
+    collectPlantAssets(pId, outSet) {
+        const p = GAME_CONFIG.plants[pId];
+        if (!p) return;
+        ['anim', 'attackAnim', 'digestAnim', 'cooldownAnim', 'icon', 'crack1Anim', 'crack2Anim',
+         'unarmedAnim', 'armedAnim', 'mashedAnim', 'boomAnim', 'bigAnim', 'hideAnim', 'sleepAnim',
+         'eatAnim', 'bulletAnim', 'splatAnim', 'cloudAnim', 'emptyAnim', 'fireAnim', 'blockAnim',
+         'pullAnim', 'spinAnim'].forEach(k => {
+            if (p[k]) outSet.add(p[k]);
+        });
+    }
+
+    collectZombieAssets(zType, outSet) {
+        const z = GAME_CONFIG.zombies[zType];
+        if (!z) return;
+        if (Array.isArray(z.walkAnims)) z.walkAnims.forEach(a => a && outSet.add(a));
+        ['attackAnim', 'headAnim', 'dieAnim', 'charredAnim', 'openAnim', 'lostPaperAnim', 'rageAnim', 'rageAttackAnim',
+         'noHelmetWalkAnim', 'noHelmetAttackAnim', 'moonwalkAnim', 'summonAnim',
+         'runAnim', 'jumpAnim', 'walkAnim', 'landWalkAnim', 'rideAnim', 'swimAnim', 'digAnim', 'surfacedWalkAnim',
+         'lostHeadWalkAnim', 'lostHeadAttackAnim', 'grabAnim', 'shootAnim',
+         'noShieldWalkAnim', 'noShieldAttackAnim', 'noImpWalkAnim', 'noImpAttackAnim'].forEach(k => {
+            if (z[k]) outSet.add(z[k]);
+        });
+    }
+
+    getLevelAssets(lvlId, customDeck = null) {
+        const conf = GAME_CONFIG.levels[lvlId] || GAME_CONFIG.levels['1-1'];
+        const set = new Set();
+        if (conf.bg) set.add(conf.bg);
+        if (conf.world === 2) set.add('assets/backgrounds/tombstone.png');
+        if (Array.isArray(conf.waterRows) && conf.waterRows.length > 0) set.add('assets/ui/pool_cleaner.png');
+        if (conf.isRoof) set.add('assets/ui/roof_cleaner.png');
+        if (conf.isConveyorBelt) set.add('assets/ui/conveyor_track.png');
+        if (conf.isWhackAZombie) set.add('assets/ui/mallet.png');
+
+        const plants = Array.isArray(customDeck) && customDeck.length > 0
+            ? customDeck
+            : (conf.allowedPlants || ['peashooter', 'sunflower']);
+        plants.forEach(pId => this.collectPlantAssets(pId, set));
+        if (conf.isBowling) {
+            set.add('assets/plants/wallnut.gif');
+            set.add('assets/plants/wallnut_red.png');
+            set.add('assets/cards/card_rednut.png');
+        }
+
+        const zTypes = new Set(['normal', 'flag']);
+        if (conf.isEndless) {
+            ['conehead', 'buckethead', 'polevault', 'newspaper', 'football', 'zomboni', 'pogo', 'catapult', 'gargantuar', 'imp'].forEach(t => zTypes.add(t));
+            if (Array.isArray(conf.waterRows) && conf.waterRows.length > 0) {
+                ['ducky', 'snorkel', 'dolphin'].forEach(t => zTypes.add(t));
+            }
+        } else {
+            (conf.waves || []).forEach(w => {
+                (w.zombies || []).forEach(z => z && z.type && zTypes.add(z.type));
+            });
+        }
+        if (zTypes.has('dancing')) zTypes.add('backup_dancer');
+        if (zTypes.has('gargantuar')) zTypes.add('imp');
+        zTypes.forEach(zt => this.collectZombieAssets(zt, set));
+        return Array.from(set);
+    }
+
     async init() {
         this.updateProfileUI();
         this.fitToScreen();
 
-        // 收集所有需要预加载的资产
-        const assetPaths = [
-            'assets/backgrounds/day_1row_viewport.jpg',
-            'assets/backgrounds/day_5row_viewport.jpg',
+        // 第一梯队：首屏核心 UI + 通用弹道特效 + 全植物轻量卡面图标 + 第 1-1 关完整战斗资产 (H5 秒开且低内存峰值)
+        const criticalSet = new Set([
             'assets/ui/sun.gif',
             'assets/ui/shovel.png',
             'assets/ui/trophy.png',
+            'assets/ui/lawnmower.png',
+            'assets/ui/coin_gold.png',
+            'assets/ui/coin_silver.png',
             'assets/projectiles/pea.gif',
             'assets/projectiles/pea_splat.gif',
             'assets/projectiles/snow_pea.gif',
+            'assets/projectiles/fire_pea.gif',
+            'assets/projectiles/shroom_bullet.gif',
+            'assets/projectiles/shroom_splat.gif',
             'assets/projectiles/cherry_boom.gif',
             'assets/projectiles/spudow.gif',
-            'assets/zombies/zombie_walk.gif',
-            'assets/zombies/zombie_attack.gif',
-            'assets/zombies/zombie_head.gif',
-            'assets/zombies/zombie_die.gif',
-            'assets/zombies/conehead_walk.gif',
-            'assets/zombies/conehead_attack.gif',
-            'assets/zombies/buckethead_walk.gif',
-            'assets/zombies/buckethead_attack.gif',
-            'assets/zombies/newspaper_lost.gif',
-            'assets/zombies/newspaper_drop.png',
-            'assets/backgrounds/tombstone.png',
-            'assets/backgrounds/night_viewport.jpg',
-            'assets/backgrounds/pool_viewport.jpg',
-            'assets/backgrounds/fog_viewport.jpg',
-            'assets/backgrounds/roof_viewport.jpg',
-            'assets/backgrounds/roof_night_viewport.jpg',
-            'assets/plants/tanglekelp_grab.png',
             'assets/projectiles/cabbage.png',
             'assets/projectiles/corn.png',
             'assets/projectiles/butter.png',
-            'assets/projectiles/melon.png',
-            'assets/projectiles/star.png',
-            'assets/zombies/polevault_run.gif',
-            'assets/zombies/polevault_jump.gif',
-            'assets/zombies/polevault_walk.gif',
-            'assets/zombies/polevault_attack.gif',
-            'assets/zombies/polevault_die.gif',
-            'assets/zombies/zombie_charred.gif',
-            'assets/projectiles/doom_cloud.png',
-            'assets/backgrounds/crater.png',
-            'assets/cards/card_rednut.png',
-            'assets/plants/wallnut_red.png',
-            'assets/projectiles/fire_pea.gif',
-            'assets/projectiles/jalapeno_fire.gif',
-            'assets/ui/lawnmower.png',
-            'assets/ui/pool_cleaner.png',
-            'assets/ui/pool_cleaner_water.png',
-            'assets/ui/roof_cleaner.png',
-            'assets/ui/conveyor_track.png',
-            'assets/ui/mallet.png',
-            'assets/ui/shovel.png',
-            'assets/ui/sun.gif',
-            'assets/projectiles/cactus_thorn.png',
             'assets/projectiles/butter_hat.png',
-            'assets/projectiles/basketball.png',
-            'assets/zombies/cone_drop.png',
-            'assets/zombies/bucket_drop.png',
-            'assets/zombies/screendoor_drop.png',
-            'assets/zombies/football_drop.png',
-            'assets/zombies/jackbox_drop.png',
-            'assets/zombies/pickaxe_drop.png',
-            'assets/zombies/pogo_drop.png',
-            'assets/zombies/ladder_drop.png',
-            'assets/projectiles/cob_rocket.png',
+            'assets/projectiles/melon.png',
             'assets/projectiles/winter_melon.png',
+            'assets/projectiles/star.png',
+            'assets/projectiles/cactus_thorn.png',
             'assets/projectiles/cattail_thorn.png',
-            'assets/ui/coin_gold.png',
-            'assets/ui/coin_silver.png'
-        ];
+            'assets/projectiles/cob_rocket.png',
+            'assets/projectiles/basketball.png',
+            'assets/zombies/zombie_head.gif',
+            'assets/zombies/zombie_die.gif',
+            'assets/zombies/zombie_charred.gif',
+            'assets/zombies/cone_drop.png',
+            'assets/zombies/bucket_drop.png'
+        ]);
 
-        // 加入所有僵尸动画及状态变体 (含第 1~5 大关全部僵尸精灵)
-        Object.values(GAME_CONFIG.zombies).forEach(z => {
-            if (Array.isArray(z.walkAnims)) z.walkAnims.forEach(a => a && assetPaths.push(a));
-            ['attackAnim', 'headAnim', 'dieAnim', 'openAnim', 'lostPaperAnim', 'rageAnim', 'rageAttackAnim',
-             'noHelmetWalkAnim', 'noHelmetAttackAnim', 'moonwalkAnim', 'summonAnim',
-             'runAnim', 'jumpAnim', 'walkAnim', 'landWalkAnim', 'rideAnim', 'swimAnim', 'digAnim', 'surfacedWalkAnim',
-             'lostHeadWalkAnim', 'lostHeadAttackAnim', 'grabAnim', 'shootAnim'].forEach(k => {
-                if (z[k]) assetPaths.push(z[k]);
-            });
-        });
-
-        // 加入所有植物卡牌与动画及状态变体
+        // 卡牌静态小图标体积轻巧，预先载入确保选卡台秒开无白框
         Object.values(GAME_CONFIG.plants).forEach(p => {
-            ['anim', 'attackAnim', 'digestAnim', 'cooldownAnim', 'icon', 'crack1Anim', 'crack2Anim',
-             'unarmedAnim', 'armedAnim', 'mashedAnim', 'boomAnim', 'bigAnim', 'hideAnim', 'sleepAnim',
-             'eatAnim', 'bulletAnim', 'splatAnim', 'cloudAnim', 'emptyAnim', 'fireAnim', 'blockAnim',
-             'pullAnim', 'spinAnim'].forEach(k => {
-                if (p[k]) assetPaths.push(p[k]);
-            });
+            if (p.icon) criticalSet.add(p.icon);
         });
+        this.getLevelAssets('1-1').forEach(a => criticalSet.add(a));
 
-        // 预加载资产 (去重)
-        const uniqueAssetPaths = Array.from(new Set(assetPaths));
-        await assetsLoader.preloadAll(uniqueAssetPaths, (loaded, total, pct) => {
+        await assetsLoader.preloadAll(Array.from(criticalSet), (loaded, total, pct) => {
             if (this.dom.loadingBarFill) this.dom.loadingBarFill.style.width = `${pct}%`;
-            if (this.dom.loadingHintText) this.dom.loadingHintText.innerText = `资源加载中 ${pct}% (${loaded}/${total})`;
-        });
+            if (this.dom.loadingHintText) this.dom.loadingHintText.innerText = `资源极速加载中 ${pct}% (${loaded}/${total})`;
+        }, 10);
 
         if (this.dom.loadingOverlay) {
             this.dom.loadingOverlay.style.display = 'none';
@@ -272,6 +282,37 @@ class GameApp {
         this.initProfileModalControls();
         this.renderCardsList();
         this.syncQuestionToBlackboard();
+
+        // 第二梯队：仅在非低内存设备上利用空闲时间温和预热后续世界资源；手机端在切关/选卡时按关卡精准加载，避免一次性驻留 250+ 动态 GIF 撑爆移动端显存
+        const isConstrainedMobile = (typeof navigator !== 'undefined' && navigator.deviceMemory && navigator.deviceMemory <= 4) ||
+            (typeof window !== 'undefined' && (window.innerWidth <= 960 || ('ontouchstart' in window && window.innerWidth <= 1180)));
+        if (!isConstrainedMobile) {
+            const deferredSet = new Set([
+                'assets/backgrounds/day_3row_viewport.jpg',
+                'assets/backgrounds/day_5row_viewport.jpg',
+                'assets/backgrounds/night_viewport.jpg',
+                'assets/backgrounds/pool_viewport.jpg',
+                'assets/backgrounds/fog_viewport.jpg',
+                'assets/backgrounds/roof_viewport.jpg',
+                'assets/backgrounds/roof_night_viewport.jpg',
+                'assets/backgrounds/tombstone.png',
+                'assets/backgrounds/crater.png',
+                'assets/projectiles/doom_cloud.png',
+                'assets/projectiles/jalapeno_fire.gif',
+                'assets/ui/pool_cleaner.png',
+                'assets/ui/pool_cleaner_water.png',
+                'assets/ui/roof_cleaner.png'
+            ]);
+            Object.keys(GAME_CONFIG.plants).forEach(pId => this.collectPlantAssets(pId, deferredSet));
+            Object.keys(GAME_CONFIG.zombies).forEach(zt => this.collectZombieAssets(zt, deferredSet));
+            assetsLoader.preloadInBackground(Array.from(deferredSet), 5);
+        } else {
+            // 手机/平板轻量预热第 1 大关常用资产
+            const world1Set = new Set(['assets/backgrounds/day_3row_viewport.jpg', 'assets/backgrounds/day_5row_viewport.jpg']);
+            ['peashooter', 'sunflower', 'cherrybomb', 'wallnut', 'potatomine', 'snowpea', 'chomper', 'repeater'].forEach(pId => this.collectPlantAssets(pId, world1Set));
+            ['normal', 'conehead', 'buckethead', 'polevault'].forEach(zt => this.collectZombieAssets(zt, world1Set));
+            assetsLoader.preloadInBackground(Array.from(world1Set), 4);
+        }
 
         // 启动主渲染循环
         this.lastTime = performance.now();
@@ -294,102 +335,146 @@ class GameApp {
     }
 
     updateConveyorAnimation() {
-        if (!this.pvzEngine || !this.pvzEngine.levelConfig.isConveyorBelt || !this.dom.cardsList) return;
-        const trackEl = this.dom.cardsList.querySelector('.conveyor-belt-track');
-        if (trackEl) {
-            const offset = this.pvzEngine.conveyorTrackOffset || 0;
-            trackEl.style.backgroundPosition = `-${offset.toFixed(1)}px 0px`;
+        if (!this.pvzEngine || !this.pvzEngine.levelConfig.isConveyorBelt) return;
+        if (this._conveyorTrackEl) {
+            const rx = Math.round((this.pvzEngine.conveyorTrackOffset || 0) * 2) * 0.5;
+            if (this._lastTrackOffset !== rx) {
+                this._lastTrackOffset = rx;
+                this._conveyorTrackEl.style.backgroundPosition = `-${rx.toFixed(1)}px 0px`;
+            }
         }
         const items = this.pvzEngine.conveyorItems || [];
-        items.forEach((item, idx) => {
-            const cardEl = this.dom.cardsList.querySelector(`.conveyor-card[data-uid="${item.uid}"]`);
-            if (cardEl) {
-                cardEl.style.setProperty('--card-x', `${item.x.toFixed(1)}px`);
-                cardEl.setAttribute('data-conveyor-idx', idx);
+        for (let idx = 0; idx < items.length; idx++) {
+            const item = items[idx];
+            const entry = this._conveyorUidMap.get(String(item.uid));
+            if (entry) {
+                const cx = Math.round(item.x * 2) * 0.5;
+                if (entry.lastX !== cx) {
+                    entry.lastX = cx;
+                    entry.cardEl.style.setProperty('--card-x', `${cx.toFixed(1)}px`);
+                }
+                if (entry.cIdx !== idx) {
+                    entry.cIdx = idx;
+                    entry.cardEl.setAttribute('data-conveyor-idx', idx);
+                }
             }
-        });
+        }
     }
 
     updateHUD() {
         if (!this.pvzEngine) return;
+        const hc = this._hudCache;
+
+        let sunText;
         if (this.pvzEngine.levelConfig.isBowling) {
-            this.dom.sunVal.innerText = '🎳保龄';
+            sunText = '🎳保龄';
         } else if (this.pvzEngine.levelConfig.isConveyorBelt) {
-            this.dom.sunVal.innerText = 'FREE';
+            sunText = 'FREE';
         } else {
-            this.dom.sunVal.innerText = this.pvzEngine.sun;
+            sunText = String(this.pvzEngine.sun);
         }
-        this.dom.livesVal.innerText = this.pvzEngine.lives;
+        if (hc.sunText !== sunText) {
+            hc.sunText = sunText;
+            this.dom.sunVal.innerText = sunText;
+        }
+
+        const lives = this.pvzEngine.lives;
+        if (hc.lives !== lives) {
+            hc.lives = lives;
+            this.dom.livesVal.innerText = lives;
+        }
 
         const curWave = this.pvzEngine.waveIndex;
         const totalWave = this.pvzEngine.totalWaves;
+        let waveText;
+        let pct;
         if (this.pvzEngine.isEndless) {
             const flags = this.pvzEngine.endlessFlags || 0;
-            this.dom.waveVal.innerText = `第${curWave}波·🚩${flags}`;
-            const pct = ((curWave % 10) / 10) * 100;
-            this.dom.syringeFluid.style.width = `${pct}%`;
+            waveText = `第${curWave}波·🚩${flags}`;
+            pct = ((curWave % 10) / 10) * 100;
         } else {
-            this.dom.waveVal.innerText = `${curWave}/${totalWave}`;
-            const pct = totalWave > 0 ? (curWave / totalWave) * 100 : 0;
-            this.dom.syringeFluid.style.width = `${pct}%`;
+            waveText = `${curWave}/${totalWave}`;
+            pct = totalWave > 0 ? (curWave / totalWave) * 100 : 0;
+        }
+        if (hc.waveText !== waveText) {
+            hc.waveText = waveText;
+            this.dom.waveVal.innerText = waveText;
+        }
+        const widthStr = `${pct.toFixed(1)}%`;
+        if (hc.syringeWidth !== widthStr) {
+            hc.syringeWidth = widthStr;
+            this.dom.syringeFluid.style.width = widthStr;
         }
 
         // 连对勋章
         const combo = mathEngine.combo;
-        this.dom.comboCount.innerText = `x${combo}`;
-        if (combo >= 3) {
-            this.dom.comboBadge.style.display = 'flex';
-        } else {
-            this.dom.comboBadge.style.display = 'none';
+        if (hc.combo !== combo) {
+            hc.combo = combo;
+            this.dom.comboCount.innerText = `x${combo}`;
+            const showCombo = combo >= 3;
+            if (hc.showCombo !== showCombo) {
+                hc.showCombo = showCombo;
+                this.dom.comboBadge.style.display = showCombo ? 'flex' : 'none';
+            }
         }
     }
 
     updateCardCooldowns() {
-        if (!this.pvzEngine) return;
+        if (!this.pvzEngine || !this._cardDomCache || this._cardDomCache.length === 0) return;
         const isConveyor = !!this.pvzEngine.levelConfig.isConveyorBelt;
-        const cardElements = this.dom.cardsList.querySelectorAll('.plant-card');
-        cardElements.forEach(cardEl => {
-            const pId = cardEl.getAttribute('data-id');
-            const conf = (this.pvzEngine.getEffectiveCardConfig && this.pvzEngine.getEffectiveCardConfig(pId)) || GAME_CONFIG.plants[pId];
-            if (!conf) return;
+        const selectedCard = this.pvzEngine.selectedCard;
+        const selectedConvIdx = this.pvzEngine.selectedConveyorIdx;
+        const curSun = this.pvzEngine.sun;
 
-            const overlay = cardEl.querySelector('.card-cooldown-overlay');
+        for (let i = 0; i < this._cardDomCache.length; i++) {
+            const entry = this._cardDomCache[i];
+            const { cardEl, overlayEl, pId, conf } = entry;
+            if (!conf) continue;
 
-            // 原版履带/传送带关卡无任何冷却 CD，所有送达卡片立即可用
             if (isConveyor) {
-                if (overlay) overlay.style.height = '0%';
-                cardEl.classList.remove('disabled');
-                const cIdx = parseInt(cardEl.getAttribute('data-conveyor-idx'), 10);
-                if (this.pvzEngine.selectedCard === pId && this.pvzEngine.selectedConveyorIdx === cIdx) {
-                    cardEl.classList.add('selected');
-                } else {
-                    cardEl.classList.remove('selected');
+                if (overlayEl && entry.lastScaleY !== 0) {
+                    entry.lastScaleY = 0;
+                    overlayEl.style.transform = 'scaleY(0)';
                 }
-                return;
+                if (entry.isDisabled !== false) {
+                    entry.isDisabled = false;
+                    cardEl.classList.remove('disabled');
+                }
+                const wantSelected = (selectedCard === pId && selectedConvIdx === entry.cIdx);
+                if (entry.isSelected !== wantSelected) {
+                    entry.isSelected = wantSelected;
+                    cardEl.classList.toggle('selected', wantSelected);
+                }
+                continue;
             }
 
             const cdRemain = this.pvzEngine.cardCooldowns[pId] || 0;
             const cdTotal = conf.cooldown || 7.5;
 
+            let scaleY = 0;
+            let wantDisabled = false;
             if (cdRemain > 0) {
-                const pct = (cdRemain / cdTotal) * 100;
-                overlay.style.height = `${pct}%`;
-                cardEl.classList.add('disabled');
-            } else {
-                overlay.style.height = '0%';
-                if (this.pvzEngine.sun < conf.cost) {
-                    cardEl.classList.add('disabled');
-                } else {
-                    cardEl.classList.remove('disabled');
-                }
+                scaleY = Math.min(1, Math.max(0, Math.round((cdRemain / cdTotal) * 200) / 200));
+                wantDisabled = true;
+            } else if (curSun < conf.cost) {
+                wantDisabled = true;
             }
 
-            if (this.pvzEngine.selectedCard === pId) {
-                cardEl.classList.add('selected');
-            } else {
-                cardEl.classList.remove('selected');
+            if (overlayEl && entry.lastScaleY !== scaleY) {
+                entry.lastScaleY = scaleY;
+                overlayEl.style.transform = `scaleY(${scaleY})`;
             }
-        });
+            if (entry.isDisabled !== wantDisabled) {
+                entry.isDisabled = wantDisabled;
+                cardEl.classList.toggle('disabled', wantDisabled);
+            }
+
+            const wantSelected = (selectedCard === pId);
+            if (entry.isSelected !== wantSelected) {
+                entry.isSelected = wantSelected;
+                cardEl.classList.toggle('selected', wantSelected);
+            }
+        }
     }
 
     getSelectablePool(levelConf) {
@@ -426,6 +511,10 @@ class GameApp {
     renderCardsList() {
         if (!this.pvzEngine) return;
         this.dom.cardsList.innerHTML = '';
+        this._cardDomCache = [];
+        this._conveyorTrackEl = null;
+        this._conveyorUidMap.clear();
+        this._lastTrackOffset = null;
 
         const pool = this.getSelectablePool(this.pvzEngine.levelConfig);
         if (this.dom.whackModeBadge) {
@@ -445,6 +534,7 @@ class GameApp {
             const offset = this.pvzEngine.conveyorTrackOffset || 0;
             track.style.backgroundPosition = `-${offset.toFixed(1)}px 0px`;
             this.dom.cardsList.appendChild(track);
+            this._conveyorTrackEl = track;
 
             const beltItems = this.pvzEngine.conveyorItems || [];
             beltItems.forEach((item, idx) => {
@@ -463,12 +553,28 @@ class GameApp {
                 card.setAttribute('title', `${conf.name} (传送带免费卡片)`);
                 card.innerHTML = `
                     <div class="card-cooldown-overlay"></div>
-                    <img src="${conf.icon}" alt="${conf.name}" class="card-seed-img" />
+                    <img src="${conf.icon}" alt="${conf.name}" class="card-seed-img" decoding="async" />
                     <span class="card-conveyor-tag">FREE</span>
                 `;
 
+                const overlayEl = card.firstElementChild;
+                const cacheEntry = {
+                    cardEl: card,
+                    overlayEl,
+                    pId,
+                    conf,
+                    cIdx: idx,
+                    uid: String(item.uid),
+                    lastX: Math.round(item.x * 2) * 0.5,
+                    lastScaleY: 0,
+                    isDisabled: false,
+                    isSelected
+                };
+                this._cardDomCache.push(cacheEntry);
+                this._conveyorUidMap.set(String(item.uid), cacheEntry);
+
                 card.addEventListener('click', () => {
-                    const curIdx = parseInt(card.getAttribute('data-conveyor-idx'), 10);
+                    const curIdx = cacheEntry.cIdx;
                     soundEngine.playPlant();
                     if (this.pvzEngine.selectedCard === pId && this.pvzEngine.selectedConveyorIdx === curIdx) {
                         this.pvzEngine.selectedCard = null;
@@ -509,11 +615,23 @@ class GameApp {
                 : (isAsleepInLevel ? `${conf.name} (白天处于睡眠状态，种下后需咖啡豆唤醒)` : conf.name));
             card.innerHTML = `
                 <div class="card-cooldown-overlay"></div>
-                <img src="${conf.icon}" alt="${conf.name}" class="card-seed-img" />
+                <img src="${conf.icon}" alt="${conf.name}" class="card-seed-img" decoding="async" />
                 ${imitaterLabel}
                 ${isAsleepInLevel ? '<span class="card-sleep-badge" title="白天休眠需咖啡豆">💤 睡</span>' : ''}
                 ${this.pvzEngine.levelConfig.isConveyorBelt ? '<span class="card-conveyor-tag">FREE</span>' : ''}
             `;
+
+            const overlayEl = card.firstElementChild;
+            this._cardDomCache.push({
+                cardEl: card,
+                overlayEl,
+                pId,
+                conf,
+                cIdx: -1,
+                lastScaleY: 0,
+                isDisabled: false,
+                isSelected: false
+            });
 
             card.addEventListener('click', () => {
                 if (card.classList.contains('disabled')) {
@@ -1387,6 +1505,9 @@ class GameApp {
 
     confirmSeedDeck() {
         if (!this.pvzEngine || !this.pendingDeck || this.pendingDeck.length === 0) return;
+        const deckAssets = new Set();
+        this.pendingDeck.forEach(pId => this.collectPlantAssets(pId, deckAssets));
+        assetsLoader.preloadAll(Array.from(deckAssets), null, 8);
         this.pvzEngine.setCustomDeck(this.pendingDeck);
         if (this.dom.seedChooserModal) {
             this.dom.seedChooserModal.style.display = 'none';
@@ -1401,7 +1522,10 @@ class GameApp {
         if (this.dom.seedChooserModal) {
             this.dom.seedChooserModal.style.display = 'none';
         }
+        // 按当前关卡精准预加载背景、出战植物与本关波次僵尸，兼顾流畅切换与低内存占用
+        assetsLoader.preloadAll(this.getLevelAssets(lvlId), null, 8);
         this.pvzEngine.loadLevel(lvlId);
+        this._hudCache = {};
         if (this.dom.btnPause) this.dom.btnPause.innerText = '⏸️';
         this.renderCardsList();
 

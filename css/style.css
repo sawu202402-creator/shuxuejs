@@ -239,7 +239,6 @@ body {
 
 .sun-bank-icon {
     font-size: 24px;
-    animation: sunSpin 10s linear infinite;
 }
 
 .sun-bank-val {
@@ -300,11 +299,13 @@ body {
     top: 0;
     left: 0;
     width: 100%;
-    height: 0%;
+    height: 100%;
     background: rgba(0, 0, 0, 0.65);
     z-index: 5;
     pointer-events: none;
-    transition: height 0.05s linear;
+    transform-origin: top center;
+    transform: scaleY(0);
+    will-change: transform;
 }
 
 .card-conveyor-tag {
@@ -499,10 +500,13 @@ body {
     height: 100%;
     z-index: 60;
     pointer-events: none;
+    contain: layout style;
 }
 
 .sun-entity {
     position: absolute;
+    left: 0;
+    top: 0;
     width: 78px;
     height: 78px;
     pointer-events: auto;
@@ -513,36 +517,51 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    filter: drop-shadow(0 0 10px rgba(255, 230, 0, 0.85));
-    transition: filter 0.15s;
 }
 
-.sun-entity:hover {
-    filter: drop-shadow(0 0 18px rgba(255, 240, 50, 1.0)) brightness(1.15);
+.sun-entity::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 232, 40, 0.55) 0%, rgba(255, 200, 0, 0.18) 52%, rgba(255, 200, 0, 0) 74%);
+    pointer-events: none;
+    z-index: -1;
 }
 
 .sun-entity.super-sun {
     width: 96px;
     height: 96px;
-    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.95)) drop-shadow(0 0 6px #e67e22);
+}
+
+.sun-entity.super-sun::before {
+    inset: -12px;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.72) 0%, rgba(230, 126, 34, 0.28) 54%, rgba(230, 126, 34, 0) 76%);
 }
 
 .sun-entity.small-sun {
     width: 56px;
     height: 56px;
-    filter: drop-shadow(0 0 7px rgba(255, 230, 0, 0.8));
 }
 
 .sun-entity.coin-entity.gold-coin {
     width: 56px;
     height: 56px;
-    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.92));
+}
+
+.sun-entity.coin-entity.gold-coin::before {
+    inset: -6px;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.52) 0%, rgba(255, 215, 0, 0) 72%);
 }
 
 .sun-entity.coin-entity.silver-coin {
     width: 50px;
     height: 50px;
-    filter: drop-shadow(0 0 8px rgba(223, 230, 233, 0.9));
+}
+
+.sun-entity.coin-entity.silver-coin::before {
+    inset: -6px;
+    background: radial-gradient(circle, rgba(223, 230, 233, 0.52) 0%, rgba(223, 230, 233, 0) 72%);
 }
 
 .sun-img {
@@ -578,6 +597,7 @@ body {
     box-shadow: 0 8px 0 #2d1810, 0 16px 30px rgba(0,0,0,0.35);
     overflow: hidden;
     position: relative;
+    contain: layout style paint;
 }
 
 #battleCanvas {
@@ -599,6 +619,7 @@ body {
     height: 100%;
     z-index: 10;
     pointer-events: none;
+    contain: layout style;
 }
 
 /* 空中弹道与打击特效画布层 (高于植物/僵尸 z-index: 10~30，低于浓雾层 z-index: 45) */
@@ -631,7 +652,6 @@ body {
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    transition: transform 0.15s ease-out;
     z-index: 10;
 }
 
@@ -648,13 +668,11 @@ body {
     width: 82px !important;
     height: 56px !important;
     object-fit: contain;
-    filter: drop-shadow(0 2px 5px rgba(0, 45, 90, 0.45));
 }
 
 /* 稳稳立在荷叶之上的植物实体 */
 .plant-entity.planted-on-lilypad {
     z-index: 15 !important;
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));
 }
 
 /* 花盆与盆栽植物 */
@@ -662,12 +680,10 @@ body {
     width: 82px !important;
     height: 62px !important;
     object-fit: contain;
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
 }
 
 .plant-entity.planted-on-pot {
     z-index: 15 !important;
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));
 }
 
 /* 南瓜头铠甲外壳 */
@@ -706,11 +722,10 @@ body {
 
 .plant-entity.plant-cobcannon.cob-ready {
     cursor: pointer;
-    filter: drop-shadow(0 0 6px rgba(241, 196, 15, 0.55));
 }
 
 .plant-entity.plant-cobcannon.cob-aiming {
-    filter: drop-shadow(0 0 12px rgba(231, 76, 60, 0.95)) brightness(1.08);
+    filter: brightness(1.12) saturate(1.15);
 }
 
 .cob-ready-badge {
@@ -793,11 +808,16 @@ body {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.35));
 }
 
-.plant-entity.super-gatling {
-    filter: drop-shadow(0 0 12px #f1c40f);
+.plant-entity.super-gatling::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(241, 196, 15, 0.52) 0%, rgba(241, 196, 15, 0) 70%);
+    pointer-events: none;
+    z-index: -1;
 }
 
 .plant-entity.is-asleep .plant-gif {
@@ -840,20 +860,21 @@ body {
 
 .zombie-entity {
     position: absolute;
+    left: 0;
+    top: 0;
     pointer-events: none;
     width: 166px;
     height: 144px;
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    will-change: left, top;
+    will-change: transform;
 }
 
 .zombie-gif {
     width: 166px;
     height: 144px;
     object-fit: contain;
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.52));
 }
 
 /* 橄榄球僵尸原版魁梧体型规格 (200x168 画布，脚底与中心 1:1 对齐标准僵尸网格) */
@@ -969,7 +990,6 @@ body {
     pointer-events: none;
     z-index: 26;
     object-fit: contain;
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
 }
 
 .zombie-entity.hit-flash {
@@ -977,11 +997,11 @@ body {
 }
 
 .zombie-entity.slowed {
-    filter: drop-shadow(0 0 10px #3498db) hue-rotate(180deg);
+    filter: hue-rotate(185deg) saturate(1.5) brightness(1.06);
 }
 
 .zombie-entity.frozen {
-    filter: brightness(0.9) saturate(1.8) hue-rotate(170deg) drop-shadow(0 0 14px #00d2d3);
+    filter: brightness(0.92) saturate(1.85) hue-rotate(172deg);
 }
 
 .zombie-entity.charred-die {
@@ -1002,7 +1022,6 @@ body {
 }
 
 .zombie-entity.charred-die .zombie-gif {
-    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.75));
     animation: ash-disintegrate 2.4s forwards ease-out;
 }
 
@@ -1335,8 +1354,7 @@ body {
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.65);
-    backdrop-filter: blur(4px);
+    background: rgba(12, 18, 24, 0.76);
     display: flex;
     align-items: center;
     justify-content: center;

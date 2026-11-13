@@ -12,20 +12,37 @@ class SoundEngine {
     }
 
     init() {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (AudioContext) {
-            try {
-                this.ctx = new AudioContext();
-            } catch (e) {
-                console.warn('[SoundEngine] Web Audio defer init:', e);
-            }
-        }
+        // 延迟至首次用户交互时再创建 AudioContext，避免移动端自动播放限制警告与首屏音频线程开销
     }
 
-    resume() {
+    ensureContext() {
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                try {
+                    this.ctx = new AudioContext();
+                } catch (e) {
+                    return null;
+                }
+            }
+        }
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume().catch(() => {});
         }
+        return this.ctx;
+    }
+
+    resume() {
+        this.ensureContext();
+    }
+
+    _bindAutoCleanup(osc, gain) {
+        osc.onended = () => {
+            try {
+                osc.disconnect();
+                gain.disconnect();
+            } catch (e) {}
+        };
     }
 
     toggleMute() {
@@ -44,9 +61,8 @@ class SoundEngine {
 
     // 种植植物时原木顿音
     playPlant() {
-        if (this.muted) return;
-        this.resume();
-        if (!this.ctx) return;
+        if (this.muted || !this.throttle('plant', 35)) return;
+        if (!this.ensureContext()) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -57,15 +73,15 @@ class SoundEngine {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
+        this._bindAutoCleanup(osc, gain);
         osc.start(now);
         osc.stop(now + 0.13);
     }
 
     // 豌豆射击弹射音
     playShoot() {
-        if (this.muted || !this.throttle('shoot', 60)) return;
-        this.resume();
-        if (!this.ctx) return;
+        if (this.muted || !this.throttle('shoot', 65)) return;
+        if (!this.ensureContext()) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -76,15 +92,15 @@ class SoundEngine {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
+        this._bindAutoCleanup(osc, gain);
         osc.start(now);
         osc.stop(now + 0.09);
     }
 
     // 豌豆命中碎裂音
     playSplat() {
-        if (this.muted || !this.throttle('splat', 40)) return;
-        this.resume();
-        if (!this.ctx) return;
+        if (this.muted || !this.throttle('splat', 55)) return;
+        if (!this.ensureContext()) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -95,6 +111,7 @@ class SoundEngine {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
+        this._bindAutoCleanup(osc, gain);
         osc.start(now);
         osc.stop(now + 0.08);
     }
@@ -102,8 +119,7 @@ class SoundEngine {
     // 僵尸啃咬音 (咔嚓咀嚼)
     playBite() {
         if (this.muted || !this.throttle('bite', 120)) return;
-        this.resume();
-        if (!this.ctx) return;
+        if (!this.ensureContext()) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -114,6 +130,7 @@ class SoundEngine {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
+        this._bindAutoCleanup(osc, gain);
         osc.start(now);
         osc.stop(now + 0.11);
     }
@@ -124,9 +141,8 @@ class SoundEngine {
     }
 
     playSun() {
-        if (this.muted) return;
-        this.resume();
-        if (!this.ctx) return;
+        if (this.muted || !this.throttle('sun', 70)) return;
+        if (!this.ensureContext()) return;
         const now = this.ctx.currentTime;
         [880, 1174, 1760].forEach((freq, i) => {
             const osc = this.ctx.createOscillator();
@@ -137,6 +153,7 @@ class SoundEngine {
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35 + i * 0.04);
             osc.connect(gain);
             gain.connect(this.ctx.destination);
+            this._bindAutoCleanup(osc, gain);
             osc.start(now + i * 0.04);
             osc.stop(now + 0.4 + i * 0.04);
         });
@@ -184,9 +201,8 @@ class SoundEngine {
 
     // 天雷击碎数理护盾 (Thunder Crash)
     playThunder() {
-        if (this.muted) return;
-        this.resume();
-        if (!this.ctx) return;
+        if (this.muted || !this.throttle('thunder', 80)) return;
+        if (!this.ensureContext()) return;
         const now = this.ctx.currentTime;
         // 噪声与低频双震荡
         const osc = this.ctx.createOscillator();
@@ -198,14 +214,14 @@ class SoundEngine {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
+        this._bindAutoCleanup(osc, gain);
         osc.start(now);
         osc.stop(now + 0.46);
     }
 
     playGroan() {
         if (this.muted || !this.throttle('groan', 400)) return;
-        this.resume();
-        if (!this.ctx) return;
+        if (!this.ensureContext()) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -217,6 +233,7 @@ class SoundEngine {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
+        this._bindAutoCleanup(osc, gain);
         osc.start(now);
         osc.stop(now + 0.36);
     }
@@ -317,9 +334,8 @@ class SoundEngine {
 
     // 樱桃炸弹 / 土豆地雷 爆炸震撼低音
     playExplosion() {
-        if (this.muted) return;
-        this.resume();
-        if (!this.ctx) return;
+        if (this.muted || !this.throttle('explosion', 80)) return;
+        if (!this.ensureContext()) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -330,6 +346,7 @@ class SoundEngine {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
+        this._bindAutoCleanup(osc, gain);
         osc.start(now);
         osc.stop(now + 0.56);
     }

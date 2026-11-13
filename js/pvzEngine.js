@@ -1,12 +1,12 @@
 /**
  * pvzEngine.js - 核心战场循环、波次推进、除草机与 DOM 实体混合架构
  */
-import { GAME_CONFIG } from './config.js?v=20261112_v9';
-import { assetsLoader } from './assetsLoader.js?v=20261112_v9';
-import { soundEngine } from './audio.js?v=20261112_v9';
-import { createPlant } from './plants.js?v=20261112_v9';
-import { Zombie } from './zombies.js?v=20261112_v9';
-import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261112_v9';
+import { GAME_CONFIG } from './config.js?v=20261113_v1';
+import { assetsLoader } from './assetsLoader.js?v=20261113_v1';
+import { soundEngine } from './audio.js?v=20261113_v1';
+import { createPlant } from './plants.js?v=20261113_v1';
+import { Zombie } from './zombies.js?v=20261113_v1';
+import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261113_v1';
 
 export class PvzEngine {
     constructor(canvas, entityLayer, onStateChange = null) {
@@ -62,6 +62,9 @@ export class PvzEngine {
         this.fogSlideX = 0;
         this.fogAge = 0;
         this._fogPuffCanvases = null;
+        this._fxCanvasDirty = true;
+        this._fogCanvasDirty = true;
+        this._lastFogRenderAge = -1;
 
         // 植物卡片槽与冷却表
         this.activePlants = [];
@@ -130,6 +133,9 @@ export class PvzEngine {
         this.fogClearTimer = 0;
         this.fogSlideX = this.isFog ? 480 : 0; // 开局浓雾从右侧缓缓漫入草坪
         this.fogAge = 0;
+        this._fxCanvasDirty = true;
+        this._fogCanvasDirty = true;
+        this._lastFogRenderAge = -1;
         this.waterRows = this.levelConfig.waterRows || [];
 
         // 泳池 / 屋顶 / 草坪 网格坐标精确对位
@@ -1798,6 +1804,35 @@ export class PvzEngine {
             });
         }
 
+        // 3.8 批量单次绘制植物与陆地僵尸贴地接触暗影 (替代移动端昂贵的 45+ 动态 GIF CSS drop-shadow 高斯模糊卷积)
+        if (this.plants.length > 0 || this.zombies.length > 0) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.26)';
+            ctx.beginPath();
+            for (let i = 0; i < this.plants.length; i++) {
+                const p = this.plants[i];
+                if (p.isDead || p.isFlat || p.hostPot || p.hostLilypad || p.isPumpkin) continue;
+                if (p.type === 'lilypad') continue;
+                const rx = p.isDoubleWide ? 62 : 28;
+                const sx = p.isDoubleWide ? p.x + this.cellW * 0.5 : p.x;
+                ctx.moveTo(sx + rx, p.y + 24);
+                ctx.ellipse(sx, p.y + 24, rx, 9, 0, 0, Math.PI * 2);
+            }
+            for (let i = 0; i < this.zombies.length; i++) {
+                const z = this.zombies[i];
+                if (z.isDead || z.isFlying || z.type === 'bungee' || z.inPoolWater) continue;
+                if (z.type === 'digger' && z.diggerPhase === 'digging') continue;
+                const isWaterLane = this.waterRows && this.waterRows.includes(z.row) && z.x <= this.gridStartX + this.cols * this.cellW - 4;
+                if (isWaterLane) continue;
+                const zrx = z.type === 'gargantuar' ? 42 : (z.isVehicle ? 46 : 25);
+                const zy = z.y + 34;
+                ctx.moveTo(z.x + zrx, zy);
+                ctx.ellipse(z.x, zy, zrx, 9, 0, 0, Math.PI * 2);
+            }
+            ctx.fill();
+            ctx.restore();
+        }
+
         // 4. 底层画布绘制植物血条、保龄坚果以及高空抛投物的贴地/贴瓦面真实投影
         this.plants.forEach(p => p.render(ctx));
         if (this.bowlingNuts && this.bowlingNuts.length > 0) {
@@ -1810,97 +1845,133 @@ export class PvzEngine {
         });
         this.suns.forEach(s => s.render(ctx));
 
-        // 4.1 空中弹道与打击特效画布 (#fxCanvas, z-index: 35)：绘制在所有花盆/植物/僵尸 DOM 上方、浓雾层下方，保证抛投弧线与击中飞溅清晰可见且绝不遮挡穿模
+        // 4.1 空中弹道与打击特效画布 (#fxCanvas, z-index: 35)：空闲帧零 clearRect 开销
         const fxCtx = this.fxCtx || ctx;
-        if (this.fxCtx && this.fxCanvas) {
-            this.fxCtx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);
-        }
-        this.projectiles.forEach(pr => pr.render(fxCtx));
-        this.hitSplats.forEach(hs => hs.render(fxCtx));
-        this.explosions.forEach(ex => ex.render(fxCtx));
-        this.floatingTexts.forEach(ft => ft.render(fxCtx));
+        const hasMalletCursor = !!(this.isWhackAZombie && !this.selectedCard && !this.isShovelActive && this.malletCursor && this.malletCursor.x >= 0);
+        const hasCobCursor = !!(this.aimingCobCannon && !this.aimingCobCannon.isDead && this.aimingCobCannon.isLoaded && this.cobAimCursor);
+        const hasFxContent = (
+            this.projectiles.length > 0 ||
+            this.hitSplats.length > 0 ||
+            this.explosions.length > 0 ||
+            this.floatingTexts.length > 0 ||
+            (this.whackEffects && this.whackEffects.length > 0) ||
+            hasMalletCursor ||
+            hasCobCursor
+        );
 
-        // 4.2 2-5 锤僵尸木槌震波与挥锤准星渲染 (同样位于前景特效层)
-        if (this.whackEffects && this.whackEffects.length > 0) {
-            this.whackEffects.forEach(ef => {
-                const p = ef.age / ef.lifespan;
-                const alpha = Math.max(0, 1 - p);
+        if (hasFxContent) {
+            if (this.fxCtx && this.fxCanvas) {
+                this.fxCtx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);
+                this._fxCanvasDirty = true;
+            }
+            this.projectiles.forEach(pr => pr.render(fxCtx));
+            this.hitSplats.forEach(hs => hs.render(fxCtx));
+            this.explosions.forEach(ex => ex.render(fxCtx));
+            this.floatingTexts.forEach(ft => ft.render(fxCtx));
+
+            // 4.2 2-5 锤僵尸木槌震波与挥锤准星渲染 (同样位于前景特效层)
+            if (this.whackEffects && this.whackEffects.length > 0) {
+                this.whackEffects.forEach(ef => {
+                    const p = ef.age / ef.lifespan;
+                    const alpha = Math.max(0, 1 - p);
+                    fxCtx.save();
+                    fxCtx.strokeStyle = ef.hit ? `rgba(241, 196, 15, ${alpha})` : `rgba(189, 195, 199, ${alpha * 0.7})`;
+                    fxCtx.lineWidth = ef.hit ? 5 : 3;
+                    fxCtx.beginPath();
+                    fxCtx.ellipse(ef.x, ef.y + 8, 18 + p * 38, 10 + p * 20, 0, 0, Math.PI * 2);
+                    fxCtx.stroke();
+                    fxCtx.restore();
+                });
+            }
+            if (hasMalletCursor) {
+                const malletImg = assetsLoader.getImage('assets/ui/mallet.png');
+                if (malletImg && malletImg.complete) {
+                    fxCtx.save();
+                    fxCtx.translate(this.malletCursor.x + 22, this.malletCursor.y - 6);
+                    const swingAngle = this.malletCursor.swingTimer > 0
+                        ? -0.75 * Math.sin((this.malletCursor.swingTimer / 0.22) * Math.PI)
+                        : 0.28;
+                    fxCtx.rotate(swingAngle);
+                    fxCtx.drawImage(malletImg, -46, -68, 76, 76);
+                    fxCtx.restore();
+                }
+            }
+
+            // 4.3 玉米加农炮战术准星与 3x3 轰炸范围预览圈
+            if (hasCobCursor) {
+                const tx = this.cobAimCursor.x;
+                const ty = this.cobAimCursor.y;
+                const pulse = 1 + Math.sin(performance.now() * 0.01) * 0.06;
                 fxCtx.save();
-                fxCtx.strokeStyle = ef.hit ? `rgba(241, 196, 15, ${alpha})` : `rgba(189, 195, 199, ${alpha * 0.7})`;
-                fxCtx.lineWidth = ef.hit ? 5 : 3;
+
+                // 3x3 爆破覆盖范围虚线警示环
+                fxCtx.setLineDash([8, 6]);
+                fxCtx.strokeStyle = 'rgba(231, 76, 60, 0.55)';
+                fxCtx.fillStyle = 'rgba(231, 76, 60, 0.11)';
+                fxCtx.lineWidth = 2.2;
                 fxCtx.beginPath();
-                fxCtx.ellipse(ef.x, ef.y + 8, 18 + p * 38, 10 + p * 20, 0, 0, Math.PI * 2);
+                fxCtx.ellipse(tx, ty, 118, 98, 0, 0, Math.PI * 2);
+                fxCtx.fill();
                 fxCtx.stroke();
-                fxCtx.restore();
-            });
-        }
-        if (this.isWhackAZombie && !this.selectedCard && !this.isShovelActive && this.malletCursor && this.malletCursor.x >= 0) {
-            const malletImg = assetsLoader.getImage('assets/ui/mallet.png');
-            if (malletImg && malletImg.complete) {
-                fxCtx.save();
-                fxCtx.translate(this.malletCursor.x + 22, this.malletCursor.y - 6);
-                const swingAngle = this.malletCursor.swingTimer > 0
-                    ? -0.75 * Math.sin((this.malletCursor.swingTimer / 0.22) * Math.PI)
-                    : 0.28;
-                fxCtx.rotate(swingAngle);
-                fxCtx.drawImage(malletImg, -46, -68, 76, 76);
+                fxCtx.setLineDash([]);
+
+                // 经典红金十字准星
+                fxCtx.translate(tx, ty);
+                fxCtx.scale(pulse, pulse);
+                fxCtx.strokeStyle = '#ff3838';
+                fxCtx.lineWidth = 3.5;
+                fxCtx.beginPath();
+                fxCtx.arc(0, 0, 22, 0, Math.PI * 2);
+                fxCtx.stroke();
+
+                fxCtx.strokeStyle = '#ffd32a';
+                fxCtx.lineWidth = 2;
+                fxCtx.beginPath();
+                fxCtx.arc(0, 0, 10, 0, Math.PI * 2);
+                fxCtx.stroke();
+
+                fxCtx.strokeStyle = '#ff3838';
+                fxCtx.lineWidth = 3;
+                fxCtx.beginPath();
+                fxCtx.moveTo(-30, 0); fxCtx.lineTo(-13, 0);
+                fxCtx.moveTo(13, 0);  fxCtx.lineTo(30, 0);
+                fxCtx.moveTo(0, -30); fxCtx.lineTo(0, -13);
+                fxCtx.moveTo(0, 13);  fxCtx.lineTo(0, 30);
+                fxCtx.stroke();
+
+                fxCtx.fillStyle = '#ffd32a';
+                fxCtx.beginPath();
+                fxCtx.arc(0, 0, 3.5, 0, Math.PI * 2);
+                fxCtx.fill();
                 fxCtx.restore();
             }
+        } else if (this.fxCtx && this.fxCanvas && this._fxCanvasDirty) {
+            this.fxCtx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);
+            this._fxCanvasDirty = false;
         }
 
-        // 4.3 玉米加农炮战术准星与 3x3 轰炸范围预览圈
-        if (this.aimingCobCannon && !this.aimingCobCannon.isDead && this.aimingCobCannon.isLoaded && this.cobAimCursor) {
-            const tx = this.cobAimCursor.x;
-            const ty = this.cobAimCursor.y;
-            const pulse = 1 + Math.sin(performance.now() * 0.01) * 0.06;
-            fxCtx.save();
-
-            // 3x3 爆破覆盖范围虚线警示环
-            fxCtx.setLineDash([8, 6]);
-            fxCtx.strokeStyle = 'rgba(231, 76, 60, 0.55)';
-            fxCtx.fillStyle = 'rgba(231, 76, 60, 0.11)';
-            fxCtx.lineWidth = 2.2;
-            fxCtx.beginPath();
-            fxCtx.ellipse(tx, ty, 118, 98, 0, 0, Math.PI * 2);
-            fxCtx.fill();
-            fxCtx.stroke();
-            fxCtx.setLineDash([]);
-
-            // 经典红金十字准星
-            fxCtx.translate(tx, ty);
-            fxCtx.scale(pulse, pulse);
-            fxCtx.strokeStyle = '#ff3838';
-            fxCtx.lineWidth = 3.5;
-            fxCtx.beginPath();
-            fxCtx.arc(0, 0, 22, 0, Math.PI * 2);
-            fxCtx.stroke();
-
-            fxCtx.strokeStyle = '#ffd32a';
-            fxCtx.lineWidth = 2;
-            fxCtx.beginPath();
-            fxCtx.arc(0, 0, 10, 0, Math.PI * 2);
-            fxCtx.stroke();
-
-            fxCtx.strokeStyle = '#ff3838';
-            fxCtx.lineWidth = 3;
-            fxCtx.beginPath();
-            fxCtx.moveTo(-30, 0); fxCtx.lineTo(-13, 0);
-            fxCtx.moveTo(13, 0);  fxCtx.lineTo(30, 0);
-            fxCtx.moveTo(0, -30); fxCtx.lineTo(0, -13);
-            fxCtx.moveTo(0, 13);  fxCtx.lineTo(0, 30);
-            fxCtx.stroke();
-
-            fxCtx.fillStyle = '#ffd32a';
-            fxCtx.beginPath();
-            fxCtx.arc(0, 0, 3.5, 0, Math.PI * 2);
-            fxCtx.fill();
-            fxCtx.restore();
-        }
-
-        // 4.5. 前景浓雾与波次横幅层渲染 (绘制在 #fogCanvas 之上，真实笼罩右侧僵尸与植物，并支持路灯花/火炬树桩透光开洞)
+        // 4.5. 前景浓雾与波次横幅层渲染 (非浓雾且无横幅关卡完全跳过 clearRect；浓雾层采用 30fps 持久帧缓冲节流降低 75% 像素填充率)
         const fgCtx = this.fogCtx || ctx;
+        const hasBanner = this.flagWaveBannerTimer > 0;
+        if (!this.isFog && !hasBanner) {
+            if (this.fogCtx && this.fogCanvas && this._fogCanvasDirty) {
+                this.fogCtx.clearRect(0, 0, this.fogCanvas.width, this.fogCanvas.height);
+                this._fogCanvasDirty = false;
+            }
+            return;
+        }
+
+        if (this.isFog && !hasBanner && this.fogCtx && this.fogCanvas) {
+            const curFogAge = this.fogAge || 0;
+            if (this._lastFogRenderAge >= 0 && (curFogAge - this._lastFogRenderAge) < 0.032) {
+                return;
+            }
+            this._lastFogRenderAge = curFogAge;
+        }
+
         if (this.fogCtx && this.fogCanvas) {
             this.fogCtx.clearRect(0, 0, this.fogCanvas.width, this.fogCanvas.height);
+            this._fogCanvasDirty = true;
         }
 
         if (this.isFog) {
@@ -1921,26 +1992,26 @@ export class PvzEngine {
                 fgCtx.fillStyle = fogGrad;
                 fgCtx.fillRect(gradStart, 0, this.canvas.width - gradStart, this.canvas.height);
 
-                // 2) 原版风格多层蓬松翻涌云雾团（按行列网格交错排布，轻柔呼吸起伏）
+                // 2) 高效低重绘率蓬松云雾团（疏密优化网格排布，保持完整蓬松层次感）
                 const puffs = this.ensureFogPuffSprites();
                 const t = (this.fogAge || 0);
                 if (puffs && puffs.length > 0) {
-                    const fogCols = 9 - baseStartCol + 1;
-                    for (let r = -1; r <= 6; r++) {
-                        for (let c = 0; c <= fogCols; c++) {
-                            const seed = (r + 2) * 13.7 + c * 7.3;
-                            const puffImg = puffs[(Math.abs(r * 3 + c * 5)) % puffs.length];
+                    const fogWidthCols = Math.ceil(((9 - baseStartCol + 1) * 80) / 112);
+                    for (let r = 0; r < 6; r++) {
+                        for (let c = 0; c <= fogWidthCols; c++) {
+                            const seed = (r + 1) * 13.7 + c * 7.3;
+                            const puffImg = puffs[(r * 3 + c * 5) % puffs.length];
                             const driftX = Math.sin(t * 0.75 + seed) * 14 + Math.cos(t * 0.42 + seed * 0.5) * 6;
                             const driftY = Math.cos(t * 0.65 + seed * 1.1) * 7;
-                            const breathe = 1.0 + Math.sin(t * 0.9 + seed * 0.8) * 0.07;
+                            const breathe = 1.0 + Math.sin(t * 0.9 + seed * 0.8) * 0.06;
 
-                            const cx = fogEdgeX + 34 + c * 78 + (r % 2 === 0 ? 0 : 28) + driftX;
-                            const cy = 68 + r * 84 + driftY;
-                            if (cx - 125 > this.canvas.width) continue;
+                            const cx = fogEdgeX + 38 + c * 112 + (r % 2 === 0 ? 0 : 34) + driftX;
+                            const cy = 54 + r * 98 + driftY;
+                            if (cx - 135 > this.canvas.width) continue;
 
-                            const pw = 228 * breathe;
-                            const ph = 166 * breathe;
-                            fgCtx.globalAlpha = c === 0 ? 0.78 : 0.94;
+                            const pw = 256 * breathe;
+                            const ph = 186 * breathe;
+                            fgCtx.globalAlpha = c === 0 ? 0.78 : 0.92;
                             fgCtx.drawImage(puffImg, cx - pw / 2, cy - ph / 2, pw, ph);
                         }
                     }
@@ -1981,7 +2052,7 @@ export class PvzEngine {
         }
 
         // 5. 大波僵尸横幅 (原版红金震撼警报横幅与全屏警示，绘制在前景层最上方)
-        if (this.flagWaveBannerTimer > 0) {
+        if (hasBanner) {
             fgCtx.save();
             const elapsed = 3.5 - this.flagWaveBannerTimer;
 
@@ -2054,18 +2125,18 @@ export class PvzEngine {
                 fgCtx.fill();
             }
 
-            // 文字渲染：正统PVZ立体加粗描边 + 亮金向炽红渐变填充
+            // 文字渲染：正统PVZ立体加粗描边 + 偏移立体投影 (零 shadowBlur 模糊开销)
             fgCtx.font = '900 42px "Microsoft YaHei", "SimHei", "PingFang SC", "Arial Black", sans-serif';
             fgCtx.textAlign = 'center';
             fgCtx.textBaseline = 'middle';
 
-            fgCtx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-            fgCtx.shadowBlur = 14;
-            fgCtx.shadowOffsetY = 4;
+            fgCtx.lineJoin = 'round';
+            fgCtx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
+            fgCtx.lineWidth = 10;
+            fgCtx.strokeText(this.flagWaveText, this.canvas.width / 2, centerY + 4);
 
             fgCtx.strokeStyle = '#050202';
             fgCtx.lineWidth = 9;
-            fgCtx.lineJoin = 'round';
             fgCtx.strokeText(this.flagWaveText, this.canvas.width / 2, centerY);
 
             const textGrad = fgCtx.createLinearGradient(0, centerY - 22, 0, centerY + 22);

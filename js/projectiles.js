@@ -1,8 +1,8 @@
 /**
  * projectiles.js - 子弹、投掷物、爆炸粒子、飘字与阳光飞行动画系统
  */
-import { assetsLoader } from './assetsLoader.js?v=20261112_v9';
-import { soundEngine } from './audio.js?v=20261112_v9';
+import { assetsLoader } from './assetsLoader.js?v=20261113_v1';
+import { soundEngine } from './audio.js?v=20261113_v1';
 
 export class Projectile {
     constructor(row, x, y, type = 'pea', damage = 20, isSlow = false, maxRange = 960, customSpeed = null) {
@@ -426,9 +426,15 @@ export class SunEntity {
 
     updateDOMTransform() {
         if (!this.domElement) return;
-        const left = this.x - this.radius;
-        const top = this.y - this.radius;
-        this.domElement.style.transform = `translate3d(${left}px, ${top}px, 0) scale(${this.scale})`;
+        const rx = Math.round((this.x - this.radius) * 2) * 0.5;
+        const ry = Math.round((this.y - this.radius) * 2) * 0.5;
+        const rs = Math.round(this.scale * 100) / 100;
+        if (this._lastX !== rx || this._lastY !== ry || this._lastS !== rs) {
+            this._lastX = rx;
+            this._lastY = ry;
+            this._lastS = rs;
+            this.domElement.style.transform = `translate3d(${rx}px, ${ry}px, 0) scale(${rs})`;
+        }
         if (this.isCollecting) {
             this.domElement.style.opacity = Math.max(0.1, 1.0 - this.collectProgress * 0.9);
         }
@@ -894,13 +900,10 @@ export class LobbedProjectile {
             ctx.restore();
         }
 
-        // 2. 绘制旋转飞行的投掷物实体
+        // 2. 绘制旋转飞行的投掷物实体 (已由 renderShadow 绘制贴地投影，跳过高开销移动端 shadowBlur)
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.rotation);
-        ctx.shadowColor = this.type === 'winter_melon' ? 'rgba(52, 152, 219, 0.65)' : 'rgba(0, 0, 0, 0.42)';
-        ctx.shadowBlur = 5;
-        ctx.shadowOffsetY = 2;
         if (img && img.complete) {
             ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
         } else {
@@ -1054,12 +1057,14 @@ export class BowlingNutEntity {
 
     render(ctx) {
         ctx.save();
+        // 轻量贴地投影椭圆 (零模糊开销)
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + this.radius - 3, 24, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.translate(this.x, this.y);
         ctx.rotate((this.rotation * Math.PI) / 180);
-
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetY = 4;
 
         const assetPath = this.type === 'bowling_rednut' ? 'assets/plants/wallnut_red.png' : 'assets/plants/wallnut.gif';
         const img = assetsLoader.getImage(assetPath);
@@ -1369,8 +1374,6 @@ export class CobRocketProjectile {
         ctx.closePath();
         ctx.fill();
 
-        ctx.shadowColor = 'rgba(241, 196, 15, 0.55)';
-        ctx.shadowBlur = 10;
         if (img && img.complete) {
             ctx.drawImage(img, -23, -45, 46, 90);
         } else {

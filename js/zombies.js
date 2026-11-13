@@ -1,9 +1,9 @@
 /**
  * zombies.js - 原版 1:1 僵尸实体系统与 DOM 60fps 动态 GIF 动画层 (完整支持第 1~5 大关全兵种与屋顶斜坡)
  */
-import { GAME_CONFIG } from './config.js?v=20261112_v9';
-import { soundEngine } from './audio.js?v=20261112_v9';
-import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261112_v9';
+import { GAME_CONFIG } from './config.js?v=20261113_v1';
+import { soundEngine } from './audio.js?v=20261113_v1';
+import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261113_v1';
 
 export class Zombie {
     constructor(type = 'normal', row = 2, startX = 900, entityLayer = null) {
@@ -134,15 +134,18 @@ export class Zombie {
         this.domElement = document.createElement('div');
         this.domElement.className = `zombie-entity zombie-${this.type}`;
         this.domElement.setAttribute('data-id', this.id);
-        const baseTop = this.gridStartY + this.row * this.cellH - 46;
-        this.domElement.style.left = `${this.x - 105}px`;
-        this.domElement.style.top = `${baseTop + this.bungeeOffsetY}px`;
+        this._lastDomX = null;
+        this._lastDomY = null;
+        this._inWaterClass = false;
+        this._isHitFlashing = false;
 
         this.domImg = document.createElement('img');
         this.domImg.className = 'zombie-gif';
+        this.domImg.decoding = 'async';
         this.domImg.src = this.currentAnim;
         this.domElement.appendChild(this.domImg);
 
+        this.updateDOMPosition(null, this.bungeeOffsetY);
         container.appendChild(this.domElement);
     }
 
@@ -152,13 +155,18 @@ export class Zombie {
         const isWaterLane = !!(engine && engine.waterRows && engine.waterRows.includes(this.row));
         const poolRightX = (engine && ((engine.gridStartX || 80) + (engine.cols || 9) * (engine.cellW || 80) - 4)) || 796;
         const waterDip = (isWaterLane && this.isAquatic && this.inPoolWater) ? 8 : 0;
-        if (isWaterLane && !this.isAquatic && !this.isFlying && this.type !== 'bungee' && this.x <= poolRightX) {
-            this.domElement.classList.add('in-water');
-        } else {
-            this.domElement.classList.remove('in-water');
+        const shouldBeInWater = !!(isWaterLane && !this.isAquatic && !this.isFlying && this.type !== 'bungee' && this.x <= poolRightX);
+        if (this._inWaterClass !== shouldBeInWater) {
+            this._inWaterClass = shouldBeInWater;
+            this.domElement.classList.toggle('in-water', shouldBeInWater);
         }
-        this.domElement.style.left = `${this.x - 105}px`;
-        this.domElement.style.top = `${this.gridStartY + this.row * this.cellH - 46 + slopeY + waterDip + extraOffsetY}px`;
+        const rx = Math.round((this.x - 105) * 2) * 0.5;
+        const ry = Math.round((this.gridStartY + this.row * this.cellH - 46 + slopeY + waterDip + extraOffsetY) * 2) * 0.5;
+        if (this._lastDomX !== rx || this._lastDomY !== ry) {
+            this._lastDomX = rx;
+            this._lastDomY = ry;
+            this.domElement.style.transform = `translate3d(${rx}px, ${ry}px, 0)`;
+        }
     }
 
     setAnim(newSrc) {
@@ -266,11 +274,9 @@ export class Zombie {
         if (this.isDead || this.isDying) return;
 
         this.hitFlashTimer = 0.08;
-        if (this.domElement) {
+        if (this.domElement && !this._isHitFlashing) {
+            this._isHitFlashing = true;
             this.domElement.classList.add('hit-flash');
-            setTimeout(() => {
-                if (this.domElement) this.domElement.classList.remove('hit-flash');
-            }, 80);
         }
 
         // 原版机制：前向护盾（铁栅门/报纸/金属梯）与机械载具（冰车/投石车）不受寒冰减速
@@ -342,12 +348,10 @@ export class Zombie {
 
     takePiercingDamage(amount) {
         if (this.isDead || this.isDying) return;
-        this.hitFlashTimer = 0.12;
-        if (this.domElement) {
+        this.hitFlashTimer = 0.09;
+        if (this.domElement && !this._isHitFlashing) {
+            this._isHitFlashing = true;
             this.domElement.classList.add('hit-flash');
-            setTimeout(() => {
-                if (this.domElement) this.domElement.classList.remove('hit-flash');
-            }, 80);
         }
 
         this.hp -= amount;
@@ -369,10 +373,10 @@ export class Zombie {
         if (this.isHypnotized || this.isDead || this.isDying || this.isVehicle || this.type === 'gargantuar' || this.type === 'bungee') return;
         this.isHypnotized = true;
         this.speed = -Math.abs(this.speed || 18);
-        if (this.domElement) {
-            this.domElement.style.transformOrigin = this.type === 'football' ? '122px center' : '105px center';
-            this.domElement.style.transform = 'scaleX(-1)';
-            this.domElement.style.filter = 'drop-shadow(0 0 12px #d980fa) hue-rotate(280deg)';
+        if (this.domImg) {
+            this.domImg.style.transformOrigin = this.type === 'football' ? '122px center' : '105px center';
+            this.domImg.style.transform = 'scaleX(-1)';
+            this.domImg.style.filter = 'hue-rotate(280deg) saturate(1.55) brightness(1.08)';
         }
     }
 
@@ -616,6 +620,13 @@ export class Zombie {
     update(dt, engine) {
         if (this.isDead) return;
         this.age += dt;
+        if (this.hitFlashTimer > 0) {
+            this.hitFlashTimer -= dt;
+            if (this.hitFlashTimer <= 0 && this._isHitFlashing) {
+                this._isHitFlashing = false;
+                if (this.domElement) this.domElement.classList.remove('hit-flash');
+            }
+        }
 
         // 同步引擎网格与屋顶斜坡高度 + 水生僵尸严格水路约束 & 岸边入水溅水变身机制
         if (engine) {
