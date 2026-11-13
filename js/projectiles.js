@@ -1,8 +1,8 @@
 /**
  * projectiles.js - 子弹、投掷物、爆炸粒子、飘字与阳光飞行动画系统
  */
-import { assetsLoader } from './assetsLoader.js?v=20261113_v1';
-import { soundEngine } from './audio.js?v=20261113_v1';
+import { assetsLoader } from './assetsLoader.js?v=20261113_v2';
+import { soundEngine } from './audio.js?v=20261113_v2';
 
 export class Projectile {
     constructor(row, x, y, type = 'pea', damage = 20, isSlow = false, maxRange = 960, customSpeed = null) {
@@ -205,7 +205,10 @@ export class FumeCloud {
         // 贯穿攻击：直线 range 距离内所有敌方僵尸受伤害（穿透铁栅门/报纸等前向护盾，不无视铁桶/路障/橄榄球头盔）
         if (engine && engine.zombies) {
             engine.zombies.forEach(z => {
-                if (z.row === this.row && !z.isDead && !z.isHypnotized && !this.hitZombies.has(z.id)) {
+                if (
+                    z.row === this.row && !z.isDead && !z.isHypnotized && !this.hitZombies.has(z.id) &&
+                    !(z.type === 'bungee' && (z.bungeePhase === 'init' || z.bungeePhase === 'targeting' || z.bungeeOffsetY < -190))
+                ) {
                     if (z.x >= this.x - 20 && z.x <= this.x + this.range) {
                         this.hitZombies.add(z.id);
                         if (typeof z.takeFumeDamage === 'function') {
@@ -796,14 +799,15 @@ export class LobbedProjectile {
             return;
         }
 
-        // 若锁定的僵尸在半空中已倒下，自动命中落点处同行的相邻存活僵尸
-        let directTarget = (this.targetZombie && !this.targetZombie.isDead && !this.targetZombie.isDying)
+        // 若锁定的僵尸在半空中已倒下或蹦极已高飞撤离，自动命中落点处同行的相邻存活僵尸
+        const isHighBungee = (z) => z.type === 'bungee' && (z.bungeePhase === 'init' || z.bungeePhase === 'targeting' || z.bungeeOffsetY < -190);
+        let directTarget = (this.targetZombie && !this.targetZombie.isDead && !this.targetZombie.isDying && !(this.targetZombie.type === 'bungee' && this.targetZombie.bungeeOffsetY < -190))
             ? this.targetZombie
             : null;
         if (!directTarget && engine.zombies) {
             directTarget = engine.zombies.find(z =>
                 z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized &&
-                !z.isFlying && z.type !== 'bungee' && Math.abs(z.x - this.x) <= 40
+                !z.isFlying && !isHighBungee(z) && Math.abs(z.x - this.x) <= 44
             ) || null;
         }
 
@@ -822,7 +826,7 @@ export class LobbedProjectile {
                 chillZombie(directTarget);
             }
             engine.zombies.forEach(z => {
-                if (z === directTarget || z.isDead || z.isDying || z.isHypnotized || z.isFlying || z.type === 'bungee') return;
+                if (z === directTarget || z.isDead || z.isDying || z.isHypnotized || z.isFlying || isHighBungee(z)) return;
                 if (Math.abs(z.row - this.row) <= 1 && Math.abs(z.x - this.x) <= 94) {
                     this.applyLobbedHit(z, 26);
                     chillZombie(z);

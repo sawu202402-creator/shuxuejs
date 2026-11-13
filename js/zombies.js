@@ -1,9 +1,9 @@
 /**
  * zombies.js - 原版 1:1 僵尸实体系统与 DOM 60fps 动态 GIF 动画层 (完整支持第 1~5 大关全兵种与屋顶斜坡)
  */
-import { GAME_CONFIG } from './config.js?v=20261113_v1';
-import { soundEngine } from './audio.js?v=20261113_v1';
-import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261113_v1';
+import { GAME_CONFIG } from './config.js?v=20261113_v2';
+import { soundEngine } from './audio.js?v=20261113_v2';
+import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261113_v2';
 
 export class Zombie {
     constructor(type = 'normal', row = 2, startX = 900, entityLayer = null) {
@@ -83,10 +83,12 @@ export class Zombie {
             this.speed = this.config.digSpeed || 54;
         }
 
-        // 蹦极僵尸从天而降状态 ('init' | 'descending' | 'grabbing' | 'ascending')
+        // 蹦极僵尸从天而降状态 ('init' | 'targeting' | 'descending' | 'hanging' | 'grabbing' | 'ascending')
         this.bungeePhase = this.type === 'bungee' ? 'init' : null;
         this.bungeeTimer = 0;
-        this.bungeeOffsetY = this.type === 'bungee' ? -280 : 0;
+        this.bungeeAge = 0;
+        this.bungeeOffsetY = this.type === 'bungee' ? -360 : 0;
+        this.bungeeRenderOffsetY = this.bungeeOffsetY;
         this.bungeeTargetPlant = null;
 
         // 投石车僵尸篮球弹药
@@ -695,13 +697,42 @@ export class Zombie {
             return;
         }
 
+        // 蹦极僵尸首帧锁定地面格子与红白靶心坐标 (即使随后被寒冰菇极冻，也已具备准确靶心位置)
+        if (this.type === 'bungee' && this.bungeePhase === 'init' && engine && !this.isDying) {
+            const rowPlants = engine.plants.filter(p => p.row === this.row && !p.isDead && !p.isFlat);
+            if (rowPlants.length > 0) {
+                const mainPlants = rowPlants.filter(p => !p.isPot && p.type !== 'lilypad' && !p.isPumpkin);
+                const pool = mainPlants.length > 0 ? mainPlants : rowPlants;
+                const chosen = pool[Math.floor(Math.random() * pool.length)];
+                this.bungeeTargetPlant = chosen;
+                this.x = chosen.x;
+            } else {
+                const randCol = 1 + Math.floor(Math.random() * 4);
+                this.x = (engine.gridStartX || 40) + randCol * this.cellW + this.cellW / 2;
+            }
+            const slopeY = (typeof engine.getSurfaceOffsetY === 'function') ? engine.getSurfaceOffsetY(this.x) : 0;
+            this.y = this.gridStartY + this.row * this.cellH + this.cellH / 2 + slopeY;
+            this.bungeeOffsetY = -360;
+            this.bungeeRenderOffsetY = -360;
+            this.bungeeTimer = 0.85;
+            this.bungeePhase = 'targeting';
+            soundEngine.playGroan();
+            if (engine.floatingTexts) {
+                engine.floatingTexts.push(new FloatingText(this.x, this.y - 46, '🎯 蹦极锁定!', '#e67e22', 20));
+            }
+        }
+
+        const pinnedExtraOffsetY = this.type === 'bungee'
+            ? (this.bungeeRenderOffsetY ?? this.bungeeOffsetY ?? 0)
+            : (this.type === 'digger' && this.diggerPhase === 'digging' ? 14 : 0);
+
         // 黄油定身控制
         if (this.butterTimer > 0) {
             this.butterTimer -= dt;
             if (this.butterTimer <= 0 && this.domButter) {
                 this.domButter.style.display = 'none';
             }
-            this.updateDOMPosition(engine);
+            this.updateDOMPosition(engine, pinnedExtraOffsetY);
             return;
         }
 
@@ -711,7 +742,7 @@ export class Zombie {
             if (this.freezeTimer <= 0 && this.domElement) {
                 this.domElement.classList.remove('frozen');
             }
-            this.updateDOMPosition(engine);
+            this.updateDOMPosition(engine, pinnedExtraOffsetY);
             return;
         }
 
@@ -727,68 +758,86 @@ export class Zombie {
             return;
         }
 
-        // ================= 1. 蹦极僵尸从天而降偷窃植物 =================
+        // ================= 1. 蹦极僵尸从天而降偷窃植物 (1:1 对齐原版 Zombie.cpp UpdateZombieBungee) =================
+        // 原版节奏：0.85s 地面红白靶心预警 -> ~1.85s 顺滑垂降 -> 3.0s 原地悬停待命 (mPhaseCounter=300) -> 0.95s 双手抱紧 -> 240px/s 缩绳升空
         if (this.type === 'bungee' && engine) {
-            if (this.bungeePhase === 'init') {
-                const rowPlants = engine.plants.filter(p => p.row === this.row && !p.isDead && !p.isFlat);
-                if (rowPlants.length > 0) {
-                    const chosen = rowPlants[Math.floor(Math.random() * rowPlants.length)];
-                    this.bungeeTargetPlant = chosen;
-                    this.x = chosen.x;
-                } else {
-                    const randCol = 1 + Math.floor(Math.random() * 4);
-                    this.x = (engine.gridStartX || 40) + randCol * this.cellW + this.cellW / 2;
+            const effDt = this.isSlowed ? dt * 0.5 : dt;
+            this.bungeeAge = (this.bungeeAge || 0) + effDt;
+
+            const tryUmbrellaBounce = () => {
+                const targetCol = this.bungeeTargetPlant
+                    ? this.bungeeTargetPlant.col
+                    : Math.round((this.x - (engine.gridStartX || 40) - this.cellW / 2) / this.cellW);
+                const umbrella = engine.plants.find(u =>
+                    !u.isDead && u.type === 'umbrellaleaf' &&
+                    Math.abs(u.row - this.row) <= 1 &&
+                    (Math.abs(u.col - targetCol) <= 1 || (this.bungeeTargetPlant && this.bungeeTargetPlant.isDoubleWide && Math.abs(u.col - (targetCol + 1)) <= 1))
+                );
+                if (!umbrella) return false;
+                if (typeof umbrella.triggerBounce === 'function') {
+                    umbrella.triggerBounce(engine);
                 }
-                const slopeY = (typeof engine.getSurfaceOffsetY === 'function') ? engine.getSurfaceOffsetY(this.x) : 0;
-                this.y = this.gridStartY + this.row * this.cellH + this.cellH / 2 + slopeY;
-                this.bungeeOffsetY = -280;
-                this.bungeePhase = 'descending';
-                soundEngine.playGroan();
+                this.bungeeTargetPlant = null;
+                this.bungeePhase = 'ascending';
+                this.bungeeRenderOffsetY = this.bungeeOffsetY;
+                this.setAnim(this.config.walkAnims[0]);
                 if (engine.floatingTexts) {
-                    engine.floatingTexts.push(new FloatingText(this.x, this.y - 50, '🪂 蹦极偷袭!', '#e67e22', 20));
+                    engine.floatingTexts.push(new FloatingText(umbrella.x, umbrella.y - 44, '☂️ 保护伞弹飞蹦极!', '#2ecc71', 20));
+                }
+                this.updateDOMPosition(engine, this.bungeeRenderOffsetY);
+                return true;
+            };
+
+            if (this.bungeePhase === 'targeting') {
+                this.bungeeTimer -= effDt;
+                this.bungeeRenderOffsetY = this.bungeeOffsetY;
+                if (this.bungeeTimer <= 0) {
+                    this.bungeePhase = 'descending';
+                    this.setAnim(this.config.walkAnims[0]);
                 }
             } else if (this.bungeePhase === 'descending') {
                 this.setAnim(this.config.walkAnims[0]);
-                this.bungeeOffsetY = Math.min(0, this.bungeeOffsetY + 430 * dt);
-                if (this.bungeeOffsetY >= -28) {
-                    const targetCol = this.bungeeTargetPlant
-                        ? this.bungeeTargetPlant.col
-                        : Math.round((this.x - (engine.gridStartX || 40) - this.cellW / 2) / this.cellW);
-                    const umbrella = engine.plants.find(u =>
-                        !u.isDead && u.type === 'umbrellaleaf' &&
-                        Math.abs(u.row - this.row) <= 1 &&
-                        (Math.abs(u.col - targetCol) <= 1 || (this.bungeeTargetPlant && this.bungeeTargetPlant.isDoubleWide && Math.abs(u.col - (targetCol + 1)) <= 1))
-                    );
-                    if (umbrella) {
-                        if (typeof umbrella.triggerBounce === 'function') {
-                            umbrella.triggerBounce(engine);
-                        }
-                        this.bungeeTargetPlant = null;
-                        this.bungeePhase = 'ascending';
-                        this.setAnim(this.config.walkAnims[0]);
-                        if (engine.floatingTexts) {
-                            engine.floatingTexts.push(new FloatingText(umbrella.x, umbrella.y - 44, '☂️ 保护伞弹飞蹦极!', '#2ecc71', 20));
-                        }
-                        this.updateDOMPosition(engine, this.bungeeOffsetY);
-                        return;
-                    }
+                this.bungeeOffsetY = Math.min(0, this.bungeeOffsetY + 180 * effDt);
+                this.bungeeRenderOffsetY = this.bungeeOffsetY;
+                if (this.bungeeOffsetY >= -28 && tryUmbrellaBounce()) {
+                    return;
                 }
                 if (this.bungeeOffsetY >= 0) {
                     this.bungeeOffsetY = 0;
+                    this.bungeeRenderOffsetY = 0;
+                    this.bungeePhase = 'hanging';
+                    this.bungeeTimer = 3.0; // 原版 PHASE_BUNGEE_AT_BOTTOM 300cs (3.0秒) 悬停破绽期
+                }
+            } else if (this.bungeePhase === 'hanging') {
+                if (tryUmbrellaBounce()) {
+                    return;
+                }
+                this.bungeeTimer -= effDt;
+                const damper = Math.max(0, this.bungeeTimer / 3.0);
+                this.bungeeRenderOffsetY = -Math.abs(Math.sin(this.bungeeAge * 7.5)) * 7 * damper;
+                if (this.bungeeTimer <= 0) {
+                    this.bungeeRenderOffsetY = 0;
                     this.bungeePhase = 'grabbing';
-                    this.bungeeTimer = 2.8;
+                    this.bungeeTimer = 0.95;
                     this.setAnim(this.config.grabAnim || 'assets/zombies/bungee_grab.gif');
                 }
             } else if (this.bungeePhase === 'grabbing') {
-                this.bungeeTimer -= dt;
+                if (tryUmbrellaBounce()) {
+                    return;
+                }
+                this.bungeeTimer -= effDt;
+                this.bungeeRenderOffsetY = 0;
                 if (this.bungeeTimer <= 0) {
-                    if (this.bungeeTargetPlant && !this.bungeeTargetPlant.isDead) {
-                        // 若该格有保护伞外的植物，抓走最上层植物
-                        const tCol = this.bungeeTargetPlant.col;
-                        const cellPlants = engine.plants.filter(
-                            p => !p.isDead && p.row === this.bungeeTargetPlant.row && (p.col === tCol || (p.isDoubleWide && p.col + 1 === tCol))
-                        );
-                        const victim = cellPlants.find(p => !p.isPot && p.type !== 'lilypad' && !p.isPumpkin) || this.bungeeTargetPlant;
+                    const targetCol = this.bungeeTargetPlant
+                        ? this.bungeeTargetPlant.col
+                        : Math.round((this.x - (engine.gridStartX || 40) - this.cellW / 2) / this.cellW);
+                    const cellPlants = engine.plants.filter(
+                        p => !p.isDead && !p.isFlat && p.row === this.row && (p.col === targetCol || (p.isDoubleWide && p.col + 1 === targetCol))
+                    );
+                    const victim = cellPlants.find(p => !p.isPot && p.type !== 'lilypad' && !p.isPumpkin)
+                        || cellPlants[0]
+                        || (this.bungeeTargetPlant && !this.bungeeTargetPlant.isDead ? this.bungeeTargetPlant : null);
+                    if (victim && !victim.isDead) {
                         victim.destroy();
                         soundEngine.playSplat();
                         if (engine.floatingTexts) {
@@ -799,13 +848,14 @@ export class Zombie {
                     this.setAnim(this.config.walkAnims[0]);
                 }
             } else if (this.bungeePhase === 'ascending') {
-                this.bungeeOffsetY -= 460 * dt;
-                if (this.bungeeOffsetY <= -300) {
+                this.bungeeOffsetY -= 240 * effDt;
+                this.bungeeRenderOffsetY = this.bungeeOffsetY;
+                if (this.bungeeOffsetY <= -360) {
                     this.destroy();
                     return;
                 }
             }
-            this.updateDOMPosition(engine, this.bungeeOffsetY);
+            this.updateDOMPosition(engine, this.bungeeRenderOffsetY);
             return;
         }
 

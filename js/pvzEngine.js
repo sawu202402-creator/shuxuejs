@@ -1,12 +1,12 @@
 /**
  * pvzEngine.js - 核心战场循环、波次推进、除草机与 DOM 实体混合架构
  */
-import { GAME_CONFIG } from './config.js?v=20261113_v1';
-import { assetsLoader } from './assetsLoader.js?v=20261113_v1';
-import { soundEngine } from './audio.js?v=20261113_v1';
-import { createPlant } from './plants.js?v=20261113_v1';
-import { Zombie } from './zombies.js?v=20261113_v1';
-import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261113_v1';
+import { GAME_CONFIG } from './config.js?v=20261113_v2';
+import { assetsLoader } from './assetsLoader.js?v=20261113_v2';
+import { soundEngine } from './audio.js?v=20261113_v2';
+import { createPlant } from './plants.js?v=20261113_v2';
+import { Zombie } from './zombies.js?v=20261113_v2';
+import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261113_v2';
 
 export class PvzEngine {
     constructor(canvas, entityLayer, onStateChange = null) {
@@ -123,8 +123,8 @@ export class PvzEngine {
         this.sun = this.levelConfig.isConveyorBelt ? 0 : (this.levelConfig.initialSun ?? GAME_CONFIG.initialSun);
         this.lives = GAME_CONFIG.maxLives;
 
-        // 关卡环境与地形属性 (World 2 黑夜、World 3 泳池、World 4 浓雾泳池、World 5 倾斜屋顶、World 6 无尽模式)
-        this.isNight = this.levelConfig.world === 2 || this.levelConfig.world === 4;
+        // 关卡环境与地形属性 (World 2 黑夜、World 3 泳池、World 4 浓雾泳池、World 5 倾斜屋顶、5-10 月夜屋顶、World 6 无尽模式)
+        this.isNight = !!(this.levelConfig.isNight || this.levelConfig.world === 2 || this.levelConfig.world === 4);
         this.isFog = !!this.levelConfig.isFog;
         this.isRoof = !!this.levelConfig.isRoof;
         this.isEndless = !!this.levelConfig.isEndless;
@@ -1524,7 +1524,7 @@ export class PvzEngine {
                 const hitZombie = this.zombies.find(z =>
                     !z.isDead && !z.isHypnotized &&
                     !(z.type === 'digger' && z.diggerPhase === 'digging') &&
-                    !(z.type === 'bungee' && z.bungeeOffsetY < -60) &&
+                    !(z.type === 'bungee' && (z.bungeePhase === 'init' || z.bungeePhase === 'targeting' || z.bungeeOffsetY < -190)) &&
                     Math.hypot(z.x - bullet.x, z.y - bullet.y) <= 28
                 );
                 if (hitZombie) {
@@ -1540,7 +1540,7 @@ export class PvzEngine {
                 if (z.row !== bullet.row || z.isDead || z.isHypnotized) return false;
                 if (z.type === 'digger' && z.diggerPhase === 'digging') return false;
                 if (z.type === 'snorkel' && z.isSubmerged) return false;
-                if (z.type === 'bungee' && z.bungeeOffsetY < -60) return false;
+                if (z.type === 'bungee' && (z.bungeePhase === 'init' || z.bungeePhase === 'targeting' || z.bungeeOffsetY < -190)) return false;
                 if (z.isFlying && !(bullet.canHitFlying || bullet.type === 'thorn')) return false;
                 return Math.abs(z.x - bullet.x) <= 24;
             });
@@ -1849,12 +1849,14 @@ export class PvzEngine {
         const fxCtx = this.fxCtx || ctx;
         const hasMalletCursor = !!(this.isWhackAZombie && !this.selectedCard && !this.isShovelActive && this.malletCursor && this.malletCursor.x >= 0);
         const hasCobCursor = !!(this.aimingCobCannon && !this.aimingCobCannon.isDead && this.aimingCobCannon.isLoaded && this.cobAimCursor);
+        const hasBungeeFx = this.zombies.some(z => !z.isDead && !z.isDying && z.type === 'bungee' && z.bungeePhase && z.bungeePhase !== 'init');
         const hasFxContent = (
             this.projectiles.length > 0 ||
             this.hitSplats.length > 0 ||
             this.explosions.length > 0 ||
             this.floatingTexts.length > 0 ||
             (this.whackEffects && this.whackEffects.length > 0) ||
+            hasBungeeFx ||
             hasMalletCursor ||
             hasCobCursor
         );
@@ -1864,6 +1866,61 @@ export class PvzEngine {
                 this.fxCtx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);
                 this._fxCanvasDirty = true;
             }
+
+            // 4.15 原版蹦极僵尸红白同心圆靶心预警与高空弹力吊绳渲染
+            if (hasBungeeFx) {
+                for (let i = 0; i < this.zombies.length; i++) {
+                    const bz = this.zombies[i];
+                    if (bz.isDead || bz.isDying || bz.type !== 'bungee' || !bz.bungeePhase || bz.bungeePhase === 'init') continue;
+
+                    // 地面锁定红白同心圆靶心 (升空撤离阶段消失)
+                    if (bz.bungeePhase !== 'ascending') {
+                        const pulse = 1 + Math.sin((bz.bungeeAge || 0) * 9.0) * 0.06;
+                        const tx = bz.x;
+                        const ty = bz.y + 14;
+                        fxCtx.save();
+                        fxCtx.globalAlpha = 0.92;
+                        const rings = [
+                            { rx: 28 * pulse, ry: 14 * pulse, color: '#e74c3c' },
+                            { rx: 20 * pulse, ry: 10 * pulse, color: '#ffffff' },
+                            { rx: 12 * pulse, ry: 6 * pulse, color: '#e74c3c' },
+                            { rx: 5 * pulse, ry: 2.6 * pulse, color: '#ffffff' }
+                        ];
+                        for (let r = 0; r < rings.length; r++) {
+                            fxCtx.fillStyle = rings[r].color;
+                            fxCtx.beginPath();
+                            fxCtx.ellipse(tx, ty, rings[r].rx, rings[r].ry, 0, 0, Math.PI * 2);
+                            fxCtx.fill();
+                        }
+                        fxCtx.strokeStyle = '#922b21';
+                        fxCtx.lineWidth = 1.5;
+                        fxCtx.beginPath();
+                        fxCtx.ellipse(tx, ty, 28 * pulse, 14 * pulse, 0, 0, Math.PI * 2);
+                        fxCtx.stroke();
+                        fxCtx.restore();
+                    }
+
+                    // 从屏幕顶端垂下的蹦极弹力绳
+                    const harnessY = bz.y - 42 + (bz.bungeeRenderOffsetY ?? bz.bungeeOffsetY ?? 0);
+                    if (harnessY > 0 && bz.bungeePhase !== 'targeting') {
+                        fxCtx.save();
+                        fxCtx.strokeStyle = '#2f3640';
+                        fxCtx.lineWidth = 3.2;
+                        fxCtx.beginPath();
+                        fxCtx.moveTo(bz.x + 2, 0);
+                        fxCtx.lineTo(bz.x + 2, harnessY);
+                        fxCtx.stroke();
+                        fxCtx.strokeStyle = '#dcdde1';
+                        fxCtx.lineWidth = 1.4;
+                        fxCtx.beginPath();
+                        fxCtx.moveTo(bz.x + 1.5, 0);
+                        fxCtx.lineTo(bz.x + 1.5, harnessY);
+                        fxCtx.stroke();
+                        fxCtx.restore();
+                    }
+                }
+            }
+
             this.projectiles.forEach(pr => pr.render(fxCtx));
             this.hitSplats.forEach(hs => hs.render(fxCtx));
             this.explosions.forEach(ex => ex.render(fxCtx));

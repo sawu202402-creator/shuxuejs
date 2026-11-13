@@ -2,14 +2,14 @@
  * main.js - 游戏全局协调控制器、事件总线与主循环
  * 深度融合原版 1:1 植物大战僵尸战场与儿童趣味心算学习引擎
  */
-import { GAME_CONFIG, AVATAR_LIST, DIFFICULTY_PRESETS } from './config.js?v=20261113_v1';
-import { assetsLoader } from './assetsLoader.js?v=20261113_v1';
-import { soundEngine } from './audio.js?v=20261113_v1';
-import { mathEngine } from './mathEngine.js?v=20261113_v1';
-import { profileManager } from './profileManager.js?v=20261113_v1';
-import { PvzEngine } from './pvzEngine.js?v=20261113_v1';
-import { createPlant } from './plants.js?v=20261113_v1';
-import { Zombie } from './zombies.js?v=20261113_v1';
+import { GAME_CONFIG, AVATAR_LIST, DIFFICULTY_PRESETS } from './config.js?v=20261113_v2';
+import { assetsLoader } from './assetsLoader.js?v=20261113_v2';
+import { soundEngine } from './audio.js?v=20261113_v2';
+import { mathEngine } from './mathEngine.js?v=20261113_v2';
+import { profileManager } from './profileManager.js?v=20261113_v2';
+import { PvzEngine } from './pvzEngine.js?v=20261113_v2';
+import { createPlant } from './plants.js?v=20261113_v2';
+import { Zombie } from './zombies.js?v=20261113_v2';
 
 window.createPlant = createPlant;
 window.Zombie = Zombie;

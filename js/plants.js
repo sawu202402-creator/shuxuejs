@@ -1,9 +1,19 @@
 /**
  * plants.js - 原版 1:1 植物实体系统与 DOM 60fps 动态 GIF 动画层
  */
-import { GAME_CONFIG } from './config.js?v=20261113_v1';
-import { Projectile, ExplosionEffect, SunEntity, FumeCloud, HitSplat, FloatingText, JalapenoFireLine, StarProjectile, LobbedProjectile, HomingSpikeProjectile, CobRocketProjectile } from './projectiles.js?v=20261113_v1';
-import { soundEngine } from './audio.js?v=20261113_v1';
+import { GAME_CONFIG } from './config.js?v=20261113_v2';
+import { Projectile, ExplosionEffect, SunEntity, FumeCloud, HitSplat, FloatingText, JalapenoFireLine, StarProjectile, LobbedProjectile, HomingSpikeProjectile, CobRocketProjectile } from './projectiles.js?v=20261113_v2';
+import { soundEngine } from './audio.js?v=20261113_v2';
+
+// 蹦极僵尸尚在云端锁定预警/高空垂降初段/已撤离升空时，常规植物不提前空射或误跳；垂降进入视野 (>= -180px) 时全员集火！
+function isUntargetableBungee(z) {
+    return z.type === 'bungee' && (
+        z.bungeePhase === 'init' ||
+        z.bungeePhase === 'targeting' ||
+        z.bungeePhase === 'ascending' ||
+        z.bungeeOffsetY < -180
+    );
+}
 
 export class Plant {
     constructor(type, row, col, x, y, entityLayer = null) {
@@ -195,7 +205,7 @@ export class PeashooterPlant extends Plant {
 
         if (this.shootTimer >= interval) {
             const hasZombieAhead = engine.zombies.some(z => 
-                z.row === this.row && !z.isDead && z.x >= this.x && z.x <= 900
+                z.row === this.row && !z.isDead && !z.isHypnotized && !isUntargetableBungee(z) && z.x >= this.x && z.x <= 900
             );
 
             if (hasZombieAhead || this.isSuperGatling) {
@@ -406,7 +416,7 @@ export class SnowPeaPlant extends Plant {
 
         if (this.shootTimer >= interval) {
             const hasZombieAhead = engine.zombies.some(z => 
-                z.row === this.row && !z.isDead && z.x >= this.x && z.x <= 900
+                z.row === this.row && !z.isDead && !z.isHypnotized && !isUntargetableBungee(z) && z.x >= this.x && z.x <= 900
             );
 
             if (hasZombieAhead) {
@@ -455,10 +465,10 @@ export class ChomperPlant extends Plant {
             }
         } else if (this.state === 'idle') {
             const cellW = engine.cellW || GAME_CONFIG.canvas.cellWidth;
-            // 索敌：前方1.5格内未死活体地面僵尸（不可直接吞食飞行气球/蹦极/地下矿工）
+            // 索敌：前方1.5格内未死活体地面僵尸（含已垂降落地的蹦极僵尸；不可直接吞食飞行气球/地下矿工）
             const target = engine.zombies.find(z =>
                 z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized &&
-                !z.isFlying && z.type !== 'bungee' && !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+                !z.isFlying && !isUntargetableBungee(z) && !(z.type === 'digger' && z.diggerPhase === 'digging') &&
                 (z.x - this.x) > -10 && (z.x - this.x) <= cellW * 1.5
             );
             if (target) {
@@ -516,7 +526,7 @@ export class RepeaterPlant extends Plant {
 
         if (this.shootTimer >= interval) {
             const hasZombieAhead = engine.zombies.some(z => 
-                z.row === this.row && !z.isDead && z.x >= this.x && z.x <= 900
+                z.row === this.row && !z.isDead && !z.isHypnotized && !isUntargetableBungee(z) && z.x >= this.x && z.x <= 900
             );
 
             if (hasZombieAhead) {
@@ -549,7 +559,7 @@ export class PuffshroomPlant extends Plant {
 
         if (this.shootTimer >= interval) {
             const hasZombieAhead = engine.zombies.some(z =>
-                z.row === this.row && !z.isDead && !z.isHypnotized && z.x >= this.x && z.x <= (this.x + this.range)
+                z.row === this.row && !z.isDead && !z.isHypnotized && !isUntargetableBungee(z) && z.x >= this.x && z.x <= (this.x + this.range)
             );
             if (hasZombieAhead) {
                 this.shootTimer = 0;
@@ -645,7 +655,7 @@ export class FumeshroomPlant extends Plant {
 
         if (this.shootTimer >= interval) {
             const hasZombieAhead = engine.zombies.some(z =>
-                z.row === this.row && !z.isDead && !z.isHypnotized && z.x >= this.x - 20 && z.x <= (this.x + this.range)
+                z.row === this.row && !z.isDead && !z.isHypnotized && !isUntargetableBungee(z) && z.x >= this.x - 20 && z.x <= (this.x + this.range)
             );
             if (hasZombieAhead) {
                 this.shootTimer = 0;
@@ -743,7 +753,7 @@ export class ScaredyshroomPlant extends Plant {
 
         // 检测是否有敌方僵尸靠近 (前后 130px 范围，包含上下相邻行)
         const nearbyZombie = engine.zombies.some(z =>
-            !z.isDead && !z.isHypnotized &&
+            !z.isDead && !z.isHypnotized && !isUntargetableBungee(z) &&
             Math.abs(z.row - this.row) <= 1 &&
             Math.abs(z.x - this.x) <= this.scaredDistance
         );
@@ -767,7 +777,7 @@ export class ScaredyshroomPlant extends Plant {
 
         if (this.shootTimer >= interval) {
             const hasZombieAhead = engine.zombies.some(z =>
-                z.row === this.row && !z.isDead && !z.isHypnotized && z.x >= this.x && z.x <= 900
+                z.row === this.row && !z.isDead && !z.isHypnotized && !isUntargetableBungee(z) && z.x >= this.x && z.x <= 900
             );
             if (hasZombieAhead) {
                 this.shootTimer = 0;
@@ -937,10 +947,12 @@ export class SquashPlant extends Plant {
         if (this.isDead || this.isAsleep) return;
 
         if (this.state === 'idle') {
-            // 索敌：同航道前方 1.5 格内，或后方 0.8 格内
+            // 索敌：同航道前方 1.5 格内，或后方 0.8 格内（等待蹦极僵尸垂降落地附近 >= -90px 后再起跳压扁）
             const cellW = engine.cellW || 82;
             const target = engine.zombies.find(z => 
-                z.row === this.row && !z.isDead && !z.isDying && (z.x >= this.x - cellW * 0.8 && z.x <= this.x + cellW * 1.5)
+                z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized &&
+                !z.isFlying && !isUntargetableBungee(z) && !(z.type === 'bungee' && z.bungeeOffsetY < -90) &&
+                (z.x >= this.x - cellW * 0.8 && z.x <= this.x + cellW * 1.5)
             );
             if (target) {
                 this.targetZombie = target;
@@ -983,9 +995,13 @@ export class SquashPlant extends Plant {
         soundEngine.playGroan();
         engine.floatingTexts.push(new FloatingText(impactX, this.y - 40, '💥 泰山压顶!', '#27ae60', 26));
 
-        // 压扁周围 65px 范围内的所有僵尸 (原版碾压倒地，不触发焦黑灰烬动画)
+        // 压扁周围 65px 范围内的所有地面僵尸 (原版碾压倒地，不误伤高空飞行的气球或云端蹦极)
         engine.zombies.forEach(z => {
-            if (z.row === this.row && !z.isDead && !z.isDying && Math.abs(z.x - impactX) <= 65) {
+            if (
+                z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized &&
+                !z.isFlying && !(z.type === 'bungee' && (z.bungeePhase === 'init' || z.bungeePhase === 'targeting' || z.bungeeOffsetY < -85)) &&
+                Math.abs(z.x - impactX) <= 65
+            ) {
                 if (typeof z.mowerDie === 'function') {
                     z.mowerDie();
                 } else {
@@ -1019,7 +1035,7 @@ export class ThreepeaterPlant extends Plant {
             // 检测自身行以及上下两行是否有僵尸
             const targetRows = [this.row - 1, this.row, this.row + 1].filter(r => r >= 0 && r < engine.rows && engine.levelConfig.activeRows.includes(r));
             const hasEnemy = engine.zombies.some(z => 
-                targetRows.includes(z.row) && !z.isDead && !z.isHypnotized && z.x > this.x && z.x < 960
+                targetRows.includes(z.row) && !z.isDead && !z.isHypnotized && !isUntargetableBungee(z) && z.x > this.x && z.x < 960
             );
 
             if (hasEnemy) {
@@ -1174,7 +1190,7 @@ export class SeaShroomPlant extends Plant {
         const currentInterval = (engine.isSuperCharge || this.isSuperGatling) ? this.attackInterval * 0.6 : this.attackInterval;
         if (this.attackTimer >= currentInterval) {
             const enemy = engine.zombies.find(z => 
-                z.row === this.row && !z.isDead && !z.isHypnotized && z.x > this.x && (z.x - this.x) <= this.range
+                z.row === this.row && !z.isDead && !z.isHypnotized && !isUntargetableBungee(z) && z.x > this.x && (z.x - this.x) <= this.range
             );
             if (enemy) {
                 this.attackTimer = 0;
@@ -1201,7 +1217,7 @@ export class StarfruitPlant extends Plant {
         this.attackTimer += dt;
         const currentInterval = (engine.isSuperCharge || this.isSuperGatling) ? this.attackInterval * 0.6 : this.attackInterval;
         if (this.attackTimer >= currentInterval) {
-            const hasEnemy = engine.zombies.some(z => !z.isDead && !z.isHypnotized);
+            const hasEnemy = engine.zombies.some(z => !z.isDead && !z.isHypnotized && !isUntargetableBungee(z));
             if (hasEnemy) {
                 this.attackTimer = 0;
                 soundEngine.playShoot();
@@ -1450,7 +1466,7 @@ export class CactusPlant extends Plant {
 
         if (this.shootTimer >= interval) {
             const hasEnemyAhead = balloonAhead || engine.zombies.some(z =>
-                z.row === this.row && !z.isDead && !z.isHypnotized &&
+                z.row === this.row && !z.isDead && !z.isHypnotized && !isUntargetableBungee(z) &&
                 !(z.type === 'digger' && z.diggerPhase === 'digging') &&
                 z.x >= this.x && z.x <= 900
             );
@@ -1496,12 +1512,12 @@ export class SplitPeaPlant extends Plant {
 
         if (this.shootTimer >= interval) {
             const hasFront = engine.zombies.some(z =>
-                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying &&
+                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying && !isUntargetableBungee(z) &&
                 !(z.type === 'digger' && z.diggerPhase === 'digging') &&
                 z.x >= this.x && z.x <= 900
             );
             const hasRear = engine.zombies.some(z =>
-                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying &&
+                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying && !isUntargetableBungee(z) &&
                 !(z.type === 'digger' && z.diggerPhase === 'digging') &&
                 z.x < this.x && z.x >= 0
             );
@@ -1542,8 +1558,8 @@ class CatapultBasePlant extends Plant {
     findLobTarget(engine) {
         const candidates = engine.zombies.filter(z =>
             z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized && !z.isFlying &&
-            !(z.type === 'digger' && z.diggerPhase === 'digging') && z.type !== 'bungee' &&
-            z.x > this.x - 14 && z.x < 915
+            !(z.type === 'digger' && z.diggerPhase === 'digging') && !isUntargetableBungee(z) &&
+            z.x >= this.x - 14 && z.x < 915
         );
         if (candidates.length === 0) return null;
         candidates.sort((a, b) => a.x - b.x);
@@ -1580,7 +1596,7 @@ class CatapultBasePlant extends Plant {
             this.windupTimer -= dt;
             if (this.windupTimer <= 0) {
                 let target = this.pendingTarget;
-                if (!target || target.isDead || target.isDying) {
+                if (!target || target.isDead || target.isDying || isUntargetableBungee(target)) {
                     target = this.findLobTarget(engine);
                 }
                 if (target) {
@@ -1769,7 +1785,7 @@ export class GatlingPeaPlant extends Plant {
 
         if (this.attackTimer >= currentInterval) {
             const hasTarget = engine.zombies.some(z =>
-                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying &&
+                z.row === this.row && !z.isDead && !z.isHypnotized && !z.isFlying && !isUntargetableBungee(z) &&
                 !z.isSubmerged && !(z.type === 'digger' && z.diggerPhase === 'digging') &&
                 z.x > this.x - 10 && z.x < 920
             );
@@ -1831,7 +1847,7 @@ export class GloomShroomPlant extends Plant {
         const currentInterval = (engine.isSuperCharge || this.isSuperGatling) ? this.attackInterval * 0.5 : this.attackInterval;
         if (this.attackTimer >= currentInterval) {
             const targets = engine.zombies.filter(z =>
-                !z.isDead && !z.isDying && !z.isHypnotized && !z.isFlying &&
+                !z.isDead && !z.isDying && !z.isHypnotized && !z.isFlying && !isUntargetableBungee(z) &&
                 Math.abs(z.row - this.row) <= 1 && Math.abs(z.x - this.x) <= 135
             );
             if (targets.length > 0) {
@@ -1892,6 +1908,7 @@ export class SpikerockPlant extends SpikeweedPlant {
             const victims = engine.zombies.filter(z =>
                 z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized &&
                 !z.isFlying && !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+                z.type !== 'bungee' &&
                 Math.abs(z.x - this.x) <= 42
             );
             if (victims.length > 0) {
@@ -2030,7 +2047,7 @@ export class CattailPlant extends Plant {
             !z.isDead && !z.isDying && !z.isHypnotized &&
             !(z.type === 'digger' && z.diggerPhase === 'digging') &&
             !(z.type === 'snorkel' && z.isSubmerged) &&
-            !(z.type === 'bungee' && z.bungeeOffsetY < -60) &&
+            !isUntargetableBungee(z) &&
             z.x >= -10 && z.x <= 920
         );
         if (candidates.length === 0) return null;
