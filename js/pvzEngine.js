@@ -1,12 +1,12 @@
 /**
  * pvzEngine.js - 核心战场循环、波次推进、除草机与 DOM 实体混合架构
  */
-import { GAME_CONFIG } from './config.js?v=20261112_v8';
-import { assetsLoader } from './assetsLoader.js?v=20261112_v8';
-import { soundEngine } from './audio.js?v=20261112_v8';
-import { createPlant } from './plants.js?v=20261112_v8';
-import { Zombie } from './zombies.js?v=20261112_v8';
-import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261112_v8';
+import { GAME_CONFIG } from './config.js?v=20261112_v9';
+import { assetsLoader } from './assetsLoader.js?v=20261112_v9';
+import { soundEngine } from './audio.js?v=20261112_v9';
+import { createPlant } from './plants.js?v=20261112_v9';
+import { Zombie } from './zombies.js?v=20261112_v9';
+import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261112_v9';
 
 export class PvzEngine {
     constructor(canvas, entityLayer, onStateChange = null) {
@@ -256,6 +256,8 @@ export class PvzEngine {
         this.selectedCard = null;
         this.selectedConveyorIdx = null;
         this.isShovelActive = false;
+        this.aimingCobCannon = null;
+        this.cobAimCursor = { x: 450, y: 300 };
 
         // 保龄球与传送带系统重置
         this.isBowling = !!this.levelConfig.isBowling;
@@ -296,9 +298,55 @@ export class PvzEngine {
             this.cardCooldowns[pId] = 0;
         });
         this.selectedCard = null;
+        this.cancelCobAim();
         if (this.onStateChange) {
             this.onStateChange('deck_updated', { activePlants: this.activePlants });
         }
+    }
+
+    resolveImitaterTarget() {
+        const deck = this.activePlants || [];
+        const idx = deck.indexOf('imitater');
+        if (idx > 0 && deck[idx - 1] !== 'imitater' && GAME_CONFIG.plants[deck[idx - 1]]) {
+            return deck[idx - 1];
+        }
+        if (idx >= 0 && idx + 1 < deck.length && deck[idx + 1] !== 'imitater' && GAME_CONFIG.plants[deck[idx + 1]]) {
+            return deck[idx + 1];
+        }
+        const firstValid = deck.find(id => id !== 'imitater' && GAME_CONFIG.plants[id]);
+        return firstValid || 'wallnut';
+    }
+
+    getEffectiveCardConfig(cardId) {
+        if (cardId === 'imitater') {
+            const copiedId = this.resolveImitaterTarget();
+            const copiedConf = GAME_CONFIG.plants[copiedId] || GAME_CONFIG.plants.wallnut;
+            return {
+                ...GAME_CONFIG.plants.imitater,
+                cost: copiedConf.cost,
+                cooldown: copiedConf.cooldown || 7.5,
+                isNocturnal: !!copiedConf.isNocturnal,
+                copiedId,
+                copiedName: copiedConf.name
+            };
+        }
+        return GAME_CONFIG.plants[cardId] || null;
+    }
+
+    cancelCobAim() {
+        if (this.aimingCobCannon && this.aimingCobCannon.domElement) {
+            this.aimingCobCannon.domElement.classList.remove('cob-aiming');
+        }
+        this.aimingCobCannon = null;
+    }
+
+    getNormalPlantAt(row, col) {
+        return this.plants.find(p =>
+            !p.isDead &&
+            p.row === row &&
+            !['lilypad', 'flowerpot', 'pumpkin'].includes(p.type) &&
+            (p.col === col || (p.isDoubleWide && p.col + 1 === col))
+        ) || null;
     }
 
     spawnConveyorCard(specificType = null, initialX = null) {
@@ -349,16 +397,34 @@ export class PvzEngine {
 
     bindEvents() {
         const updatePointer = (e) => {
-            if (!this.isWhackAZombie) return;
+            if (!this.isWhackAZombie && !this.aimingCobCannon) return;
             const rect = this.canvas.getBoundingClientRect();
             if (!rect.width || !rect.height) return;
             const scaleX = this.canvas.width / rect.width;
             const scaleY = this.canvas.height / rect.height;
-            this.malletCursor.x = (e.clientX - rect.left) * scaleX;
-            this.malletCursor.y = (e.clientY - rect.top) * scaleY;
+            const px = (e.clientX - rect.left) * scaleX;
+            const py = (e.clientY - rect.top) * scaleY;
+            if (this.isWhackAZombie) {
+                this.malletCursor.x = px;
+                this.malletCursor.y = py;
+            }
+            if (this.aimingCobCannon) {
+                this.cobAimCursor = { x: px, y: py };
+            }
+        };
+
+        const handleRightCancel = (e) => {
+            if (this.aimingCobCannon || this.selectedCard || this.isShovelActive) {
+                e.preventDefault();
+                this.cancelCobAim();
+                this.selectedCard = null;
+                this.isShovelActive = false;
+                if (this.onStateChange) this.onStateChange('shovel_deactivated');
+            }
         };
 
         this.canvas.addEventListener('mousemove', updatePointer);
+        this.canvas.addEventListener('contextmenu', handleRightCancel);
         this.canvas.addEventListener('click', (e) => {
             if (this.isPaused || this.isGameOver || this.isVictory) return;
             const rect = this.canvas.getBoundingClientRect();
@@ -372,6 +438,7 @@ export class PvzEngine {
 
         if (this.entityLayer) {
             this.entityLayer.addEventListener('mousemove', updatePointer);
+            this.entityLayer.addEventListener('contextmenu', handleRightCancel);
             this.entityLayer.addEventListener('click', (e) => {
                 if (this.isPaused || this.isGameOver || this.isVictory) return;
                 const rect = this.canvas.getBoundingClientRect();
@@ -426,11 +493,30 @@ export class PvzEngine {
     }
 
     handleClick(x, y) {
-        // 1. 优先检测点击拾取阳光
+        // 1. 优先检测点击拾取阳光/钱币
         for (let i = this.suns.length - 1; i >= 0; i--) {
             const sun = this.suns[i];
             if (sun.contains(x, y)) {
                 this.collectSun(sun);
+                return;
+            }
+        }
+
+        // 1.2 玉米加农炮瞄准发射态：点击战场任意目标位置立即发射洲际玉米导弹（再次点击大炮自身则取消瞄准）
+        if (this.aimingCobCannon) {
+            if (this.selectedCard || this.isShovelActive || this.aimingCobCannon.isDead || !this.aimingCobCannon.isLoaded) {
+                this.cancelCobAim();
+            } else {
+                const aimCell = this.getCellAt(x, y);
+                if (aimCell && this.aimingCobCannon.occupiesCell(aimCell.row, aimCell.col)) {
+                    this.cancelCobAim();
+                    this.floatingTexts.push(new FloatingText(x, y - 30, '❎ 已取消瞄准', '#bdc3c7', 16));
+                    return;
+                }
+                const targetX = Math.max(40, Math.min(885, x));
+                const targetY = Math.max(70, Math.min(565, y));
+                this.aimingCobCannon.fireAt(targetX, targetY, this);
+                this.aimingCobCannon = null;
                 return;
             }
         }
@@ -441,11 +527,12 @@ export class PvzEngine {
             return;
         }
 
-        // 2. 网格种植 / 铲除逻辑
+        // 2. 网格种植 / 铲除 / 点击玉米加农炮上膛瞄准逻辑
         const cell = this.getCellAt(x, y);
         if (!cell) {
             this.selectedCard = null;
             this.isShovelActive = false;
+            this.cancelCobAim();
             return;
         }
 
@@ -454,13 +541,33 @@ export class PvzEngine {
             return;
         }
 
-        // 铲子模式 (优先级：南瓜外罩 -> 常规植物 -> 花盆/睡莲底座)
+        // 2.2 未持卡也未拿铲子时：检测是否点击了场上已装填的玉米加农炮 -> 激活全屏准星瞄准！
+        if (!this.selectedCard && !this.isShovelActive) {
+            const cob = this.plants.find(p => !p.isDead && p.type === 'cobcannon' && typeof p.occupiesCell === 'function' && p.occupiesCell(cell.row, cell.col));
+            if (cob) {
+                if (cob.isLoaded) {
+                    this.aimingCobCannon = cob;
+                    this.cobAimCursor = { x, y };
+                    if (cob.domElement) cob.domElement.classList.add('cob-aiming');
+                    soundEngine.playPlant();
+                    this.floatingTexts.push(new FloatingText(cob.x + 40, cob.y - 52, '🎯 点击草坪任意位置发射玉米导弹!', '#f1c40f', 19));
+                } else {
+                    this.floatingTexts.push(new FloatingText(cob.x + 40, cob.y - 45, `⏳ 玉米炮装填中 (${Math.ceil(cob.reloadTimer)}s)`, '#f39c12', 16));
+                }
+                return;
+            }
+        }
+
+        // 铲子模式 (优先级：南瓜外罩 -> 常规植物[含双格玉米炮] -> 花盆/睡莲底座)
         if (this.isShovelActive) {
             const pumpkinPlant = this.plants.find(p => p.row === cell.row && p.col === cell.col && p.type === 'pumpkin' && !p.isDead);
-            const mainPlant = this.plants.find(p => p.row === cell.row && p.col === cell.col && !['lilypad', 'flowerpot', 'pumpkin'].includes(p.type) && !p.isDead);
+            const mainPlant = this.getNormalPlantAt(cell.row, cell.col);
             const basePlant = this.plants.find(p => p.row === cell.row && p.col === cell.col && (p.type === 'lilypad' || p.type === 'flowerpot') && !p.isDead);
             const targetP = pumpkinPlant || mainPlant || basePlant;
             if (targetP) {
+                if (targetP === this.aimingCobCannon) {
+                    this.cancelCobAim();
+                }
                 const pIdx = this.plants.indexOf(targetP);
                 if (pIdx !== -1) {
                     targetP.destroy();
@@ -498,11 +605,102 @@ export class PvzEngine {
                 return;
             }
 
-            const plantConf = GAME_CONFIG.plants[this.selectedCard];
+            const isImitaterCard = (this.selectedCard === 'imitater');
+            const plantConf = this.getEffectiveCardConfig(this.selectedCard);
             if (!plantConf) return;
+            const checkType = isImitaterCard ? plantConf.copiedId : this.selectedCard;
 
             if (!this.levelConfig.isConveyorBelt && this.sun < plantConf.cost) {
                 this.floatingTexts.push(new FloatingText(x, y, '☀️ 阳光不足!', '#e74c3c', 18));
+                return;
+            }
+
+            // ================= 特例 A：玉米加农炮 (1x2 横向双格重炮，支持直接双格种植或叠种在玉米投手上) =================
+            if (checkType === 'cobcannon') {
+                const leftCol = (cell.col >= this.cols - 1) ? (this.cols - 2) : cell.col;
+                const rightCol = leftCol + 1;
+                const isWaterRow = (this.waterRows || []).includes(cell.row);
+
+                const hasCrater = this.craters && this.craters.some(c => c.row === cell.row && (c.col === leftCol || c.col === rightCol) && c.lifespan > 0);
+                if (hasCrater) {
+                    this.floatingTexts.push(new FloatingText(x, y, '🕳️ 弹坑尚未恢复，无法架设玉米炮!', '#e74c3c', 16));
+                    return;
+                }
+                const hasTomb = this.tombstones && this.tombstones.some(t => t.row === cell.row && (t.col === leftCol || t.col === rightCol));
+                if (hasTomb) {
+                    this.floatingTexts.push(new FloatingText(x, y, '🪦 墓碑阻挡，请先清除相邻两格!', '#e74c3c', 16));
+                    return;
+                }
+
+                const pot1 = this.plants.find(p => p.row === cell.row && p.col === leftCol && p.type === 'flowerpot' && !p.isDead);
+                const pot2 = this.plants.find(p => p.row === cell.row && p.col === rightCol && p.type === 'flowerpot' && !p.isDead);
+                const lily1 = this.plants.find(p => p.row === cell.row && p.col === leftCol && p.type === 'lilypad' && !p.isDead);
+                const lily2 = this.plants.find(p => p.row === cell.row && p.col === rightCol && p.type === 'lilypad' && !p.isDead);
+
+                if (this.isRoof && (!pot1 || !pot2)) {
+                    this.floatingTexts.push(new FloatingText(x, y, '🪴 架设玉米炮需要相邻 2 个花盆!', '#e67e22', 17));
+                    return;
+                }
+                if (isWaterRow && (!lily1 || !lily2)) {
+                    this.floatingTexts.push(new FloatingText(x, y, '💧 水面架设玉米炮需要相邻 2 片睡莲!', '#3498db', 17));
+                    return;
+                }
+
+                const pLeft = this.getNormalPlantAt(cell.row, leftCol);
+                const pRight = this.getNormalPlantAt(cell.row, rightCol);
+                if ((pLeft && pLeft.type !== 'kernelpult') || (pRight && pRight.type !== 'kernelpult')) {
+                    this.floatingTexts.push(new FloatingText(x, y, '🌽 玉米加农炮需要相邻2格空位或玉米投手!', '#e67e22', 17));
+                    return;
+                }
+
+                // 若下方有原版前置玉米投手，优雅吸收升级
+                [pLeft, pRight].forEach(kp => {
+                    if (kp && !kp.isDead) {
+                        kp.destroy();
+                        const idx = this.plants.indexOf(kp);
+                        if (idx !== -1) this.plants.splice(idx, 1);
+                    }
+                });
+
+                if (!this.levelConfig.isConveyorBelt) {
+                    this.sun -= plantConf.cost;
+                    this.cardCooldowns[this.selectedCard] = plantConf.cooldown;
+                }
+
+                const gridPos = this.getGridCoords(leftCol, cell.row);
+                const cobObj = isImitaterCard
+                    ? createPlant('imitater', cell.row, leftCol, gridPos.x, gridPos.y, this.entityLayer, this.isNight, 'cobcannon')
+                    : createPlant('cobcannon', cell.row, leftCol, gridPos.x, gridPos.y, this.entityLayer, this.isNight);
+
+                if (lily1 && lily2) {
+                    lily1.carriedPlant = cobObj;
+                    lily2.carriedPlant = cobObj;
+                    cobObj.hostLilypad = lily1;
+                    cobObj.hostSecondaryLilypad = lily2;
+                    if (cobObj.domElement) {
+                        cobObj.domElement.classList.add('planted-on-lilypad');
+                        cobObj.domElement.style.top = `${gridPos.y - 68}px`;
+                    }
+                } else if (pot1 && pot2) {
+                    pot1.carriedPlant = cobObj;
+                    pot2.carriedPlant = cobObj;
+                    cobObj.hostPot = pot1;
+                    cobObj.hostSecondaryPot = pot2;
+                    if (cobObj.domElement) {
+                        cobObj.domElement.classList.add('planted-on-pot');
+                        cobObj.domElement.style.top = `${gridPos.y - 72}px`;
+                    }
+                }
+
+                this.plants.push(cobObj);
+                soundEngine.playPlant();
+                this.floatingTexts.push(new FloatingText(gridPos.x + 40, gridPos.y - 44, '🌽 玉米加农炮就位!(点击炮身发射)', '#f1c40f', 18));
+                if (this.levelConfig.isConveyorBelt) {
+                    this.consumeConveyorCard(this.selectedCard, this.selectedConveyorIdx);
+                }
+                this.selectedCard = null;
+                this.selectedConveyorIdx = null;
+                if (this.onStateChange) this.onStateChange('plant_placed', { plantType: 'cobcannon' });
                 return;
             }
 
@@ -515,23 +713,23 @@ export class PvzEngine {
 
             // 墓碑阻挡与吞噬逻辑
             const tombOnCell = this.tombstones && this.tombstones.find(t => t.row === cell.row && t.col === cell.col);
-            if (tombOnCell && this.selectedCard !== 'gravebuster') {
+            if (tombOnCell && checkType !== 'gravebuster') {
                 this.floatingTexts.push(new FloatingText(x, y, '🪦 墓碑阻挡，请先清除!', '#e74c3c', 16));
                 return;
             }
-            if (!tombOnCell && this.selectedCard === 'gravebuster') {
+            if (!tombOnCell && checkType === 'gravebuster') {
                 this.floatingTexts.push(new FloatingText(x, y, '🪦 只能种在墓碑上!', '#e74c3c', 16));
                 return;
             }
 
-            const existingPlant = this.plants.find(p => p.row === cell.row && p.col === cell.col && !p.isDead);
+            const existingSleepTarget = this.getNormalPlantAt(cell.row, cell.col) || this.plants.find(p => p.row === cell.row && p.col === cell.col && !p.isDead);
             // 咖啡豆特殊种植逻辑 (只能种在睡眠中的植物上)
-            if (this.selectedCard === 'coffeebean') {
-                if (!existingPlant) {
+            if (checkType === 'coffeebean') {
+                if (!existingSleepTarget) {
                     this.floatingTexts.push(new FloatingText(x, y, '☕ 只能种在睡觉的植物上!', '#e74c3c', 16));
                     return;
                 }
-                if (!existingPlant.isAsleep) {
+                if (!existingSleepTarget.isAsleep) {
                     this.floatingTexts.push(new FloatingText(x, y, '😊 植物没有在睡觉哦!', '#f39c12', 16));
                     return;
                 }
@@ -540,7 +738,7 @@ export class PvzEngine {
                     this.cardCooldowns[this.selectedCard] = plantConf.cooldown;
                 }
                 const gridPos = this.getGridCoords(cell.col, cell.row);
-                const bean = createPlant('coffeebean', cell.row, cell.col, gridPos.x, gridPos.y, this.entityLayer, this.isNight, existingPlant);
+                const bean = createPlant('coffeebean', cell.row, cell.col, gridPos.x, gridPos.y, this.entityLayer, this.isNight, existingSleepTarget);
                 this.plants.push(bean);
                 soundEngine.playPlant();
                 if (this.levelConfig.isConveyorBelt) {
@@ -557,15 +755,26 @@ export class PvzEngine {
             const lilyOnCell = this.plants.find(p => p.row === cell.row && p.col === cell.col && p.type === 'lilypad' && !p.isDead);
             const potOnCell = this.plants.find(p => p.row === cell.row && p.col === cell.col && p.type === 'flowerpot' && !p.isDead);
             const pumpkinOnCell = this.plants.find(p => p.row === cell.row && p.col === cell.col && p.type === 'pumpkin' && !p.isDead);
-            const normalPlantOnCell = this.plants.find(p => p.row === cell.row && p.col === cell.col && !['lilypad', 'flowerpot', 'pumpkin'].includes(p.type) && !p.isDead);
+            let normalPlantOnCell = this.getNormalPlantAt(cell.row, cell.col);
+
+            // 原版紫卡进化兼容：既支持空地直接种植，也支持直接叠种在对应基础植物上完成原版升级！
+            const UPGRADE_BASE_MAP = {
+                wintermelon: 'melonpult',
+                gatlingpea: 'repeater',
+                twinsunflower: 'sunflower',
+                gloomshroom: 'fumeshroom',
+                spikerock: 'spikeweed',
+                goldmagnet: 'magnetshroom'
+            };
+            const canUpgradeExisting = !!(normalPlantOnCell && UPGRADE_BASE_MAP[checkType] === normalPlantOnCell.type);
 
             // 1. 南瓜头种植检测 (可套在已有植物外层防护)
-            if (this.selectedCard === 'pumpkin') {
+            if (checkType === 'pumpkin') {
                 if (pumpkinOnCell) {
                     this.floatingTexts.push(new FloatingText(x, y, '🎃 此处已有南瓜头', '#e67e22', 16));
                     return;
                 }
-                if (isWaterRow && !lilyOnCell) {
+                if (isWaterRow && !lilyOnCell && !(normalPlantOnCell && normalPlantOnCell.type === 'cattail')) {
                     this.floatingTexts.push(new FloatingText(x, y, '💧 水面需要先种植睡莲!', '#3498db', 18));
                     return;
                 }
@@ -575,15 +784,15 @@ export class PvzEngine {
                 }
             } else if (this.isRoof) {
                 // 2. 屋顶关卡种植规则 (必须有花盆底座，且地刺/地刺王无法种在屋顶花盆中)
-                if (this.selectedCard === 'spikeweed' || this.selectedCard === 'spikerock') {
+                if (checkType === 'spikeweed' || checkType === 'spikerock') {
                     this.floatingTexts.push(new FloatingText(x, y, '🚫 地刺只能直接种在草地/陆地上!', '#e67e22', 18));
                     return;
                 }
-                if (this.selectedCard === 'seashroom' || this.selectedCard === 'tanglekelp' || this.selectedCard === 'lilypad') {
+                if (checkType === 'seashroom' || checkType === 'tanglekelp' || checkType === 'lilypad' || checkType === 'cattail') {
                     this.floatingTexts.push(new FloatingText(x, y, '🚫 水生植物只能种在泳池水中!', '#3498db', 18));
                     return;
                 }
-                if (this.selectedCard === 'flowerpot') {
+                if (checkType === 'flowerpot') {
                     if (potOnCell) {
                         this.floatingTexts.push(new FloatingText(x, y, '🪴 此处已有花盆', '#e67e22', 16));
                         return;
@@ -593,26 +802,32 @@ export class PvzEngine {
                         this.floatingTexts.push(new FloatingText(x, y, '🪴 屋顶需要先种植花盆!', '#e67e22', 18));
                         return;
                     }
-                    if (normalPlantOnCell) {
+                    if (normalPlantOnCell && !canUpgradeExisting) {
                         this.floatingTexts.push(new FloatingText(x, y, '🌱 花盆中已有植物', '#e67e22', 16));
                         return;
                     }
                 }
             } else if (isWaterRow) {
                 // 3. 水路种植检测
-                if (this.selectedCard === 'spikeweed' || this.selectedCard === 'spikerock') {
+                if (checkType === 'spikeweed' || checkType === 'spikerock') {
                     this.floatingTexts.push(new FloatingText(x, y, '🚫 地刺不能种在水路睡莲上!', '#3498db', 18));
                     return;
                 }
-                if (this.selectedCard === 'seashroom' || this.selectedCard === 'tanglekelp') {
+                if (checkType === 'cattail') {
+                    // 香蒲：既可直接种在水面，也可直接叠种在睡莲上！
+                    if (normalPlantOnCell) {
+                        this.floatingTexts.push(new FloatingText(x, y, '🌊 此处水面已有植物', '#3498db', 16));
+                        return;
+                    }
+                } else if (checkType === 'seashroom' || checkType === 'tanglekelp') {
                     // 海蘑菇 / 缠绕水草：水生植物，直接种在水中，不需要睡莲
                     if (lilyOnCell || normalPlantOnCell) {
                         this.floatingTexts.push(new FloatingText(x, y, '🌊 此处水面已有植物', '#3498db', 16));
                         return;
                     }
-                } else if (this.selectedCard === 'lilypad') {
-                    if (lilyOnCell) {
-                        this.floatingTexts.push(new FloatingText(x, y, '🌱 此处已有睡莲', '#3498db', 16));
+                } else if (checkType === 'lilypad') {
+                    if (lilyOnCell || normalPlantOnCell) {
+                        this.floatingTexts.push(new FloatingText(x, y, '🌱 此处已有睡莲/水生植物', '#3498db', 16));
                         return;
                     }
                 } else {
@@ -620,29 +835,37 @@ export class PvzEngine {
                         this.floatingTexts.push(new FloatingText(x, y, '💧 水面需要先种植睡莲!', '#3498db', 18));
                         return;
                     }
-                    if (normalPlantOnCell) {
+                    if (normalPlantOnCell && !canUpgradeExisting) {
                         this.floatingTexts.push(new FloatingText(x, y, '🌱 睡莲上已有植物', '#e67e22', 16));
                         return;
                     }
                 }
             } else {
                 // 4. 普通陆地种植检测
-                if (this.selectedCard === 'flowerpot') {
+                if (checkType === 'flowerpot') {
                     this.floatingTexts.push(new FloatingText(x, y, '🪴 花盆只能在屋顶关卡种植!', '#e67e22', 18));
                     return;
                 }
-                if (this.selectedCard === 'lilypad') {
+                if (checkType === 'lilypad') {
                     this.floatingTexts.push(new FloatingText(x, y, '🚫 睡莲只能种在水中!', '#3498db', 18));
                     return;
                 }
-                if (this.selectedCard === 'seashroom' || this.selectedCard === 'tanglekelp') {
+                if (checkType === 'seashroom' || checkType === 'tanglekelp' || checkType === 'cattail') {
                     this.floatingTexts.push(new FloatingText(x, y, '🚫 水生植物只能种在水中!', '#3498db', 18));
                     return;
                 }
-                if (normalPlantOnCell) {
+                if (normalPlantOnCell && !canUpgradeExisting) {
                     this.floatingTexts.push(new FloatingText(x, y, '🌱 此处已有植物', '#e67e22', 16));
                     return;
                 }
+            }
+
+            // 若触发了紫卡原位升级，移除被升级的基础植物并继承其外层南瓜保护关系
+            if (canUpgradeExisting && normalPlantOnCell) {
+                normalPlantOnCell.destroy();
+                const oldIdx = this.plants.indexOf(normalPlantOnCell);
+                if (oldIdx !== -1) this.plants.splice(oldIdx, 1);
+                normalPlantOnCell = null;
             }
 
             if (!this.levelConfig.isConveyorBelt) {
@@ -651,29 +874,44 @@ export class PvzEngine {
             }
 
             const gridPos = this.getGridCoords(cell.col, cell.row);
-            const plantObj = createPlant(this.selectedCard, cell.row, cell.col, gridPos.x, gridPos.y, this.entityLayer, this.isNight);
+            const plantObj = isImitaterCard
+                ? createPlant('imitater', cell.row, cell.col, gridPos.x, gridPos.y, this.entityLayer, this.isNight, checkType)
+                : createPlant(this.selectedCard, cell.row, cell.col, gridPos.x, gridPos.y, this.entityLayer, this.isNight);
 
-            if (this.selectedCard === 'pumpkin') {
+            if (checkType === 'pumpkin') {
                 if (normalPlantOnCell) {
                     plantObj.protectedPlant = normalPlantOnCell;
                     normalPlantOnCell.pumpkin = plantObj;
                 }
-            } else if (lilyOnCell && this.selectedCard !== 'lilypad') {
-                lilyOnCell.carriedPlant = plantObj;
-                plantObj.hostLilypad = lilyOnCell;
-                if (plantObj.domElement) {
-                    plantObj.domElement.classList.add('planted-on-lilypad');
-                    plantObj.domElement.style.zIndex = '15';
-                    plantObj.domElement.style.top = `${gridPos.y - 50}px`;
+            } else {
+                if (pumpkinOnCell) {
+                    pumpkinOnCell.protectedPlant = plantObj;
+                    plantObj.pumpkin = pumpkinOnCell;
                 }
-            } else if (potOnCell && this.selectedCard !== 'flowerpot') {
-                potOnCell.carriedPlant = plantObj;
-                plantObj.hostPot = potOnCell;
-                if (plantObj.domElement) {
-                    plantObj.domElement.classList.add('planted-on-pot');
-                    plantObj.domElement.style.zIndex = '15';
-                    const potLift = this.selectedCard === 'tallnut' ? 74 : (this.selectedCard === 'chomper' ? 70 : 54);
-                    plantObj.domElement.style.top = `${gridPos.y - potLift}px`;
+                if (lilyOnCell && checkType !== 'lilypad') {
+                    if (checkType === 'cattail' && !isImitaterCard) {
+                        // 原版香蒲吸收下方的睡莲融为一体
+                        lilyOnCell.destroy();
+                        const lIdx = this.plants.indexOf(lilyOnCell);
+                        if (lIdx !== -1) this.plants.splice(lIdx, 1);
+                    } else {
+                        lilyOnCell.carriedPlant = plantObj;
+                        plantObj.hostLilypad = lilyOnCell;
+                        if (plantObj.domElement) {
+                            plantObj.domElement.classList.add('planted-on-lilypad');
+                            plantObj.domElement.style.zIndex = '15';
+                            plantObj.domElement.style.top = `${gridPos.y - 50}px`;
+                        }
+                    }
+                } else if (potOnCell && checkType !== 'flowerpot') {
+                    potOnCell.carriedPlant = plantObj;
+                    plantObj.hostPot = potOnCell;
+                    if (plantObj.domElement) {
+                        plantObj.domElement.classList.add('planted-on-pot');
+                        plantObj.domElement.style.zIndex = '15';
+                        const potLift = checkType === 'tallnut' ? 74 : (checkType === 'chomper' ? 70 : 54);
+                        plantObj.domElement.style.top = `${gridPos.y - potLift}px`;
+                    }
                 }
             }
             this.plants.push(plantObj);
@@ -1608,6 +1846,55 @@ export class PvzEngine {
                 fxCtx.drawImage(malletImg, -46, -68, 76, 76);
                 fxCtx.restore();
             }
+        }
+
+        // 4.3 玉米加农炮战术准星与 3x3 轰炸范围预览圈
+        if (this.aimingCobCannon && !this.aimingCobCannon.isDead && this.aimingCobCannon.isLoaded && this.cobAimCursor) {
+            const tx = this.cobAimCursor.x;
+            const ty = this.cobAimCursor.y;
+            const pulse = 1 + Math.sin(performance.now() * 0.01) * 0.06;
+            fxCtx.save();
+
+            // 3x3 爆破覆盖范围虚线警示环
+            fxCtx.setLineDash([8, 6]);
+            fxCtx.strokeStyle = 'rgba(231, 76, 60, 0.55)';
+            fxCtx.fillStyle = 'rgba(231, 76, 60, 0.11)';
+            fxCtx.lineWidth = 2.2;
+            fxCtx.beginPath();
+            fxCtx.ellipse(tx, ty, 118, 98, 0, 0, Math.PI * 2);
+            fxCtx.fill();
+            fxCtx.stroke();
+            fxCtx.setLineDash([]);
+
+            // 经典红金十字准星
+            fxCtx.translate(tx, ty);
+            fxCtx.scale(pulse, pulse);
+            fxCtx.strokeStyle = '#ff3838';
+            fxCtx.lineWidth = 3.5;
+            fxCtx.beginPath();
+            fxCtx.arc(0, 0, 22, 0, Math.PI * 2);
+            fxCtx.stroke();
+
+            fxCtx.strokeStyle = '#ffd32a';
+            fxCtx.lineWidth = 2;
+            fxCtx.beginPath();
+            fxCtx.arc(0, 0, 10, 0, Math.PI * 2);
+            fxCtx.stroke();
+
+            fxCtx.strokeStyle = '#ff3838';
+            fxCtx.lineWidth = 3;
+            fxCtx.beginPath();
+            fxCtx.moveTo(-30, 0); fxCtx.lineTo(-13, 0);
+            fxCtx.moveTo(13, 0);  fxCtx.lineTo(30, 0);
+            fxCtx.moveTo(0, -30); fxCtx.lineTo(0, -13);
+            fxCtx.moveTo(0, 13);  fxCtx.lineTo(0, 30);
+            fxCtx.stroke();
+
+            fxCtx.fillStyle = '#ffd32a';
+            fxCtx.beginPath();
+            fxCtx.arc(0, 0, 3.5, 0, Math.PI * 2);
+            fxCtx.fill();
+            fxCtx.restore();
         }
 
         // 4.5. 前景浓雾与波次横幅层渲染 (绘制在 #fogCanvas 之上，真实笼罩右侧僵尸与植物，并支持路灯花/火炬树桩透光开洞)

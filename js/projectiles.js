@@ -1,8 +1,8 @@
 /**
  * projectiles.js - 子弹、投掷物、爆炸粒子、飘字与阳光飞行动画系统
  */
-import { assetsLoader } from './assetsLoader.js?v=20261112_v8';
-import { soundEngine } from './audio.js?v=20261112_v8';
+import { assetsLoader } from './assetsLoader.js?v=20261112_v9';
+import { soundEngine } from './audio.js?v=20261112_v9';
 
 export class Projectile {
     constructor(row, x, y, type = 'pea', damage = 20, isSlow = false, maxRange = 960, customSpeed = null) {
@@ -89,7 +89,7 @@ export class HitSplat {
         this.y = y;
         this.type = type;
         this.age = 0;
-        this.lifespan = type === 'melon' ? 0.34 : (type === 'butter' ? 0.28 : 0.2);
+        this.lifespan = (type === 'melon' || type === 'winter_melon') ? 0.36 : (type === 'butter' ? 0.28 : 0.2);
         this.isDead = false;
         this.anim = type === 'shroom' ? 'assets/projectiles/shroom_splat.gif' : 'assets/projectiles/pea_splat.gif';
     }
@@ -105,23 +105,26 @@ export class HitSplat {
         const p = Math.min(1, this.age / this.lifespan);
         const alpha = Math.max(0, 1 - p);
 
-        if (this.type === 'melon') {
+        if (this.type === 'melon' || this.type === 'winter_melon') {
+            const isWinter = this.type === 'winter_melon';
             ctx.save();
             ctx.globalAlpha = alpha;
-            // 3x3 西瓜汁扩散冲击环
-            ctx.strokeStyle = 'rgba(231, 76, 60, 0.72)';
-            ctx.lineWidth = 3.5;
+            // 3x3 西瓜汁 / 极寒冰瓜霜环扩散冲击波
+            ctx.strokeStyle = isWinter ? 'rgba(72, 219, 251, 0.82)' : 'rgba(231, 76, 60, 0.72)';
+            ctx.lineWidth = 3.8;
             ctx.beginPath();
-            ctx.ellipse(this.x, this.y + 8, 22 + p * 54, 12 + p * 26, 0, 0, Math.PI * 2);
+            ctx.ellipse(this.x, this.y + 8, 22 + p * 58, 12 + p * 28, 0, 0, Math.PI * 2);
             ctx.stroke();
 
-            // 飞溅的翠绿瓜皮与鲜红瓜瓤碎块
+            // 飞溅的瓜皮与瓜瓤/冰晶碎块
             for (let i = 0; i < 8; i++) {
                 const ang = (i / 8) * Math.PI * 2 + 0.3;
-                const dist = 8 + p * 42;
+                const dist = 8 + p * 44;
                 const sx = this.x + Math.cos(ang) * dist;
                 const sy = this.y + Math.sin(ang) * dist * 0.75 + p * p * 14;
-                ctx.fillStyle = i % 2 === 0 ? '#e74c3c' : '#27ae60';
+                ctx.fillStyle = isWinter
+                    ? (i % 2 === 0 ? '#74b9ff' : '#0984e3')
+                    : (i % 2 === 0 ? '#e74c3c' : '#27ae60');
                 ctx.beginPath();
                 ctx.arc(sx, sy, (1 - p * 0.45) * (i % 2 === 0 ? 6.5 : 5.5), 0, Math.PI * 2);
                 ctx.fill();
@@ -360,19 +363,23 @@ export class ExplosionEffect {
     }
 }
 
-// 阳光实体 (自然掉落 / 向日葵产出 / 算术超级阳光)
+// 阳光与钱币实体 (自然掉落 / 向日葵产出 / 金盏花银币金币 / 算术超级阳光)
 export class SunEntity {
-    constructor(startX, startY, targetY, value = 25, isMathSuper = false, container = null, engine = null) {
+    constructor(startX, startY, targetY, value = 25, isMathSuper = false, container = null, engine = null, coinType = null) {
         this.x = startX;
         this.y = startY;
         this.targetY = targetY;
         this.value = value;
         this.isMathSuper = isMathSuper;
-        this.speedY = isMathSuper ? 130 : 75;
-        this.anim = 'assets/ui/sun.gif';
-        this.isSmallSun = !isMathSuper && value < 25;
-        // 原版阳光规格：小阳光 56px (半径28)，标准阳光 78px (半径39)，算术超级阳光 96px (半径48)
-        this.radius = isMathSuper ? 48 : (this.isSmallSun ? 28 : 39);
+        this.coinType = coinType; // null | 'silver' | 'gold'
+        this.isCoin = !!coinType;
+        this.speedY = isMathSuper ? 130 : (this.isCoin ? 95 : 75);
+        this.anim = coinType === 'gold'
+            ? 'assets/ui/coin_gold.png'
+            : (coinType === 'silver' ? 'assets/ui/coin_silver.png' : 'assets/ui/sun.gif');
+        this.isSmallSun = !isMathSuper && !this.isCoin && value < 25;
+        // 原版规格：银币 50px(r25)，金币 56px(r28)，小阳光 56px(r28)，标准阳光 78px(r39)，超级阳光 96px(r48)
+        this.radius = isMathSuper ? 48 : (coinType === 'gold' ? 28 : (coinType === 'silver' ? 25 : (this.isSmallSun ? 28 : 39)));
         this.age = 0;
         this.lifespan = 12.0; // 地面停留12秒未拾取自动飞入收集
         this.isCollecting = false;
@@ -391,9 +398,12 @@ export class SunEntity {
     createDOM() {
         if (!this.container || typeof document === 'undefined') return;
         this.domElement = document.createElement('div');
-        this.domElement.className = `sun-entity${this.isMathSuper ? ' super-sun' : (this.isSmallSun ? ' small-sun' : '')}`;
+        const extraCls = this.isCoin
+            ? ` coin-entity ${this.coinType === 'gold' ? 'gold-coin' : 'silver-coin'}`
+            : (this.isMathSuper ? ' super-sun' : (this.isSmallSun ? ' small-sun' : ''));
+        this.domElement.className = `sun-entity${extraCls}`;
         this.domElement.innerHTML = `
-            <img src="${this.anim}" class="sun-img" alt="sun" />
+            <img src="${this.anim}" class="sun-img" alt="${this.isCoin ? 'coin' : 'sun'}" />
             <span class="sun-badge">+${this.value}</span>
         `;
         this.updateDOMTransform();
@@ -660,7 +670,7 @@ export class LobbedProjectile {
             : Math.max(0.76, Math.min(1.04, 0.68 + initSpan / 1650));
         this.arcHeight = Math.max(92, Math.min(142, 74 + initSpan * 0.12));
         this.rotation = 0;
-        this.spinSpeed = this.isEnemyBasketball ? -8.5 : (type === 'melon' ? 6.8 : 9.2);
+        this.spinSpeed = this.isEnemyBasketball ? -8.5 : ((type === 'melon' || type === 'winter_melon') ? 6.8 : 9.2);
         this.trail = [{ x: startX, y: startY, rot: 0 }];
         this.isDead = false;
         this.isLobbed = true;
@@ -671,6 +681,8 @@ export class LobbedProjectile {
             this.anim = 'assets/projectiles/corn.png';
         } else if (type === 'melon') {
             this.anim = 'assets/projectiles/melon.png';
+        } else if (type === 'winter_melon') {
+            this.anim = 'assets/projectiles/winter_melon.png';
         } else if (type === 'basketball') {
             this.anim = 'assets/projectiles/basketball.png';
         } else {
@@ -746,6 +758,24 @@ export class LobbedProjectile {
         if (this.isEnemyBasketball) {
             soundEngine.playSplat();
             if (this.targetPlant && !this.targetPlant.isDead) {
+                // 优先检测 3x3 范围内是否有叶子保护伞 (Umbrella Leaf) 撑开巨叶弹开篮球！
+                const targetCol = this.targetPlant.col;
+                const umbrella = engine.plants ? engine.plants.find(u =>
+                    !u.isDead && u.type === 'umbrellaleaf' &&
+                    Math.abs(u.row - this.row) <= 1 &&
+                    (Math.abs(u.col - targetCol) <= 1 || (this.targetPlant.isDoubleWide && Math.abs(u.col - (targetCol + 1)) <= 1))
+                ) : null;
+                if (umbrella) {
+                    if (typeof umbrella.triggerBounce === 'function') {
+                        umbrella.triggerBounce(engine);
+                    }
+                    if (engine.floatingTexts) {
+                        engine.floatingTexts.push(new FloatingText(umbrella.x, umbrella.y - 42, '☂️ 保护伞弹飞篮球!', '#2ecc71', 19));
+                    }
+                    engine.hitSplats.push(new HitSplat(this.x, this.y - 18, 'basketball'));
+                    return;
+                }
+
                 // 若该格套有南瓜头，优先砸伤南瓜头
                 const pumpkin = engine.plants ? engine.plants.find(
                     p => !p.isDead && p.col === this.targetPlant.col && p.row === this.targetPlant.row && (p.isPumpkin || p.isPumpkinShell || p.type === 'pumpkin')
@@ -771,19 +801,28 @@ export class LobbedProjectile {
             ) || null;
         }
 
-        if (this.type === 'melon') {
+        if (this.type === 'melon' || this.type === 'winter_melon') {
+            const isWinter = (this.type === 'winter_melon');
             soundEngine.playBoom();
-            // 西瓜造成 80 直接伤害 + 周围 3x3 范围 26 溅射伤害
+            const chillZombie = (z) => {
+                if (!isWinter || !z || z.isDead || z.isDying) return;
+                z.slowTimer = Math.max(z.slowTimer || 0, 10.0);
+                z.isSlowed = true;
+                if (z.domElement) z.domElement.classList.add('slowed');
+            };
+            // 西瓜 / 冰西瓜造成 80 直接伤害 + 周围 3x3 范围 26 溅射伤害（冰西瓜附带 10s 群体冰减速）
             if (directTarget) {
                 this.applyLobbedHit(directTarget, this.damage);
+                chillZombie(directTarget);
             }
             engine.zombies.forEach(z => {
                 if (z === directTarget || z.isDead || z.isDying || z.isHypnotized || z.isFlying || z.type === 'bungee') return;
-                if (Math.abs(z.row - this.row) <= 1 && Math.abs(z.x - this.x) <= 92) {
+                if (Math.abs(z.row - this.row) <= 1 && Math.abs(z.x - this.x) <= 94) {
                     this.applyLobbedHit(z, 26);
+                    chillZombie(z);
                 }
             });
-            engine.hitSplats.push(new HitSplat(this.x, this.y, 'melon'));
+            engine.hitSplats.push(new HitSplat(this.x, this.y, isWinter ? 'winter_melon' : 'melon'));
         } else if (this.type === 'butter') {
             soundEngine.playSplat();
             if (directTarget) {
@@ -811,8 +850,9 @@ export class LobbedProjectile {
         if (this.isDead) return;
         const height = Math.max(0, this.groundY - this.y);
         const heightFactor = Math.max(0.42, 1 - height / 260);
-        const rx = (this.type === 'melon' ? 18 : 13) * heightFactor;
-        const ry = (this.type === 'melon' ? 7 : 5) * heightFactor;
+        const isHeavyMelon = (this.type === 'melon' || this.type === 'winter_melon');
+        const rx = (isHeavyMelon ? 18 : 13) * heightFactor;
+        const ry = (isHeavyMelon ? 7 : 5) * heightFactor;
         ctx.save();
         ctx.fillStyle = `rgba(0, 0, 0, ${(0.34 * heightFactor).toFixed(3)})`;
         ctx.beginPath();
@@ -823,26 +863,29 @@ export class LobbedProjectile {
 
     render(ctx) {
         const img = assetsLoader.getImage(this.anim);
-        const drawW = this.type === 'melon' ? 42 : (this.type === 'cabbage' ? 35 : (this.type === 'butter' ? 34 : (this.type === 'basketball' ? 34 : 28)));
-        const drawH = this.type === 'melon' ? 32 : (this.type === 'cabbage' ? 32 : (this.type === 'butter' ? 35 : (this.type === 'basketball' ? 34 : 29)));
+        const isHeavyMelon = (this.type === 'melon' || this.type === 'winter_melon');
+        const drawW = isHeavyMelon ? 42 : (this.type === 'cabbage' ? 35 : (this.type === 'butter' ? 34 : (this.type === 'basketball' ? 34 : 28)));
+        const drawH = isHeavyMelon ? 32 : (this.type === 'cabbage' ? 32 : (this.type === 'butter' ? 35 : (this.type === 'basketball' ? 34 : 29)));
 
         // 1. 绘制柔和抛物线运动流线与渐隐残影，让高抛弹道弧线清晰醒目
         if (this.trail.length >= 2) {
-            const trailColor = this.type === 'butter'
-                ? '255, 226, 89'
-                : (this.type === 'corn'
-                    ? '250, 211, 58'
-                    : (this.type === 'basketball'
-                        ? '243, 156, 18'
-                        : (this.type === 'melon' ? '46, 204, 113' : '120, 224, 90')));
+            const trailColor = this.type === 'winter_melon'
+                ? '72, 219, 251'
+                : (this.type === 'butter'
+                    ? '255, 226, 89'
+                    : (this.type === 'corn'
+                        ? '250, 211, 58'
+                        : (this.type === 'basketball'
+                            ? '243, 156, 18'
+                            : (this.type === 'melon' ? '46, 204, 113' : '120, 224, 90'))));
             ctx.save();
             ctx.lineCap = 'round';
             for (let i = 1; i < this.trail.length; i++) {
                 const p0 = this.trail[i - 1];
                 const p1 = this.trail[i];
                 const ratio = i / this.trail.length;
-                ctx.strokeStyle = `rgba(${trailColor}, ${(ratio * 0.42).toFixed(3)})`;
-                ctx.lineWidth = (this.type === 'melon' ? 7 : 5) * ratio;
+                ctx.strokeStyle = `rgba(${trailColor}, ${(ratio * 0.44).toFixed(3)})`;
+                ctx.lineWidth = (isHeavyMelon ? 7 : 5) * ratio;
                 ctx.beginPath();
                 ctx.moveTo(p0.x, p0.y);
                 ctx.lineTo(p1.x, p1.y);
@@ -855,7 +898,7 @@ export class LobbedProjectile {
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.rotation);
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.42)';
+        ctx.shadowColor = this.type === 'winter_melon' ? 'rgba(52, 152, 219, 0.65)' : 'rgba(0, 0, 0, 0.42)';
         ctx.shadowBlur = 5;
         ctx.shadowOffsetY = 2;
         if (img && img.complete) {
@@ -863,7 +906,9 @@ export class LobbedProjectile {
         } else {
             ctx.beginPath();
             ctx.arc(0, 0, drawW * 0.42, 0, Math.PI * 2);
-            ctx.fillStyle = this.type === 'butter' ? '#f1c40f' : (this.type === 'basketball' ? '#e67e22' : (this.type === 'melon' ? '#27ae60' : '#2ecc71'));
+            ctx.fillStyle = this.type === 'winter_melon'
+                ? '#0984e3'
+                : (this.type === 'butter' ? '#f1c40f' : (this.type === 'basketball' ? '#e67e22' : (this.type === 'melon' ? '#27ae60' : '#2ecc71')));
             ctx.fill();
             ctx.lineWidth = 2;
             ctx.strokeStyle = '#1e272e';
@@ -1038,6 +1083,302 @@ export class BowlingNutEntity {
             ctx.stroke();
         }
 
+        ctx.restore();
+    }
+}
+
+// 香蒲 (Cattail) 全屏跨行自动制导红刺 (2D 平滑转向追踪全屏最近僵尸，优先戳破气球僵尸)
+export class HomingSpikeProjectile {
+    constructor(startX, startY, targetZombie = null, damage = 20) {
+        this.type = 'homing_thorn';
+        this.isLobbed = true; // 由自身 2D 碰撞结算，跳过单行水平检测
+        this.canHitFlying = true;
+        this.x = startX;
+        this.y = startY;
+        this.speed = 390;
+        this.vx = this.speed;
+        this.vy = 0;
+        this.angle = 0;
+        this.damage = damage;
+        this.targetZombie = targetZombie;
+        this.age = 0;
+        this.isDead = false;
+        this.anim = 'assets/projectiles/cattail_thorn.png';
+        this.trail = [{ x: startX, y: startY }];
+    }
+
+    acquireTarget(engine) {
+        if (!engine || !engine.zombies) return null;
+        const candidates = engine.zombies.filter(z =>
+            !z.isDead && !z.isDying && !z.isHypnotized &&
+            !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+            !(z.type === 'snorkel' && z.isSubmerged) &&
+            !(z.type === 'bungee' && z.bungeeOffsetY < -60) &&
+            z.x >= -10 && z.x <= 930
+        );
+        if (candidates.length === 0) return null;
+        // 优先锁定空中气球僵尸，其次锁定离家最近 (x 最小) 的僵尸
+        candidates.sort((a, b) => {
+            if (!!a.isFlying !== !!b.isFlying) return a.isFlying ? -1 : 1;
+            return a.x - b.x;
+        });
+        this.targetZombie = candidates[0];
+        return this.targetZombie;
+    }
+
+    update(dt, engine) {
+        this.age += dt;
+        if (this.age >= 5.0 || this.x < -80 || this.x > 1020 || this.y < -80 || this.y > 680) {
+            this.isDead = true;
+            return;
+        }
+
+        if (!this.targetZombie || this.targetZombie.isDead || this.targetZombie.isDying || this.targetZombie.isHypnotized) {
+            this.acquireTarget(engine);
+        }
+
+        if (this.targetZombie && !this.targetZombie.isDead && !this.targetZombie.isDying) {
+            const tx = this.targetZombie.x;
+            const ty = this.targetZombie.y - (this.targetZombie.isFlying ? 28 : 16);
+            const dx = tx - this.x;
+            const dy = ty - this.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist <= 26) {
+                this.isDead = true;
+                if (this.targetZombie.isFlying && typeof this.targetZombie.popBalloon === 'function') {
+                    this.targetZombie.popBalloon(engine);
+                } else {
+                    this.targetZombie.takeDamage(this.damage);
+                }
+                if (engine && engine.hitSplats) {
+                    engine.hitSplats.push(new HitSplat(this.x, this.y, 'pea'));
+                }
+                soundEngine.playSplat();
+                return;
+            }
+
+            const desiredAngle = Math.atan2(dy, dx);
+            let diff = desiredAngle - this.angle;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            const maxTurn = 12.5 * dt;
+            if (Math.abs(diff) <= maxTurn) {
+                this.angle = desiredAngle;
+            } else {
+                this.angle += Math.sign(diff) * maxTurn;
+            }
+            this.vx = Math.cos(this.angle) * this.speed;
+            this.vy = Math.sin(this.angle) * this.speed;
+        }
+
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        const last = this.trail[this.trail.length - 1];
+        if (!last || Math.hypot(this.x - last.x, this.y - last.y) >= 12) {
+            this.trail.push({ x: this.x, y: this.y });
+            if (this.trail.length > 6) this.trail.shift();
+        }
+    }
+
+    render(ctx) {
+        if (this.trail.length >= 2) {
+            ctx.save();
+            ctx.lineCap = 'round';
+            for (let i = 1; i < this.trail.length; i++) {
+                const p0 = this.trail[i - 1];
+                const p1 = this.trail[i];
+                const ratio = i / this.trail.length;
+                ctx.strokeStyle = `rgba(235, 77, 75, ${(ratio * 0.48).toFixed(3)})`;
+                ctx.lineWidth = 3.5 * ratio;
+                ctx.beginPath();
+                ctx.moveTo(p0.x, p0.y);
+                ctx.lineTo(p1.x, p1.y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        const img = assetsLoader.getImage(this.anim);
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        if (img && img.complete) {
+            ctx.drawImage(img, -15, -8, 30, 15);
+        } else {
+            ctx.fillStyle = '#eb4d4b';
+            ctx.beginPath();
+            ctx.moveTo(14, 0);
+            ctx.lineTo(-10, -5);
+            ctx.lineTo(-10, 5);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+}
+
+// 玉米加农炮洲际导弹 (Cob Cannon ICBM：一段垂直冲天升空 + 二段高空俯冲轰炸 + 1800 灰烬级 3x3 毁灭爆破)
+export class CobRocketProjectile {
+    constructor(startX, startY, targetX, targetY, damage = 1800) {
+        this.type = 'cob_rocket';
+        this.isLobbed = true;
+        this.isCobRocket = true;
+        this.startX = startX;
+        this.startY = startY;
+        this.x = startX;
+        this.y = startY;
+        this.targetX = targetX;
+        this.targetY = targetY;
+        this.damage = damage;
+        this.age = 0;
+        this.ascendDuration = 0.44;
+        this.descendDuration = 0.44;
+        this.totalDuration = this.ascendDuration + this.descendDuration;
+        this.rotation = 0; // 0 = 弹头朝上升空，Math.PI = 弹头垂直朝下俯冲
+        this.smokePuffs = [];
+        this.smokeTimer = 0;
+        this.isDead = false;
+        this.anim = 'assets/projectiles/cob_rocket.png';
+    }
+
+    update(dt, engine) {
+        this.age += dt;
+        this.smokeTimer += dt;
+
+        // 尾焰推进白烟粒子更新
+        this.smokePuffs.forEach(sp => {
+            sp.age += dt;
+            sp.r += dt * 22;
+        });
+        this.smokePuffs = this.smokePuffs.filter(sp => sp.age < sp.lifespan);
+
+        if (this.age < this.ascendDuration) {
+            const p = this.age / this.ascendDuration;
+            const ease = p * p * 0.4 + p * 0.6;
+            this.x = this.startX;
+            this.y = this.startY - (this.startY + 135) * ease;
+            this.rotation = 0;
+            if (this.smokeTimer >= 0.035) {
+                this.smokeTimer = 0;
+                this.smokePuffs.push({ x: this.x + (Math.random() - 0.5) * 8, y: this.y + 38, r: 9, age: 0, lifespan: 0.34 });
+            }
+            return;
+        }
+
+        if (this.age < this.totalDuration) {
+            const p = (this.age - this.ascendDuration) / this.descendDuration;
+            const ease = p * p * 0.45 + p * 0.55;
+            this.x = this.targetX;
+            this.y = -135 + (this.targetY + 135) * ease;
+            this.rotation = Math.PI;
+            if (this.smokeTimer >= 0.03) {
+                this.smokeTimer = 0;
+                this.smokePuffs.push({ x: this.x + (Math.random() - 0.5) * 8, y: this.y - 38, r: 10, age: 0, lifespan: 0.32 });
+            }
+            return;
+        }
+
+        // 轰然触地引爆：3x3 范围 1800 灰烬重创！
+        this.isDead = true;
+        soundEngine.playBoom();
+        soundEngine.playThunder();
+        if (engine) {
+            if (engine.explosions) {
+                engine.explosions.push(new ExplosionEffect(this.targetX, this.targetY, 'cherry'));
+            }
+            if (engine.hitSplats) {
+                engine.hitSplats.push(new HitSplat(this.targetX, this.targetY, 'melon'));
+            }
+            if (engine.floatingTexts) {
+                engine.floatingTexts.push(new FloatingText(this.targetX, this.targetY - 48, '🌽💥 玉米导弹轰炸!', '#f1c40f', 24));
+            }
+            if (engine.zombies) {
+                engine.zombies.forEach(z => {
+                    if (z.isDead || z.isDying || z.isHypnotized) return;
+                    if (Math.abs(z.x - this.targetX) <= 128 && Math.abs(z.y - this.targetY) <= 116) {
+                        if (typeof z.blastDie === 'function') {
+                            z.blastDie(this.damage);
+                        } else {
+                            z.takeDamage(this.damage);
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    renderShadow(ctx) {
+        if (this.isDead) return;
+        const pulse = 1 + Math.sin(this.age * 18) * 0.08;
+        ctx.save();
+        // 地面红金锁定靶心圈
+        ctx.strokeStyle = 'rgba(231, 76, 60, 0.85)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(this.targetX, this.targetY + 12, 34 * pulse, 16 * pulse, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(241, 196, 15, 0.9)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(this.targetX, this.targetY + 12, 16 * pulse, 8 * pulse, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 二段俯冲时逐渐放大的地面黑影
+        if (this.age >= this.ascendDuration) {
+            const dp = Math.min(1, (this.age - this.ascendDuration) / this.descendDuration);
+            ctx.fillStyle = `rgba(0, 0, 0, ${(0.18 + dp * 0.36).toFixed(3)})`;
+            ctx.beginPath();
+            ctx.ellipse(this.targetX, this.targetY + 12, 10 + dp * 24, 5 + dp * 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    render(ctx) {
+        // 1. 尾焰浓烟粒子
+        this.smokePuffs.forEach(sp => {
+            const alpha = Math.max(0, 1 - sp.age / sp.lifespan) * 0.62;
+            ctx.save();
+            ctx.fillStyle = `rgba(245, 246, 250, ${alpha.toFixed(3)})`;
+            ctx.beginPath();
+            ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        });
+
+        // 2. 玉米洲际导弹弹体 + 炽热推进尾焰
+        const img = assetsLoader.getImage(this.anim);
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+
+        // 尾部喷射烈焰光锥
+        const flameLen = 22 + Math.sin(this.age * 45) * 6;
+        const grad = ctx.createLinearGradient(0, 32, 0, 32 + flameLen);
+        grad.addColorStop(0, 'rgba(255, 242, 0, 0.95)');
+        grad.addColorStop(0.5, 'rgba(255, 121, 63, 0.85)');
+        grad.addColorStop(1, 'rgba(231, 76, 60, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(-11, 30);
+        ctx.lineTo(11, 30);
+        ctx.lineTo(0, 34 + flameLen);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.shadowColor = 'rgba(241, 196, 15, 0.55)';
+        ctx.shadowBlur = 10;
+        if (img && img.complete) {
+            ctx.drawImage(img, -23, -45, 46, 90);
+        } else {
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 16, 38, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
         ctx.restore();
     }
 }

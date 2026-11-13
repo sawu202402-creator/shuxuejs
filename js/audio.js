@@ -119,6 +119,10 @@ class SoundEngine {
     }
 
     // 拾取阳光清脆水晶和弦 (Ding-Shimmer)
+    playSunCollect() {
+        this.playSun();
+    }
+
     playSun() {
         if (this.muted) return;
         this.resume();

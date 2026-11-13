@@ -1,9 +1,9 @@
 /**
  * zombies.js - 原版 1:1 僵尸实体系统与 DOM 60fps 动态 GIF 动画层 (完整支持第 1~5 大关全兵种与屋顶斜坡)
  */
-import { GAME_CONFIG } from './config.js?v=20261112_v8';
-import { soundEngine } from './audio.js?v=20261112_v8';
-import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261112_v8';
+import { GAME_CONFIG } from './config.js?v=20261112_v9';
+import { soundEngine } from './audio.js?v=20261112_v9';
+import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261112_v9';
 
 export class Zombie {
     constructor(type = 'normal', row = 2, startX = 900, entityLayer = null) {
@@ -587,12 +587,15 @@ export class Zombie {
      * 查找当前格可阻挡/啃食的目标植物（忽略平铺地刺；优先啃南瓜壳 -> 承载植物 -> 睡莲/花盆底座）
      */
     findTargetPlant(engine, backwards = false) {
+        const cw = (engine && engine.cellW) ? engine.cellW : 80;
         const candidates = engine.plants.filter(p => {
             if (p.row !== this.row || p.isDead || p.isFlat) return false;
+            const leftX = p.x;
+            const rightX = p.isDoubleWide ? p.x + cw : p.x;
             if (backwards) {
-                return p.x >= this.x - 12 && Math.abs(p.x - this.x) <= 38;
+                return rightX >= this.x - 12 && this.x >= leftX - 38 && this.x <= rightX + 38;
             }
-            return p.x <= this.x + 12 && Math.abs(p.x - this.x) <= 38;
+            return leftX <= this.x + 12 && this.x >= leftX - 38 && this.x <= rightX + 38;
         });
         if (candidates.length === 0) return null;
 
@@ -736,6 +739,29 @@ export class Zombie {
             } else if (this.bungeePhase === 'descending') {
                 this.setAnim(this.config.walkAnims[0]);
                 this.bungeeOffsetY = Math.min(0, this.bungeeOffsetY + 430 * dt);
+                if (this.bungeeOffsetY >= -28) {
+                    const targetCol = this.bungeeTargetPlant
+                        ? this.bungeeTargetPlant.col
+                        : Math.round((this.x - (engine.gridStartX || 40) - this.cellW / 2) / this.cellW);
+                    const umbrella = engine.plants.find(u =>
+                        !u.isDead && u.type === 'umbrellaleaf' &&
+                        Math.abs(u.row - this.row) <= 1 &&
+                        (Math.abs(u.col - targetCol) <= 1 || (this.bungeeTargetPlant && this.bungeeTargetPlant.isDoubleWide && Math.abs(u.col - (targetCol + 1)) <= 1))
+                    );
+                    if (umbrella) {
+                        if (typeof umbrella.triggerBounce === 'function') {
+                            umbrella.triggerBounce(engine);
+                        }
+                        this.bungeeTargetPlant = null;
+                        this.bungeePhase = 'ascending';
+                        this.setAnim(this.config.walkAnims[0]);
+                        if (engine.floatingTexts) {
+                            engine.floatingTexts.push(new FloatingText(umbrella.x, umbrella.y - 44, '☂️ 保护伞弹飞蹦极!', '#2ecc71', 20));
+                        }
+                        this.updateDOMPosition(engine, this.bungeeOffsetY);
+                        return;
+                    }
+                }
                 if (this.bungeeOffsetY >= 0) {
                     this.bungeeOffsetY = 0;
                     this.bungeePhase = 'grabbing';
@@ -747,8 +773,9 @@ export class Zombie {
                 if (this.bungeeTimer <= 0) {
                     if (this.bungeeTargetPlant && !this.bungeeTargetPlant.isDead) {
                         // 若该格有保护伞外的植物，抓走最上层植物
+                        const tCol = this.bungeeTargetPlant.col;
                         const cellPlants = engine.plants.filter(
-                            p => !p.isDead && p.row === this.bungeeTargetPlant.row && p.col === this.bungeeTargetPlant.col
+                            p => !p.isDead && p.row === this.bungeeTargetPlant.row && (p.col === tCol || (p.isDoubleWide && p.col + 1 === tCol))
                         );
                         const victim = cellPlants.find(p => !p.isPot && p.type !== 'lilypad' && !p.isPumpkin) || this.bungeeTargetPlant;
                         victim.destroy();

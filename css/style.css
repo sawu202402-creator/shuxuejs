@@ -533,6 +533,18 @@ body {
     filter: drop-shadow(0 0 7px rgba(255, 230, 0, 0.8));
 }
 
+.sun-entity.coin-entity.gold-coin {
+    width: 56px;
+    height: 56px;
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.92));
+}
+
+.sun-entity.coin-entity.silver-coin {
+    width: 50px;
+    height: 50px;
+    filter: drop-shadow(0 0 8px rgba(223, 230, 233, 0.9));
+}
+
 .sun-img {
     width: 100%;
     height: 100%;
@@ -676,6 +688,83 @@ body {
     height: 36px !important;
     align-items: center !important;
     z-index: 5 !important;
+}
+
+/* 玉米加农炮 (1x2 双格重装巨炮) */
+.plant-entity.plant-cobcannon {
+    width: 156px !important;
+    height: 112px !important;
+    z-index: 16 !important;
+    cursor: default;
+}
+
+.plant-entity.plant-cobcannon .plant-gif {
+    width: 156px !important;
+    height: 112px !important;
+    object-fit: contain;
+}
+
+.plant-entity.plant-cobcannon.cob-ready {
+    cursor: pointer;
+    filter: drop-shadow(0 0 6px rgba(241, 196, 15, 0.55));
+}
+
+.plant-entity.plant-cobcannon.cob-aiming {
+    filter: drop-shadow(0 0 12px rgba(231, 76, 60, 0.95)) brightness(1.08);
+}
+
+.cob-ready-badge {
+    display: none;
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 900;
+    color: #fff;
+    background: linear-gradient(135deg, #e74c3c, #f39c12);
+    border: 1.5px solid #ffeaa7;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.55);
+    pointer-events: none;
+    animation: cobPulseBadge 1.1s ease-in-out infinite alternate;
+}
+
+.plant-entity.plant-cobcannon.cob-ready .cob-ready-badge {
+    display: inline-block;
+}
+
+@keyframes cobPulseBadge {
+    from { transform: translateY(0) scale(0.96); }
+    to { transform: translateY(-3px) scale(1.05); }
+}
+
+/* 叶子保护伞规格 */
+.plant-entity.plant-umbrellaleaf .plant-gif {
+    width: 92px !important;
+    height: 88px !important;
+    object-fit: contain;
+}
+
+/* 模仿者分身黑白默剧滤镜 (还原原版 PVZ1 银灰复古色调) */
+.plant-entity.imitater-clone .plant-gif {
+    filter: grayscale(0.82) contrast(1.08) brightness(1.05);
+}
+
+.card-imitater-badge {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    right: 2px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 900;
+    color: #2d3436;
+    background: rgba(236, 240, 241, 0.92);
+    border-radius: 3px;
+    padding: 0 2px;
+    z-index: 4;
+    pointer-events: none;
 }
 
 .plant-entity.plant-spikeweed .plant-gif,

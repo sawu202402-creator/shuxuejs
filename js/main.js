@@ -2,14 +2,14 @@
  * main.js - 游戏全局协调控制器、事件总线与主循环
  * 深度融合原版 1:1 植物大战僵尸战场与儿童趣味心算学习引擎
  */
-import { GAME_CONFIG, AVATAR_LIST, DIFFICULTY_PRESETS } from './config.js?v=20261112_v8';
-import { assetsLoader } from './assetsLoader.js?v=20261112_v8';
-import { soundEngine } from './audio.js?v=20261112_v8';
-import { mathEngine } from './mathEngine.js?v=20261112_v8';
-import { profileManager } from './profileManager.js?v=20261112_v8';
-import { PvzEngine } from './pvzEngine.js?v=20261112_v8';
-import { createPlant } from './plants.js?v=20261112_v8';
-import { Zombie } from './zombies.js?v=20261112_v8';
+import { GAME_CONFIG, AVATAR_LIST, DIFFICULTY_PRESETS } from './config.js?v=20261112_v9';
+import { assetsLoader } from './assetsLoader.js?v=20261112_v9';
+import { soundEngine } from './audio.js?v=20261112_v9';
+import { mathEngine } from './mathEngine.js?v=20261112_v9';
+import { profileManager } from './profileManager.js?v=20261112_v9';
+import { PvzEngine } from './pvzEngine.js?v=20261112_v9';
+import { createPlant } from './plants.js?v=20261112_v9';
+import { Zombie } from './zombies.js?v=20261112_v9';
 
 window.createPlant = createPlant;
 window.Zombie = Zombie;
@@ -219,7 +219,12 @@ class GameApp {
             'assets/zombies/jackbox_drop.png',
             'assets/zombies/pickaxe_drop.png',
             'assets/zombies/pogo_drop.png',
-            'assets/zombies/ladder_drop.png'
+            'assets/zombies/ladder_drop.png',
+            'assets/projectiles/cob_rocket.png',
+            'assets/projectiles/winter_melon.png',
+            'assets/projectiles/cattail_thorn.png',
+            'assets/ui/coin_gold.png',
+            'assets/ui/coin_silver.png'
         ];
 
         // 加入所有僵尸动画及状态变体 (含第 1~5 大关全部僵尸精灵)
@@ -228,31 +233,19 @@ class GameApp {
             ['attackAnim', 'headAnim', 'dieAnim', 'openAnim', 'lostPaperAnim', 'rageAnim', 'rageAttackAnim',
              'noHelmetWalkAnim', 'noHelmetAttackAnim', 'moonwalkAnim', 'summonAnim',
              'runAnim', 'jumpAnim', 'walkAnim', 'landWalkAnim', 'rideAnim', 'swimAnim', 'digAnim', 'surfacedWalkAnim',
-             'lostHeadWalkAnim', 'lostHeadAttackAnim'].forEach(k => {
+             'lostHeadWalkAnim', 'lostHeadAttackAnim', 'grabAnim', 'shootAnim'].forEach(k => {
                 if (z[k]) assetPaths.push(z[k]);
             });
         });
 
         // 加入所有植物卡牌与动画及状态变体
         Object.values(GAME_CONFIG.plants).forEach(p => {
-            if (p.anim) assetPaths.push(p.anim);
-            if (p.attackAnim) assetPaths.push(p.attackAnim);
-            if (p.digestAnim) assetPaths.push(p.digestAnim);
-            if (p.cooldownAnim) assetPaths.push(p.cooldownAnim);
-            if (p.icon) assetPaths.push(p.icon);
-            if (p.crack1Anim) assetPaths.push(p.crack1Anim);
-            if (p.crack2Anim) assetPaths.push(p.crack2Anim);
-            if (p.unarmedAnim) assetPaths.push(p.unarmedAnim);
-            if (p.armedAnim) assetPaths.push(p.armedAnim);
-            if (p.mashedAnim) assetPaths.push(p.mashedAnim);
-            if (p.boomAnim) assetPaths.push(p.boomAnim);
-            if (p.bigAnim) assetPaths.push(p.bigAnim);
-            if (p.hideAnim) assetPaths.push(p.hideAnim);
-            if (p.sleepAnim) assetPaths.push(p.sleepAnim);
-            if (p.eatAnim) assetPaths.push(p.eatAnim);
-            if (p.bulletAnim) assetPaths.push(p.bulletAnim);
-            if (p.splatAnim) assetPaths.push(p.splatAnim);
-            if (p.cloudAnim) assetPaths.push(p.cloudAnim);
+            ['anim', 'attackAnim', 'digestAnim', 'cooldownAnim', 'icon', 'crack1Anim', 'crack2Anim',
+             'unarmedAnim', 'armedAnim', 'mashedAnim', 'boomAnim', 'bigAnim', 'hideAnim', 'sleepAnim',
+             'eatAnim', 'bulletAnim', 'splatAnim', 'cloudAnim', 'emptyAnim', 'fireAnim', 'blockAnim',
+             'pullAnim', 'spinAnim'].forEach(k => {
+                if (p[k]) assetPaths.push(p[k]);
+            });
         });
 
         // 预加载资产 (去重)
@@ -357,7 +350,7 @@ class GameApp {
         const cardElements = this.dom.cardsList.querySelectorAll('.plant-card');
         cardElements.forEach(cardEl => {
             const pId = cardEl.getAttribute('data-id');
-            const conf = GAME_CONFIG.plants[pId];
+            const conf = (this.pvzEngine.getEffectiveCardConfig && this.pvzEngine.getEffectiveCardConfig(pId)) || GAME_CONFIG.plants[pId];
             if (!conf) return;
 
             const overlay = cardEl.querySelector('.card-cooldown-overlay');
@@ -415,6 +408,16 @@ class GameApp {
                     pool.add(rew);
                 }
             });
+            // 解锁戴夫商店高阶紫卡与功能植物供选卡台自由搭配
+            ['cobcannon', 'wintermelon', 'twinsunflower', 'gatlingpea', 'gloomshroom', 'goldmagnet', 'imitater', 'marigold'].forEach(p => {
+                if (GAME_CONFIG.plants[p]) pool.add(p);
+            });
+            if (!levelConf.isRoof) {
+                pool.add('spikerock');
+            }
+            if (Array.isArray(levelConf.waterRows) && levelConf.waterRows.length > 0) {
+                pool.add('cattail');
+            }
             return Array.from(pool);
         }
         return [];
@@ -490,18 +493,24 @@ class GameApp {
         const isNight = !!this.pvzEngine.isNight;
 
         allowed.forEach(pId => {
-            const conf = GAME_CONFIG.plants[pId];
+            const conf = (this.pvzEngine.getEffectiveCardConfig && this.pvzEngine.getEffectiveCardConfig(pId)) || GAME_CONFIG.plants[pId];
             if (!conf) return;
 
             const isAsleepInLevel = !isNight && !!conf.isNocturnal;
+            const imitaterLabel = (pId === 'imitater' && conf.copiedName)
+                ? `<span class="card-imitater-badge">${conf.cost}·${conf.copiedName.slice(0, 2)}</span>`
+                : '';
 
             const card = document.createElement('div');
             card.className = `plant-card ${isAsleepInLevel ? 'plant-card-sleep' : ''}`;
             card.setAttribute('data-id', pId);
-            card.setAttribute('title', isAsleepInLevel ? `${conf.name} (白天处于睡眠状态，种下后需咖啡豆唤醒)` : conf.name);
+            card.setAttribute('title', pId === 'imitater'
+                ? `模仿者 → 复制【${conf.copiedName}】(${conf.cost}☀️)`
+                : (isAsleepInLevel ? `${conf.name} (白天处于睡眠状态，种下后需咖啡豆唤醒)` : conf.name));
             card.innerHTML = `
                 <div class="card-cooldown-overlay"></div>
                 <img src="${conf.icon}" alt="${conf.name}" class="card-seed-img" />
+                ${imitaterLabel}
                 ${isAsleepInLevel ? '<span class="card-sleep-badge" title="白天休眠需咖啡豆">💤 睡</span>' : ''}
                 ${this.pvzEngine.levelConfig.isConveyorBelt ? '<span class="card-conveyor-tag">FREE</span>' : ''}
             `;
@@ -512,6 +521,7 @@ class GameApp {
                     return;
                 }
                 soundEngine.playPlant();
+                if (this.pvzEngine.cancelCobAim) this.pvzEngine.cancelCobAim();
                 // 切换选中状态
                 if (this.pvzEngine.selectedCard === pId) {
                     this.pvzEngine.selectedCard = null;
@@ -530,6 +540,7 @@ class GameApp {
         // 铲子点击切换
         this.dom.shovelSlot.addEventListener('click', () => {
             this.pvzEngine.isShovelActive = !this.pvzEngine.isShovelActive;
+            if (this.pvzEngine.cancelCobAim) this.pvzEngine.cancelCobAim();
             if (this.pvzEngine.isShovelActive) {
                 this.dom.shovelSlot.classList.add('active');
                 this.pvzEngine.selectedCard = null;
@@ -559,6 +570,9 @@ class GameApp {
             } else if (e.key === 'Backspace') {
                 this.handleKeyInput('backspace');
             } else if (e.key === 'Escape') {
+                if (this.pvzEngine && this.pvzEngine.aimingCobCannon && this.pvzEngine.cancelCobAim) {
+                    this.pvzEngine.cancelCobAim();
+                }
                 this.handleKeyInput('clear');
             } else if (e.key === 'Enter') {
                 this.submitCurrentAnswer();

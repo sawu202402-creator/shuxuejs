@@ -1,9 +1,9 @@
 /**
  * plants.js - 原版 1:1 植物实体系统与 DOM 60fps 动态 GIF 动画层
  */
-import { GAME_CONFIG } from './config.js?v=20261112_v8';
-import { Projectile, ExplosionEffect, SunEntity, FumeCloud, HitSplat, FloatingText, JalapenoFireLine, StarProjectile, LobbedProjectile } from './projectiles.js?v=20261112_v8';
-import { soundEngine } from './audio.js?v=20261112_v8';
+import { GAME_CONFIG } from './config.js?v=20261112_v9';
+import { Projectile, ExplosionEffect, SunEntity, FumeCloud, HitSplat, FloatingText, JalapenoFireLine, StarProjectile, LobbedProjectile, HomingSpikeProjectile, CobRocketProjectile } from './projectiles.js?v=20261112_v9';
+import { soundEngine } from './audio.js?v=20261112_v9';
 
 export class Plant {
     constructor(type, row, col, x, y, entityLayer = null) {
@@ -122,9 +122,17 @@ export class Plant {
             this.hostLilypad.carriedPlant = null;
             this.hostLilypad = null;
         }
+        if (this.hostSecondaryLilypad) {
+            this.hostSecondaryLilypad.carriedPlant = null;
+            this.hostSecondaryLilypad = null;
+        }
         if (this.hostPot) {
             this.hostPot.carriedPlant = null;
             this.hostPot = null;
+        }
+        if (this.hostSecondaryPot) {
+            this.hostSecondaryPot.carriedPlant = null;
+            this.hostSecondaryPot = null;
         }
         if (this.zzzElement && this.zzzElement.parentNode) {
             this.zzzElement.parentNode.removeChild(this.zzzElement);
@@ -1576,7 +1584,7 @@ class CatapultBasePlant extends Plant {
                 }
                 if (target) {
                     const liftY = (this.hostPot || this.hostLilypad) ? 44 : 30;
-                    const offsetX = this.type === 'melonpult' ? 18 : 14;
+                    const offsetX = (this.type === 'melonpult' || this.type === 'wintermelon') ? 18 : 14;
                     soundEngine.playShoot();
                     engine.projectiles.push(
                         new LobbedProjectile(this.row, this.x + offsetX, this.y - liftY, target, this.pendingType, this.pendingDamage)
@@ -1788,7 +1796,7 @@ export class TwinSunflowerPlant extends Plant {
         this.produceTimer += dt;
         if (this.produceTimer >= this.produceInterval) {
             this.produceTimer = 0;
-            soundEngine.playSunCollect();
+            soundEngine.playSun();
             if (engine.sunLayer) {
                 engine.suns.push(new SunEntity(this.x - 16, this.y - 18, this.y + 18, 25, false, engine.sunLayer, engine));
                 engine.suns.push(new SunEntity(this.x + 18, this.y - 18, this.y + 18, 25, false, engine.sunLayer, engine));
@@ -1894,6 +1902,371 @@ export class SpikerockPlant extends SpikeweedPlant {
     }
 }
 
+// 玉米加农炮 (Cob Cannon：占横向 2 格的终极重装神炮，点击炮身手动瞄准全屏任意位置发射 1800 伤害玉米洲际导弹)
+export class CobCannonPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('cobcannon', row, col, x, y, entityLayer);
+        this.isDoubleWide = true;
+        this.colSpan = 2;
+        this.isLoaded = true;
+        this.reloadTime = this.config.reloadTime || 32.0;
+        this.reloadTimer = 0;
+        this.fireAnimTimer = 0;
+        if (this.domElement) {
+            this.domElement.classList.add('cob-ready');
+        }
+    }
+
+    createDOM(container) {
+        super.createDOM(container);
+        if (this.domElement) {
+            this.domElement.style.width = '156px';
+            this.domElement.style.height = '112px';
+            this.domElement.style.left = `${this.x - 38}px`;
+            this.domElement.style.top = `${this.y - 64}px`;
+            this.domElement.style.zIndex = '16';
+            this.readyBadge = document.createElement('span');
+            this.readyBadge.className = 'cob-ready-badge';
+            this.readyBadge.innerText = '🎯 发射';
+            this.domElement.appendChild(this.readyBadge);
+        }
+    }
+
+    occupiesCell(row, col) {
+        return this.row === row && (col === this.col || col === this.col + 1);
+    }
+
+    fireAt(targetX, targetY, engine) {
+        if (!this.isLoaded || this.isDead) return false;
+        this.isLoaded = false;
+        this.reloadTimer = (engine && engine.isSuperCharge) ? this.reloadTime * 0.65 : this.reloadTime;
+        this.fireAnimTimer = 0.44;
+        this.setAnim(this.config.fireAnim || 'assets/plants/cobcannon_fire.gif');
+        if (this.domElement) {
+            this.domElement.classList.remove('cob-ready', 'cob-aiming');
+        }
+        soundEngine.playBoom();
+        if (engine && engine.projectiles) {
+            engine.projectiles.push(
+                new CobRocketProjectile(this.x + 48, this.y - 36, targetX, targetY, this.config.damage || 1800)
+            );
+        }
+        return true;
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead) return;
+
+        if (this.fireAnimTimer > 0) {
+            this.fireAnimTimer -= dt;
+            if (this.fireAnimTimer <= 0 && !this.isLoaded) {
+                this.setAnim(this.config.emptyAnim || 'assets/plants/cobcannon_empty.gif');
+            }
+        }
+
+        if (!this.isLoaded) {
+            const chargeMult = (engine && engine.isSuperCharge) ? 1.65 : 1.0;
+            this.reloadTimer -= dt * chargeMult;
+            if (this.reloadTimer <= 0) {
+                this.reloadTimer = 0;
+                this.isLoaded = true;
+                this.setAnim(this.config.anim || 'assets/plants/cobcannon.gif');
+                if (this.domElement) {
+                    this.domElement.classList.add('cob-ready');
+                }
+                soundEngine.playPlant();
+                if (engine && engine.floatingTexts) {
+                    engine.floatingTexts.push(new FloatingText(this.x + 40, this.y - 48, '🌽 玉米大炮装填完毕!', '#2ecc71', 18));
+                }
+            }
+        }
+    }
+
+    render(ctx) {
+        super.render(ctx);
+        if (this.isDead || this.isLoaded) return;
+        const barW = 92;
+        const barH = 6;
+        const cx = this.x + 40;
+        const pct = Math.max(0, Math.min(1, 1 - this.reloadTimer / this.reloadTime));
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        ctx.fillRect(cx - barW / 2, this.y + 30, barW, barH);
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillRect(cx - barW / 2, this.y + 30, barW * pct, barH);
+        ctx.strokeStyle = '#3e2723';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cx - barW / 2, this.y + 30, barW, barH);
+        ctx.restore();
+    }
+}
+
+// 冰西瓜 (Winter Melon：80 重击 + 3x3 范围 26 溅射 + 10 秒群体冰减速)
+export class WinterMelonPlant extends CatapultBasePlant {
+    constructor(row, col, x, y, entityLayer) {
+        super('wintermelon', row, col, x, y, entityLayer);
+    }
+
+    chooseShotSpec() {
+        return { pType: 'winter_melon', pDmg: this.config.damage || 80 };
+    }
+}
+
+// 香蒲 / 猫尾草 (Cattail：每次连发 2 枚全屏跨行追踪红刺，优先戳破气球僵尸)
+export class CattailPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('cattail', row, col, x, y, entityLayer);
+        this.attackInterval = this.config.attackInterval || 1.425;
+        this.attackTimer = 0.6;
+        this.secondSpikeTimer = -1;
+        this.animResetTimer = 0;
+    }
+
+    findAnyLawnTarget(engine) {
+        if (!engine || !engine.zombies) return null;
+        const candidates = engine.zombies.filter(z =>
+            !z.isDead && !z.isDying && !z.isHypnotized &&
+            !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+            !(z.type === 'snorkel' && z.isSubmerged) &&
+            !(z.type === 'bungee' && z.bungeeOffsetY < -60) &&
+            z.x >= -10 && z.x <= 920
+        );
+        if (candidates.length === 0) return null;
+        candidates.sort((a, b) => {
+            if (!!a.isFlying !== !!b.isFlying) return a.isFlying ? -1 : 1;
+            return a.x - b.x;
+        });
+        return candidates[0];
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead || this.isAsleep) return;
+
+        if (this.animResetTimer > 0) {
+            this.animResetTimer -= dt;
+            if (this.animResetTimer <= 0) {
+                this.setAnim(this.config.anim);
+            }
+        }
+
+        if (this.secondSpikeTimer >= 0) {
+            this.secondSpikeTimer -= dt;
+            if (this.secondSpikeTimer <= 0) {
+                this.secondSpikeTimer = -1;
+                const t2 = this.findAnyLawnTarget(engine);
+                if (t2) {
+                    soundEngine.playShoot();
+                    engine.projectiles.push(
+                        new HomingSpikeProjectile(this.x + 12, this.y - 34, t2, this.config.damage || 20)
+                    );
+                }
+            }
+        }
+
+        this.attackTimer += dt;
+        const interval = (engine.isSuperCharge || this.isSuperGatling) ? this.attackInterval * 0.55 : this.attackInterval;
+        if (this.attackTimer >= interval) {
+            const target = this.findAnyLawnTarget(engine);
+            if (target) {
+                this.attackTimer = 0;
+                this.secondSpikeTimer = 0.18;
+                if (this.config.attackAnim) {
+                    this.setAnim(this.config.attackAnim);
+                    this.animResetTimer = 0.44;
+                }
+                soundEngine.playShoot();
+                engine.projectiles.push(
+                    new HomingSpikeProjectile(this.x + 12, this.y - 34, target, this.config.damage || 20)
+                );
+            }
+        }
+    }
+}
+
+// 叶子保护伞 (Umbrella Leaf：撑开弹性巨叶，自动弹飞 3x3 范围内的蹦极僵尸与投石车篮球)
+export class UmbrellaLeafPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('umbrellaleaf', row, col, x, y, entityLayer);
+        this.bounceAnimTimer = 0;
+    }
+
+    createDOM(container) {
+        super.createDOM(container);
+        if (this.domElement) {
+            this.domElement.style.width = '92px';
+            this.domElement.style.height = '88px';
+            this.domElement.style.left = `${this.x - 46}px`;
+            this.domElement.style.top = `${this.y - 52}px`;
+        }
+    }
+
+    triggerBounce(engine) {
+        this.bounceAnimTimer = 0.56;
+        if (this.config.blockAnim) {
+            this.setAnim(this.config.blockAnim);
+        }
+        soundEngine.playPlant();
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead) return;
+        if (this.bounceAnimTimer > 0) {
+            this.bounceAnimTimer -= dt;
+            if (this.bounceAnimTimer <= 0) {
+                this.setAnim(this.config.anim);
+            }
+        }
+    }
+}
+
+// 金盏花 (Marigold：定期产出闪亮银币 +15☀️ 与金币 +50☀️)
+export class MarigoldPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('marigold', row, col, x, y, entityLayer);
+        this.produceInterval = this.config.produceInterval || 22.0;
+        this.produceTimer = this.produceInterval - 9.0;
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead || this.isAsleep) return;
+        this.produceTimer += dt;
+        if (this.produceTimer >= this.produceInterval) {
+            this.produceTimer = 0;
+            const isGold = Math.random() < 0.28;
+            const val = isGold ? 50 : 15;
+            const coinType = isGold ? 'gold' : 'silver';
+            soundEngine.playSun();
+            if (engine.sunLayer) {
+                engine.suns.push(
+                    new SunEntity(this.x + (Math.random() - 0.5) * 24, this.y - 18, this.y + 18, val, false, engine.sunLayer, engine, coinType)
+                );
+            } else {
+                engine.sun += val;
+            }
+        }
+    }
+}
+
+// 吸金磁 (Gold Magnet：全自动磁力吸附全屏阳光与金银钱币，一次最多连吸 5 枚)
+export class GoldMagnetPlant extends Plant {
+    constructor(row, col, x, y, entityLayer) {
+        super('goldmagnet', row, col, x, y, entityLayer);
+        this.pullInterval = 3.5;
+        this.pullTimer = 2.0;
+        this.pullAnimTimer = 0;
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead || this.isAsleep) return;
+
+        if (this.pullAnimTimer > 0) {
+            this.pullAnimTimer -= dt;
+            if (this.pullAnimTimer <= 0) {
+                this.setAnim(this.config.anim);
+            }
+        }
+
+        this.pullTimer += dt;
+        if (this.pullTimer >= this.pullInterval) {
+            const uncollected = (engine.suns || []).filter(s => !s.isDead && !s.isCollecting);
+            if (uncollected.length > 0) {
+                this.pullTimer = 0;
+                this.pullAnimTimer = 0.85;
+                if (this.config.pullAnim) {
+                    this.setAnim(this.config.pullAnim);
+                }
+                const batch = uncollected.slice(0, 5);
+                batch.forEach(s => engine.collectSun(s));
+                if (engine.floatingTexts) {
+                    engine.floatingTexts.push(new FloatingText(this.x, this.y - 38, `🧲 自动吸金 x${batch.length}!`, '#f1c40f', 18));
+                }
+            }
+        }
+    }
+}
+
+// 模仿者 (Imitater：0.55 秒黑白旋转默剧变身动画后，化为所复制的目标植物银灰分身)
+export class ImitaterPlant extends Plant {
+    constructor(row, col, x, y, entityLayer, copiedType = 'wallnut') {
+        super('imitater', row, col, x, y, entityLayer);
+        this.copiedType = (copiedType && copiedType !== 'imitater' && GAME_CONFIG.plants[copiedType])
+            ? copiedType
+            : 'wallnut';
+        this.morphTimer = 0.55;
+        if (this.config.spinAnim) {
+            this.setAnim(this.config.spinAnim);
+        }
+    }
+
+    update(dt, engine) {
+        super.update(dt, engine);
+        if (this.isDead) return;
+        this.morphTimer -= dt;
+        if (this.morphTimer <= 0 && engine) {
+            const lily1 = this.hostLilypad;
+            const lily2 = this.hostSecondaryLilypad;
+            const pot1 = this.hostPot;
+            const pot2 = this.hostSecondaryPot;
+            const shell = this.pumpkin;
+
+            this.hostLilypad = null;
+            this.hostSecondaryLilypad = null;
+            this.hostPot = null;
+            this.hostSecondaryPot = null;
+            this.pumpkin = null;
+
+            const clone = createPlant(this.copiedType, this.row, this.col, this.x, this.y, engine.entityLayer, engine.isNight);
+            clone.isImitaterClone = true;
+            if (clone.domElement) {
+                clone.domElement.classList.add('imitater-clone');
+            }
+            if (lily1) {
+                lily1.carriedPlant = clone;
+                clone.hostLilypad = lily1;
+                if (clone.domElement) {
+                    clone.domElement.classList.add('planted-on-lilypad');
+                    clone.domElement.style.zIndex = clone.isDoubleWide ? '16' : '15';
+                }
+            }
+            if (lily2) {
+                lily2.carriedPlant = clone;
+                clone.hostSecondaryLilypad = lily2;
+            }
+            if (pot1) {
+                pot1.carriedPlant = clone;
+                clone.hostPot = pot1;
+                if (clone.domElement) {
+                    clone.domElement.classList.add('planted-on-pot');
+                    clone.domElement.style.zIndex = clone.isDoubleWide ? '16' : '15';
+                }
+            }
+            if (pot2) {
+                pot2.carriedPlant = clone;
+                clone.hostSecondaryPot = pot2;
+            }
+            if (shell && !shell.isDead) {
+                shell.protectedPlant = clone;
+                clone.pumpkin = shell;
+            }
+
+            engine.plants.push(clone);
+            if (engine.hitSplats) {
+                engine.hitSplats.push(new HitSplat(this.x, this.y, 'shroom'));
+            }
+            if (engine.floatingTexts) {
+                engine.floatingTexts.push(new FloatingText(this.x, this.y - 36, `🎭 模仿变身：${clone.config.name}!`, '#dfe6e9', 18));
+            }
+            soundEngine.playPlant();
+            this.destroy();
+        }
+    }
+}
+
 // 植物工厂函数
 export function createPlant(type, row, col, x, y, entityLayer, isNight = false, targetPlant = null) {
     if (type === 'coffeebean') {
@@ -1943,6 +2316,13 @@ export function createPlant(type, row, col, x, y, entityLayer, isNight = false, 
         case 'kernelpult': p = new KernelPultPlant(row, col, x, y, entityLayer); break;
         case 'garlic': p = new GarlicPlant(row, col, x, y, entityLayer); break;
         case 'melonpult': p = new MelonPultPlant(row, col, x, y, entityLayer); break;
+        case 'cobcannon': p = new CobCannonPlant(row, col, x, y, entityLayer); break;
+        case 'wintermelon': p = new WinterMelonPlant(row, col, x, y, entityLayer); break;
+        case 'cattail': p = new CattailPlant(row, col, x, y, entityLayer); break;
+        case 'umbrellaleaf': p = new UmbrellaLeafPlant(row, col, x, y, entityLayer); break;
+        case 'marigold': p = new MarigoldPlant(row, col, x, y, entityLayer); break;
+        case 'goldmagnet': p = new GoldMagnetPlant(row, col, x, y, entityLayer); break;
+        case 'imitater': p = new ImitaterPlant(row, col, x, y, entityLayer, typeof targetPlant === 'string' ? targetPlant : 'wallnut'); break;
         default: p = new PeashooterPlant(row, col, x, y, entityLayer); break;
     }
 

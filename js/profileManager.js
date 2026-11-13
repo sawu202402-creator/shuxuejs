@@ -1,7 +1,7 @@
 /**
  * profileManager.js - 小朋友多档案、自适应难度与错题本持久化存储系统 (完全对标 shuxue)
  */
-import { AVATAR_LIST } from './config.js?v=20261112_v8';
+import { AVATAR_LIST } from './config.js?v=20261112_v9';
 
 const STORAGE_KEY = 'pvz_math_user_profiles_v2';
 
